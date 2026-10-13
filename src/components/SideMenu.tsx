@@ -327,11 +327,8 @@ export default function SideMenu({
           {/* HEADER DE PERFIL */}
           <View style={styles.profileSection}>
             <TouchableOpacity onPress={() => setShowPerfilUsuario(true)}>
-              {user?.foto_thumbnail || user?.foto ? (
-                <Image
-                  source={{ uri: user.foto_thumbnail || user.foto }}
-                  style={styles.avatar}
-                />
+              {user?.foto ? (
+                <Image source={{ uri: user.foto }} style={styles.avatar} />
               ) : (
                 <View style={[styles.avatar, styles.avatarVazio]}>
                   <Ionicons name="person" size={36} color="#777" />

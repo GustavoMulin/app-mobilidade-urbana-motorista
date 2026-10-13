@@ -18,10 +18,12 @@ export interface CorridaHistoricoApi {
   valor_negociado_final?: string | number | null;
   produto?: { nome?: string | null } | null;
   motorista?: {
-    user?: { name?: string | null; foto?: string | null } | null;
+    foto?: string | null;
+    user?: { name?: string | null } | null;
   } | null;
   passageiro?: {
-    user?: { name?: string | null; foto?: string | null } | null;
+    foto?: string | null;
+    user?: { name?: string | null } | null;
   } | null;
   veiculo?: {
     modelo?: string | null;
@@ -159,10 +161,9 @@ export function paraItemHistorico(
     financeiro?.valor_motorista ??
     corrida.valor_negociado_final ??
     corrida.valor_estimado_inicial;
-  const contraparte =
-    perspectiva === "motorista"
-      ? corrida.passageiro?.user
-      : corrida.motorista?.user;
+  const perfilContraparte =
+    perspectiva === "motorista" ? corrida.passageiro : corrida.motorista;
+  const contraparte = perfilContraparte?.user;
   const ponto = (tipo: string) => {
     const endereco = [...(corrida.corrida_destinos ?? [])]
       .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
@@ -221,7 +222,7 @@ export function paraItemHistorico(
     status: ROTULOS_STATUS[corrida.status_corrida] ?? corrida.status_corrida,
     statusCode: corrida.status_corrida,
     counterpartName: contraparte?.name ?? "Não definido",
-    counterpartPhoto: contraparte?.foto ?? null,
+    counterpartPhoto: perfilContraparte?.foto ?? null,
     vehicle: veiculo || "Não definido",
     distance: formatarDistancia(corrida.distancia_total),
     duration: formatarDuracao(corrida.tempo_inicio, corrida.tempo_final),

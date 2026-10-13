@@ -27,7 +27,6 @@ interface Usuario {
   cpf: string | null;
   data_nascimento: string;
   foto: string;
-  foto_thumbnail: string;
   perfil: "motorista";
   status?: string | null;
 }
@@ -51,7 +50,6 @@ const PERFIL_DESTE_APP = "motorista";
 
 interface AtualizarFotoPayload {
   foto: string;
-  foto_thumbnail: string;
 }
 
 interface AuthContextType {
@@ -318,16 +316,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // ATUALIZAR FOTO USUÁRIO
   // =========================
 
-  const atualizarFotoUsuario = async ({
-    foto,
-    foto_thumbnail,
-  }: AtualizarFotoPayload) => {
+  const atualizarFotoUsuario = async ({ foto }: AtualizarFotoPayload) => {
     if (!user) return;
 
     const usuarioAtualizado = {
       ...user,
       foto,
-      foto_thumbnail,
     };
 
     setUser(usuarioAtualizado);
