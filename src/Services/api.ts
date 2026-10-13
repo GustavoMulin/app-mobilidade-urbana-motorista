@@ -1,7 +1,8 @@
 import axios, { create } from "axios";
 import * as SecureStore from "expo-secure-store";
+import { urlDeDesenvolvimento } from "@/Services/hostDev";
 
-const baseURL = process.env.EXPO_PUBLIC_API_URL?.trim();
+const baseURL = urlDeDesenvolvimento(process.env.EXPO_PUBLIC_API_URL?.trim());
 
 if (!baseURL) {
   throw new Error("EXPO_PUBLIC_API_URL não foi configurada.");
@@ -17,6 +18,7 @@ export const api = create({
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
+    "X-Perfil": "motorista",
   },
 });
 
@@ -64,6 +66,15 @@ export const ehErroDeRede = (error: unknown) =>
   "isAxiosError" in (error as object) &&
   !(error as { response?: unknown }).response;
 
+export const mensagemDaApi = (error: unknown, padrao: string): string => {
+  const mensagem = (error as { response?: { data?: { message?: unknown } } })
+    ?.response?.data?.message;
+
+  return typeof mensagem === "string" && mensagem.trim() !== ""
+    ? mensagem
+    : padrao;
+};
+
 let renovacaoEmAndamento: Promise<string | null> | null = null;
 
 const renovarToken = (): Promise<string | null> => {
@@ -81,6 +92,7 @@ const renovarToken = (): Promise<string | null> => {
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${token}`,
+            "X-Perfil": "motorista",
           },
         },
       );

@@ -212,22 +212,24 @@ export default function HistoricoCorridasDetalhes({
             </View>
           </View>
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {E_MOTORISTA ? "Passageiro" : "Motorista"}
-            </Text>
-            <View style={styles.personRow}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={22} color="#777" />
-              </View>
-              <View style={styles.personData}>
-                <Text style={styles.personName}>{item.counterpartName}</Text>
-                {!E_MOTORISTA ? (
-                  <Text style={styles.vehicleText}>{item.vehicle}</Text>
-                ) : null}
+          {item.counterpartName !== "Não definido" ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                {E_MOTORISTA ? "Passageiro" : "Motorista"}
+              </Text>
+              <View style={styles.personRow}>
+                <View style={styles.avatar}>
+                  <Ionicons name="person" size={22} color="#777" />
+                </View>
+                <View style={styles.personData}>
+                  <Text style={styles.personName}>{item.counterpartName}</Text>
+                  {!E_MOTORISTA ? (
+                    <Text style={styles.vehicleText}>{item.vehicle}</Text>
+                  ) : null}
+                </View>
               </View>
             </View>
-          </View>
+          ) : null}
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Valores registrados</Text>

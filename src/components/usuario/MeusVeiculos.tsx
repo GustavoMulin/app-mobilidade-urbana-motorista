@@ -1,7 +1,7 @@
 // CODEX: 0 linhas alteradas; adapta cadastro de veículos a teclado, largura e rotação. Remover após validação ou commit.
 import { api } from "@/Services/api";
 import { Text, TextInput } from "@/components/common/Texto";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -33,7 +33,12 @@ interface Veiculo {
   cor: string;
   placa: string;
   renavam: string;
-  categoria: "carro" | "moto" | "bicicleta";
+  categoria: "carro" | "moto";
+  // aprovados pela gestão; os "_solicitado" são o pedido em análise
+  eletrico?: boolean;
+  taxi?: boolean;
+  eletrico_solicitado?: boolean;
+  taxi_solicitado?: boolean;
   status: string;
   uf: string;
 }
@@ -47,6 +52,8 @@ interface FormularioVeiculo {
   placa: string;
   renavam: string;
   categoria: Veiculo["categoria"];
+  eletrico: boolean;
+  taxi: boolean;
   uf: string;
 }
 
@@ -60,18 +67,34 @@ const FORMULARIO_INICIAL: FormularioVeiculo = {
   placa: "",
   renavam: "",
   categoria: "carro",
+  eletrico: false,
+  taxi: false,
   uf: "RO",
 };
 
 const rotuloCategoria: Record<Veiculo["categoria"], string> = {
   carro: "Carro",
   moto: "Moto",
-  bicicleta: "Bicicleta",
 };
+
+// categorias de corrida que o veículo recebe: Elétrico (só carro) e Táxi
+// valem depois que a gestão aprova o pedido
+const rotuloDoVeiculo = (veiculo: Veiculo) =>
+  [
+    rotuloCategoria[veiculo.categoria] ?? veiculo.categoria,
+    veiculo.eletrico
+      ? "Elétrico"
+      : veiculo.eletrico_solicitado
+        ? "Elétrico em análise"
+        : null,
+    veiculo.taxi ? "Táxi" : veiculo.taxi_solicitado ? "Táxi em análise" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
 const mensagemDoErro = (erro: unknown) => {
   if (!erro || typeof erro !== "object" || !("response" in erro)) {
-    return "Não foi possível conectar à API. Tente novamente.";
+    return "Não foi possível carregar seus veículos. Verifique sua conexão e tente novamente.";
   }
 
   const resposta = (
@@ -92,6 +115,24 @@ const mensagemDoErro = (erro: unknown) => {
   );
 };
 
+type ErrosDosCampos = Partial<Record<keyof FormularioVeiculo, string>>;
+
+// o servidor manda todos os campos com problema de uma vez: cada mensagem
+// aparece embaixo do seu campo (antes só a primeira, lá no fim do formulário)
+const errosDosCampos = (erro: unknown): ErrosDosCampos => {
+  const errors = (
+    erro as {
+      response?: { data?: { errors?: Record<string, string[]> } };
+    } | null
+  )?.response?.data?.errors;
+
+  if (!errors) return {};
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([campo, mensagens]) => [campo, mensagens[0]]),
+  ) as ErrosDosCampos;
+};
+
 const gerarDadosDeDesenvolvimento = (): FormularioVeiculo => {
   const instante = Date.now();
   const digito = instante % 10;
@@ -107,6 +148,8 @@ const gerarDadosDeDesenvolvimento = (): FormularioVeiculo => {
     placa: `DEV${digito}${letra}${finalPlaca}`,
     renavam: String(instante).slice(-11).padStart(11, "0"),
     categoria: "carro",
+    eletrico: false,
+    taxi: false,
     uf: "RO",
   };
 };
@@ -128,22 +171,38 @@ export default function MeusVeiculos({
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [erros, setErros] = useState<ErrosDosCampos>({});
   const [sucesso, setSucesso] = useState<string | null>(null);
 
   const carregarVeiculos = useCallback(async () => {
     setCarregando(true);
     setErro(null);
     setSucesso(null);
-    try {
-      const { data } = await api.get<{ data: Veiculo[] }>(
-        "/motorista/me/veiculos",
-      );
-      setVeiculos(data.data ?? []);
-    } catch (falha) {
-      setErro(mensagemDoErro(falha));
-    } finally {
-      setCarregando(false);
+
+    // a primeira leitura logo depois de abrir o app às vezes falha sem
+    // resposta: tenta mais uma vez antes de mostrar o erro
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      try {
+        const { data } = await api.get<{ data: Veiculo[] }>(
+          "/motorista/me/veiculos",
+        );
+        setVeiculos(data.data ?? []);
+        setCarregando(false);
+        return;
+      } catch (falha) {
+        const semResposta =
+          (falha as { response?: unknown } | null)?.response === undefined;
+
+        if (tentativa === 0 && semResposta) {
+          await new Promise((resolver) => setTimeout(resolver, 800));
+          continue;
+        }
+
+        setErro(mensagemDoErro(falha));
+      }
     }
+
+    setCarregando(false);
   }, []);
 
   useEffect(() => {
@@ -207,6 +266,7 @@ export default function MeusVeiculos({
   const enviar = async (dados: FormularioVeiculo) => {
     setSalvando(true);
     setErro(null);
+    setErros({});
     setSucesso(null);
     try {
       const { data } = await api.post<{ data: Veiculo; message: string }>(
@@ -222,7 +282,13 @@ export default function MeusVeiculos({
       setMostrandoFormulario(false);
       setSucesso(data.message ?? "Veículo adicionado com sucesso.");
     } catch (falha) {
-      setErro(mensagemDoErro(falha));
+      const porCampo = errosDosCampos(falha);
+      setErros(porCampo);
+      setErro(
+        Object.keys(porCampo).length > 0
+          ? "Confira os campos em vermelho."
+          : mensagemDoErro(falha),
+      );
     } finally {
       setSalvando(false);
     }
@@ -230,8 +296,20 @@ export default function MeusVeiculos({
 
   if (!isMounted) return null;
 
-  const atualizar = (campo: keyof FormularioVeiculo, valor: string) => {
-    setFormulario((atual) => ({ ...atual, [campo]: valor }));
+  const atualizar = <Campo extends keyof FormularioVeiculo>(
+    campo: Campo,
+    valor: FormularioVeiculo[Campo],
+  ) => {
+    setFormulario((atual) => ({
+      ...atual,
+      [campo]: valor,
+      // não existe moto elétrica
+      ...(campo === "categoria" && valor === "moto" ? { eletrico: false } : {}),
+    }));
+    // corrigiu o campo: a mensagem dele sai
+    setErros((atuais) =>
+      atuais[campo] ? { ...atuais, [campo]: undefined } : atuais,
+    );
   };
 
   return (
@@ -271,6 +349,7 @@ export default function MeusVeiculos({
           <Formulario
             dados={formulario}
             erro={erro}
+            erros={erros}
             salvando={salvando}
             insetsBottom={insets.bottom}
             onAtualizar={atualizar}
@@ -374,21 +453,15 @@ function CartaoVeiculo({
     <View style={styles.card}>
       <View style={styles.cardTopo}>
         <View style={styles.badge}>
-          <Text style={styles.badgeTexto}>
-            {rotuloCategoria[veiculo.categoria]}
-          </Text>
+          <Text style={styles.badgeTexto}>{rotuloDoVeiculo(veiculo)}</Text>
         </View>
         <Text style={styles.status}>{veiculo.status}</Text>
       </View>
       <View style={styles.cardLinha}>
         <View style={styles.iconeVeiculo}>
-          <Ionicons
-            name={
-              veiculo.categoria === "moto"
-                ? "bicycle-outline"
-                : "car-sport-outline"
-            }
-            size={30}
+          <MaterialCommunityIcons
+            name={veiculo.categoria === "moto" ? "motorbike" : "car-side"}
+            size={32}
             color="#222"
           />
         </View>
@@ -414,9 +487,41 @@ function CartaoVeiculo({
   );
 }
 
+function Marcacao({
+  titulo,
+  apoio,
+  marcado,
+  onAlternar,
+}: {
+  titulo: string;
+  apoio: string;
+  marcado: boolean;
+  onAlternar: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={styles.marcacao}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: marcado }}
+      onPress={onAlternar}
+    >
+      <Ionicons
+        name={marcado ? "checkbox" : "square-outline"}
+        size={24}
+        color={marcado ? "#111" : "#9CA3AF"}
+      />
+      <View style={styles.marcacaoTextos}>
+        <Text style={styles.marcacaoTitulo}>{titulo}</Text>
+        <Text style={styles.marcacaoApoio}>{apoio}</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
 function Formulario({
   dados,
   erro,
+  erros,
   salvando,
   insetsBottom,
   onAtualizar,
@@ -424,9 +529,13 @@ function Formulario({
 }: {
   dados: FormularioVeiculo;
   erro: string | null;
+  erros: ErrosDosCampos;
   salvando: boolean;
   insetsBottom: number;
-  onAtualizar: (campo: keyof FormularioVeiculo, valor: string) => void;
+  onAtualizar: <Campo extends keyof FormularioVeiculo>(
+    campo: Campo,
+    valor: FormularioVeiculo[Campo],
+  ) => void;
   onSalvar: () => void;
 }) {
   return (
@@ -444,7 +553,7 @@ function Formulario({
       >
         <Text style={styles.secaoTitulo}>Tipo de veículo</Text>
         <View style={styles.categorias}>
-          {(["carro", "moto", "bicicleta"] as const).map((categoria) => (
+          {(["carro", "moto"] as const).map((categoria) => (
             <TouchableOpacity
               key={categoria}
               style={[
@@ -466,12 +575,14 @@ function Formulario({
         </View>
         <Campo
           rotulo="Marca"
+          erro={erros.marca}
           valor={dados.marca}
           onChange={(v) => onAtualizar("marca", v)}
           placeholder="Ex.: Chevrolet"
         />
         <Campo
           rotulo="Modelo"
+          erro={erros.modelo}
           valor={dados.modelo}
           onChange={(v) => onAtualizar("modelo", v)}
           placeholder="Ex.: Onix"
@@ -479,6 +590,7 @@ function Formulario({
         <View style={styles.camposLinha}>
           <Campo
             rotulo="Ano fabricação"
+          erro={erros.ano_fabricacao}
             valor={dados.ano_fabricacao}
             onChange={(v) =>
               onAtualizar("ano_fabricacao", v.replace(/\D/g, "").slice(0, 4))
@@ -488,6 +600,7 @@ function Formulario({
           />
           <Campo
             rotulo="Ano modelo"
+          erro={erros.ano_modelo}
             valor={dados.ano_modelo}
             onChange={(v) =>
               onAtualizar("ano_modelo", v.replace(/\D/g, "").slice(0, 4))
@@ -498,6 +611,7 @@ function Formulario({
         </View>
         <Campo
           rotulo="Cor"
+          erro={erros.cor}
           valor={dados.cor}
           onChange={(v) => onAtualizar("cor", v)}
           placeholder="Ex.: Branco"
@@ -505,6 +619,7 @@ function Formulario({
         <View style={styles.camposLinha}>
           <Campo
             rotulo="Placa"
+          erro={erros.placa}
             valor={dados.placa}
             onChange={(v) =>
               onAtualizar(
@@ -521,6 +636,7 @@ function Formulario({
           />
           <Campo
             rotulo="UF"
+          erro={erros.uf}
             valor={dados.uf}
             onChange={(v) =>
               onAtualizar(
@@ -538,12 +654,32 @@ function Formulario({
         </View>
         <Campo
           rotulo="RENAVAM"
+          erro={erros.renavam}
           valor={dados.renavam}
           onChange={(v) =>
             onAtualizar("renavam", v.replace(/\D/g, "").slice(0, 11))
           }
           placeholder="11 números"
           teclado="number-pad"
+        />
+        <Text style={styles.secaoTitulo}>Categorias especiais (opcional)</Text>
+        {dados.categoria === "carro" ? (
+          <Marcacao
+            titulo="Pedir a categoria Elétrico"
+            apoio="A gestão confere o carro antes de liberar as corridas Elétrico."
+            marcado={dados.eletrico}
+            onAlternar={() => onAtualizar("eletrico", !dados.eletrico)}
+          />
+        ) : null}
+        <Marcacao
+          titulo="Pedir a categoria Táxi"
+          apoio={
+            dados.categoria === "moto"
+              ? "Para moto táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
+              : "Para táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
+          }
+          marcado={dados.taxi}
+          onAlternar={() => onAtualizar("taxi", !dados.taxi)}
         />
         {erro ? <Text style={styles.erro}>{erro}</Text> : null}
         <TouchableOpacity
@@ -564,6 +700,7 @@ function Formulario({
 
 function Campo({
   rotulo,
+  erro,
   valor,
   onChange,
   placeholder,
@@ -572,6 +709,7 @@ function Campo({
   largura = false,
 }: {
   rotulo: string;
+  erro?: string;
   valor: string;
   onChange: (valor: string) => void;
   placeholder?: string;
@@ -583,14 +721,16 @@ function Campo({
     <View style={[styles.campo, largura && styles.campoMetade]}>
       <Text style={styles.campoRotulo}>{rotulo}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, erro && styles.inputComErro]}
         value={valor}
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor="#999"
         keyboardType={teclado}
         autoCapitalize={autoCapitalize}
+        accessibilityLabel={erro ? `${rotulo}: ${erro}` : rotulo}
       />
+      {erro ? <Text style={styles.campoErro}>{erro}</Text> : null}
     </View>
   );
 }
@@ -763,10 +903,21 @@ const styles = StyleSheet.create({
   categoriaAtiva: { backgroundColor: "#FFF4B2", borderColor: "#D9B500" },
   categoriaTexto: { color: "#666", fontWeight: "600" },
   categoriaTextoAtivo: { color: "#111", fontWeight: "800" },
+  marcacao: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 48,
+  },
+  marcacaoTextos: { flex: 1 },
+  marcacaoTitulo: { fontSize: 15, fontWeight: "700", color: "#222" },
+  marcacaoApoio: { fontSize: 12, color: "#666", marginTop: 2 },
   camposLinha: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   campo: { gap: 6 },
   campoMetade: { flexGrow: 1, flexBasis: 140, minWidth: 0 },
   campoRotulo: { fontSize: 13, color: "#444", fontWeight: "600" },
+  inputComErro: { borderColor: "#D92D20", backgroundColor: "#FFFBFA" },
+  campoErro: { fontSize: 12, color: "#B42318" },
   input: {
     minHeight: 48,
     paddingVertical: 10,

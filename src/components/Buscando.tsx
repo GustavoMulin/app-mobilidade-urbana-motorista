@@ -19,7 +19,8 @@ import {
  * <Buscando />
  */
 
-const WORDS = ["Buscando", "Você está online", "Preços dinâmicos"];
+// "Preços dinâmicos" saiu: o app não tem preço dinâmico
+const WORDS = ["Buscando", "Você está online"];
 const FADE_DURATION = 400; // ms para fade in/out
 const WORD_DISPLAY_DELAY = 5000; // tempo total antes de trocar (inclui fades)
 const LINE_TRAVEL_DURATION = 700; // duração do movimento completo da linha (ida ou volta)

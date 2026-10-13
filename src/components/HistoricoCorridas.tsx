@@ -145,7 +145,15 @@ export default function HistoricoCorridas({
             <Text style={styles.typeText}>{item.type}</Text>
           </View>
           <View style={styles.valueContainer}>
-            <Text style={styles.valueText}>{item.value}</Text>
+            {/* cancelada sem taxa: o motorista não ganhou esse valor */}
+            <Text
+              style={[
+                styles.valueText,
+                item.isCancelled && !item.isNoShow && styles.valorCancelado,
+              ]}
+            >
+              {item.value}
+            </Text>
             <Ionicons name="chevron-forward" size={18} color="#aaa" />
           </View>
         </View>
@@ -419,6 +427,11 @@ const styles = StyleSheet.create({
   },
   destinationText: {
     marginTop: 12,
+  },
+  valorCancelado: {
+    color: "#9CA3AF",
+    fontWeight: "600",
+    textDecorationLine: "line-through",
   },
   statusRow: {
     flexDirection: "row",

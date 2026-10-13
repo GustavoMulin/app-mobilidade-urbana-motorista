@@ -45,11 +45,6 @@ export default function EscolherVeiculo({
       label: "Moto",
       imagem: "https://cdn-icons-png.flaticon.com/512/1986/1986937.png",
     },
-    {
-      id: "bicicleta",
-      label: "Bicicleta",
-      imagem: "https://cdn-icons-png.flaticon.com/512/2972/2972185.png",
-    },
   ];
 
   useEffect(() => {

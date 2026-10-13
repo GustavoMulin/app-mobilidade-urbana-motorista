@@ -1,3 +1,4 @@
+import { enderecoCurto } from "@/domain/endereco";
 import { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -46,8 +47,12 @@ export default function AvaliarPassageiro({
   const [comentario, setComentario] = useState("");
 
   const ganho = formatarValor(corrida.corrida_financeiro?.valor_motorista);
+  const cobrarEmDinheiro = formatarValor(
+    corrida.corrida_financeiro?.valor_pago_passageiro,
+  );
   const distancia = formatarKm(corrida.distancia_total);
-  const passageiro = corrida.passageiro?.user?.name;
+  const passageiro =
+    corrida.convidado_nome || corrida.passageiro?.user?.name;
 
   const destino = corrida.corrida_destinos?.find(
     (ponto) => ponto.tipo === "destino",
@@ -62,9 +67,22 @@ export default function AvaliarPassageiro({
         {ganho !== null && (
           <>
             <Text style={styles.ganho}>{ganho}</Text>
-            <Text style={styles.ganhoApoio}>o seu ganho nesta corrida</Text>
+            <Text style={styles.ganhoApoio}>Seu ganho nesta corrida</Text>
           </>
         )}
+
+        {/* no dinheiro o passageiro paga ao motorista o valor cheio (com a
+            taxa da plataforma): sem isso o motorista cobrava só o ganho */}
+        {corrida.metodo_pagamento === "dinheiro" && cobrarEmDinheiro ? (
+          <View style={styles.cobrar}>
+            <Ionicons name="cash-outline" size={22} color="#0F7B4E" />
+            <Text style={styles.cobrarTexto}>
+              Receba{" "}
+              <Text style={styles.cobrarValor}>{cobrarEmDinheiro}</Text> em
+              dinheiro do passageiro
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.detalhes}>
           {distancia !== null && (
@@ -73,7 +91,7 @@ export default function AvaliarPassageiro({
 
           {destino && (
             <Text style={styles.linha} numberOfLines={1}>
-              Até {destino.endereco}
+              Até {enderecoCurto(destino.endereco)}
             </Text>
           )}
         </View>
@@ -159,6 +177,17 @@ const styles = StyleSheet.create({
     color: "#111",
     marginTop: 8,
   },
+  cobrar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#E8F8F1",
+  },
+  cobrarTexto: { flex: 1, fontSize: 15, color: "#0F5132" },
+  cobrarValor: { fontWeight: "800" },
   ganhoApoio: {
     fontSize: 13,
     color: "#777",

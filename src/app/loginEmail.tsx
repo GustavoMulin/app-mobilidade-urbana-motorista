@@ -4,7 +4,7 @@ import ErrorBanner from "@/components/common/ErrorBanner";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
-import { ehErroDeRede } from "@/Services/api";
+import { ehErroDeRede, mensagemDaApi } from "@/Services/api";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -92,7 +92,7 @@ export default function LoginEmail() {
       setErroLogin(
         ehErroDeRede(error)
           ? "Não foi possível conectar. Verifique sua internet."
-          : "E-mail ou senha inválidos",
+          : mensagemDaApi(error, "E-mail ou senha inválidos."),
       );
     }
   };

@@ -11,8 +11,13 @@ export interface CorridaParaAvaliar {
   id: number;
   codigo_corrida: string;
   distancia_total?: string | number | null;
+  convidado_nome?: string | null;
   passageiro?: { user?: { name?: string | null } | null } | null;
-  corrida_financeiro?: { valor_motorista?: string | number | null } | null;
+  metodo_pagamento?: string | null;
+  corrida_financeiro?: {
+    valor_motorista?: string | number | null;
+    valor_pago_passageiro?: string | number | null;
+  } | null;
   corrida_destinos?: { tipo: string; endereco: string }[] | null;
 }
 

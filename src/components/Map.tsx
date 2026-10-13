@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Location from "expo-location";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import MarcadorMinhaLocalizacao from "@/components/MarcadorMinhaLocalizacao";
 import {
   classificarFalhaLocalizacao,
   comTempoLimite,
@@ -374,16 +375,7 @@ export default function Map({
         onMapLoaded={mapaCarregado}
       >
         {userLocation && (
-          <Marker
-            coordinate={userLocation}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-            zIndex={20}
-          >
-            <View style={styles.marcadorMinhaLocalizacao}>
-              <View style={styles.marcadorMinhaLocalizacaoCentro} />
-            </View>
-          </Marker>
+          <MarcadorMinhaLocalizacao coordenada={userLocation} />
         )}
 
         {rota.length > 1 && (
@@ -549,23 +541,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
-  },
-  marcadorMinhaLocalizacao: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(47, 107, 255, 0.18)",
-    borderWidth: 1,
-    borderColor: "rgba(47, 107, 255, 0.35)",
-  },
-  marcadorMinhaLocalizacaoCentro: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "#2F6BFF",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
   },
 });

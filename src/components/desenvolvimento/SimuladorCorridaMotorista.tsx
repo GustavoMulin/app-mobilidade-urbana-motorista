@@ -54,10 +54,10 @@ export default function SimuladorCorridaMotorista({
       <TouchableOpacity
         accessibilityRole="button"
         accessibilityLabel="Abrir simulador de corrida do motorista"
-        style={[styles.atalho, { top: insets.top + 68 }]}
+        style={styles.atalho}
         onPress={() => setAberto(true)}
       >
-        <Ionicons name="flask-outline" size={21} color="#FFFFFF" />
+        <Ionicons name="flask-outline" size={18} color="#FFFFFF" />
       </TouchableOpacity>
 
       <Modal
@@ -182,16 +182,20 @@ export default function SimuladorCorridaMotorista({
 }
 
 const styles = StyleSheet.create({
+  // aba na borda esquerda, no meio da tela: no canto de cima cobria botões
+  // de várias telas (a escolha de veículo, o "Ir" da navegação...)
   atalho: {
     position: "absolute",
-    right: 16,
+    left: 0,
+    top: "46%",
     zIndex: 12000,
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: 30,
+    height: 44,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#334155",
+    backgroundColor: "rgba(51, 65, 85, 0.75)",
     elevation: 12000,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 3 },

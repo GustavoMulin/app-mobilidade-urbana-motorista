@@ -6,43 +6,40 @@ import {
   Animated,
   BackHandler,
   Dimensions,
-  FlatList,
-  ListRenderItem,
   Pressable,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import ConfigurarSolicitacoes from "./ConfigurarSolicitacoes";
-import DefinirDestino from "./DefinirDestino";
-import MetodosPagamento from "./MetodosPagamento";
-import PreferenciasNavegacao from "./PreferenciasNavegacao";
-import PreferenciasSomVoz from "./PreferenciasSomVoz";
 
 const { width } = Dimensions.get("window");
 
-interface AddressItem {
-  id: string;
-  address: string;
-  cityState: string;
-  icon: string;
-  iconColor: string;
-}
-
-const data: AddressItem[] = [
+// nenhuma destas preferências é salva ainda: aparecem como "Em breve" (as
+// telas antigas mostravam endereços e opções de exemplo que não valiam nada)
+const ITENS_EM_BREVE: {
+  icone: keyof typeof Ionicons.glyphMap;
+  titulo: string;
+  apoio: string;
+}[] = [
   {
-    id: "1",
-    address: "Av. Paulista, 1000",
-    cityState: "São Paulo, SP",
-    icon: "home-outline",
-    iconColor: "orange",
+    icone: "navigate-circle-outline",
+    titulo: "Definir meu destino",
+    apoio: "Receber corridas no caminho para onde você vai",
   },
   {
-    id: "2",
-    address: "Rua das Flores, 45",
-    cityState: "Curitiba, PR",
-    icon: "time-outline",
-    iconColor: "#888",
+    icone: "cash-outline",
+    titulo: "Métodos de pagamento",
+    apoio: "Escolher as formas de pagamento que você aceita",
+  },
+  {
+    icone: "navigate-outline",
+    titulo: "Navegação",
+    apoio: "Abrir a rota no Waze ou no Google Maps",
+  },
+  {
+    icone: "notifications-circle-outline",
+    titulo: "Som e voz",
+    apoio: "Avisos falados e vibração",
   },
 ];
 
@@ -65,33 +62,6 @@ export default function Preferencias({
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
-  const [dialogDefinirDestinoVisible, setDialogDefinirDestinoVisible] =
-    useState(false);
-  const [configurarSolicitacoesVisible, setConfigurarSolicitacoesVisible] =
-    useState(false);
-  const [metodosPagamentoVisible, setMetodosPagamentoVisible] = useState(false);
-  const [preferenciasNavegacao, setPreferenciasNavegacao] = useState(false);
-  const [preferenciasSomVoz, setPreferenciasSomVoz] = useState(false);
-
-  const mostrarDedifnirDestino = () => {
-    setDialogDefinirDestinoVisible(true);
-  };
-
-  const mostrarConfigurarSolicitacoes = () => {
-    setConfigurarSolicitacoesVisible(true);
-  };
-
-  const mostrarMetodosPagamento = () => {
-    setMetodosPagamentoVisible(true);
-  };
-
-  const mostrarPreferenciasNavegacao = () => {
-    setPreferenciasNavegacao(true);
-  };
-
-  const mostrarPreferenciasSomVoz = () => {
-    setPreferenciasSomVoz(true);
-  };
 
   useEffect(() => {
     const onBackPress = () => {
@@ -148,119 +118,8 @@ export default function Preferencias({
     onClose(); // fecha o drawer logo em seguida
   };
 
-  const renderItem: ListRenderItem<AddressItem> = ({ item, index }) => (
-    <TouchableOpacity style={[styles.addressItem]}>
-      <Ionicons
-        name={item.icon as any}
-        size={24}
-        color={item.iconColor}
-        style={styles.addressIcon}
-      />
-      <View
-        style={[
-          styles.addressContent,
-          index !== data.length - 1 && styles.addressContentSeparator,
-        ]}
-      >
-        <Text style={styles.addressLine1}>{item.address}</Text>
-        <Text style={styles.addressLine2}>{item.cityState}</Text>
-      </View>
-    </TouchableOpacity>
-  );
-
   return (
     <>
-      {dialogDefinirDestinoVisible && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-          }}
-        >
-          <DefinirDestino
-            visible={dialogDefinirDestinoVisible}
-            onClose={() => setDialogDefinirDestinoVisible(false)}
-          />
-        </View>
-      )}
-
-      {metodosPagamentoVisible && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-          }}
-        >
-          <MetodosPagamento
-            visible={metodosPagamentoVisible}
-            onClose={() => setMetodosPagamentoVisible(false)}
-          />
-        </View>
-      )}
-
-      {/* 👉 Componente de destino com Z-INDEX maior */}
-      {configurarSolicitacoesVisible && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-          }}
-        >
-          <ConfigurarSolicitacoes
-            visible={configurarSolicitacoesVisible}
-            onClose={() => setConfigurarSolicitacoesVisible(false)}
-          />
-        </View>
-      )}
-
-      {preferenciasNavegacao && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-          }}
-        >
-          <PreferenciasNavegacao
-            visible={preferenciasNavegacao}
-            onClose={() => setPreferenciasNavegacao(false)}
-          />
-        </View>
-      )}
-
-      {preferenciasSomVoz && (
-        <View
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 50,
-          }}
-        >
-          <PreferenciasSomVoz
-            visible={preferenciasSomVoz}
-            onClose={() => setPreferenciasSomVoz(false)}
-          />
-        </View>
-      )}
-
       <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
         {/* Fundo escurecido */}
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
@@ -301,141 +160,29 @@ export default function Preferencias({
 
           {/* BODY */}
           <View style={styles.body}>
-            {/* Card 1 - Preferências de solicitações */}
-            {/* 👉 Título fora do Card 1 */}
-            {/* <Text style={styles.outerSectionTitle}>
-              Destinos definidos
-            </Text> */}
             <View style={styles.cardGroup}>
-              {/* Primeiro botão: Definir meu destino */}
-              <TouchableOpacity
-                onPress={mostrarDedifnirDestino}
-                style={styles.cardButton}
-              >
-                <View style={styles.cardLeft}>
+              {ITENS_EM_BREVE.map((item) => (
+                <View
+                  key={item.titulo}
+                  style={styles.cardButton}
+                  accessibilityLabel={`${item.titulo}, em breve`}
+                  accessibilityState={{ disabled: true }}
+                >
                   <Ionicons
-                    name="navigate-circle-outline"
+                    name={item.icone}
                     size={26}
-                    color="#111"
+                    color="#9CA3AF"
                     style={styles.icon}
                   />
-                  <Text style={styles.cardText}>Definir meu destino</Text>
+                  <View style={styles.cardTextos}>
+                    <Text style={styles.cardText}>{item.titulo}</Text>
+                    <Text style={styles.cardApoio}>{item.apoio}</Text>
+                  </View>
+                  <View style={styles.emBreve}>
+                    <Text style={styles.emBreveTexto}>Em breve</Text>
+                  </View>
                 </View>
-                <Ionicons
-                  name="chevron-forward-outline"
-                  size={20}
-                  color="#aaa"
-                />
-              </TouchableOpacity>
-
-              {/* Título e Lista de Destinos Direcionados */}
-              {data.length > 0 && (
-                <View style={styles.addressListContainer}>
-                  <Text style={styles.addressListTitle}>Definidos</Text>
-
-                  <FlatList
-                    data={data}
-                    renderItem={renderItem}
-                    keyExtractor={(item) => item.id}
-                    scrollEnabled={false}
-                  />
-                </View>
-              )}
-            </View>
-
-            {/* Card 2 - Assistente de ganhos */}
-            <View style={styles.cardGroup}>
-              {/* <Text style={styles.sectionTitle}>Assistente de ganhos</Text> */}
-
-              {/* Segundo botão: Configurar solicitações */}
-              <TouchableOpacity
-                onPress={mostrarConfigurarSolicitacoes}
-                style={styles.cardButton}
-              >
-                <View style={styles.cardLeft}>
-                  <Ionicons
-                    name="options-outline"
-                    size={26}
-                    color="#111"
-                    style={styles.icon}
-                  />
-                  <Text style={styles.cardText}>Configurar solicitações</Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward-outline"
-                  size={20}
-                  color="#aaa"
-                />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={mostrarMetodosPagamento}
-                style={styles.cardButton}
-              >
-                <View style={styles.cardLeft}>
-                  <Ionicons
-                    name="cash-outline"
-                    size={26}
-                    color="#111"
-                    style={styles.icon}
-                  />
-                  <Text style={styles.cardText}>Métodos de pagamento</Text>
-                </View>
-                <View style={styles.rightGroup}>
-                  <View style={styles.redDot} />
-                  <Ionicons
-                    name="chevron-forward-outline"
-                    size={20}
-                    color="#aaa"
-                  />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={mostrarPreferenciasNavegacao}
-                style={styles.cardButton}
-              >
-                <View style={styles.cardLeft}>
-                  <Ionicons
-                    name="navigate-outline"
-                    size={26}
-                    color="#111"
-                    style={styles.icon}
-                  />
-                  <Text style={styles.cardText}>Navegação</Text>
-                </View>
-                <View style={styles.rightGroup}>
-                  <View style={styles.redDot} />
-                  <Ionicons
-                    name="chevron-forward-outline"
-                    size={20}
-                    color="#aaa"
-                  />
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={mostrarPreferenciasSomVoz}
-                style={styles.cardButton}
-              >
-                <View style={styles.cardLeft}>
-                  <Ionicons
-                    name="notifications-circle-outline"
-                    size={26}
-                    color="#111"
-                    style={styles.icon}
-                  />
-                  <Text style={styles.cardText}>Som e voz</Text>
-                </View>
-                <View style={styles.rightGroup}>
-                  <View style={styles.redDot} />
-                  <Ionicons
-                    name="chevron-forward-outline"
-                    size={20}
-                    color="#aaa"
-                  />
-                </View>
-              </TouchableOpacity>
+              ))}
             </View>
           </View>
 
@@ -508,25 +255,6 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
 
-  // 👉 Título fora dos cards
-  outerSectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-    marginLeft: 4,
-    marginBottom: 6,
-    marginTop: 2,
-  },
-
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 8,
-    marginLeft: 16,
-    marginTop: 4,
-  },
-
   // CARD BUTTON
   cardButton: {
     flexDirection: "row",
@@ -540,75 +268,33 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     marginRight: 16,
   },
-  cardLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
   icon: {
     marginRight: 12,
   },
+  cardTextos: {
+    flex: 1,
+    marginRight: 10,
+  },
   cardText: {
     fontSize: 17,
-    color: "#111",
+    color: "#6B7280",
   },
-
-  rightGroup: {
-    flexDirection: "row",
-    alignItems: "center",
+  cardApoio: {
+    marginTop: 2,
+    fontSize: 13,
+    color: "#9CA3AF",
   },
-  redDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "red",
-    marginRight: 6,
+  emBreve: {
+    borderRadius: 999,
+    backgroundColor: "#ECEDEF",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-
-  // 👉 ESTILOS PARA A LISTA DE ENDEREÇOS
-  addressListContainer: {
-    paddingVertical: 10,
-  },
-  addressListTitle: {
+  emBreveTexto: {
     fontSize: 12,
-    fontWeight: "500",
-    color: "#666",
-    marginLeft: 16,
-    marginBottom: 4,
-    marginTop: 8,
+    fontWeight: "700",
+    color: "#6B7280",
   },
-  addressItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  addressIcon: {
-    marginRight: 10,
-    marginTop: 4,
-  },
-  addressContent: {
-    flex: 1,
-  },
-  addressContentSeparator: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
-    paddingBottom: 12,
-    paddingRight: 16,
-    paddingTop: 12,
-    marginTop: -12, // Compensa o padding superior adicionado em addressItem para manter o alinhamento
-    marginBottom: -12, // Compensa o padding inferior adicionado em addressItem para manter o alinhamento
-  },
-  addressLine1: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#111",
-    marginBottom: 2,
-  },
-  addressLine2: {
-    fontSize: 14,
-    color: "#888",
-  },
-  // FIM DOS ESTILOS DA LISTA DE ENDEREÇOS
 
   // FOOTER - BOTÃO DESCONECTAR
   footer: {

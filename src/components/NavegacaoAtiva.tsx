@@ -10,6 +10,7 @@
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
+import { enderecoCurto } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 // CODEX: 391 linhas adicionadas e 157 removidas no diff atual; aceita posição e rota fixas do simulador. Remover após validação/commit.
@@ -45,11 +46,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import MapView, {
-  Marker,
-  Polyline,
-  PROVIDER_GOOGLE,
-} from "react-native-maps";
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
@@ -250,7 +247,6 @@ export default function NavegacaoAtiva({
 
   const atualizarPosicaoReal = useCallback(
     (coordinate: Location.LocationObjectCoords) => {
-
       const nova = {
         latitude: coordinate.latitude,
         longitude: coordinate.longitude,
@@ -413,14 +409,16 @@ export default function NavegacaoAtiva({
               {" · "}
               {distanciaTexto}
             </Text>
-            
+
             <View style={styles.informacoesChegada}>
               {status === "em_andamento" && horarioChegada && (
-                <View style={styles.chegadaLinha}>
-                  <View style={styles.chegadaPonto} />
-                  <Text style={styles.chegadaTexto}>
-                    Chegada prevista:{" "}
-                    <Text style={styles.chegadaHora}>{horarioChegada}</Text>
+                <View style={styles.avisoLimiteChegada}>
+                  <Ionicons name="time-outline" size={16} color="#111" />
+                  <Text style={styles.avisoLimiteChegadaTexto}>
+                    Chegada prevista:
+                    <Text style={styles.avisoLimiteChegadaTextoTempo}>
+                      {` ` + horarioChegada}
+                    </Text>
                   </Text>
                 </View>
               )}
@@ -471,7 +469,7 @@ export default function NavegacaoAtiva({
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialCamera={
-          posicaoSimulada ?? alvo
+          (posicaoSimulada ?? alvo)
             ? {
                 center: posicaoSimulada ?? alvo!,
                 heading: 0,
@@ -500,10 +498,7 @@ export default function NavegacaoAtiva({
           />
         )}
         {alvo && (
-          <Marker
-            coordinate={alvo}
-            anchor={{ x: 0.5, y: 0.5 }}
-          >
+          <Marker coordinate={alvo} anchor={{ x: 0.5, y: 0.5 }}>
             <View style={[styles.marcadorAlvo, { backgroundColor: corDoAlvo }]}>
               <Ionicons
                 name={tipoAlvo === "origem" ? "arrow-up" : "arrow-down"}
@@ -579,7 +574,9 @@ export default function NavegacaoAtiva({
               {tipoAlvo === "parada" && (
                 <Text style={styles.alvoRotulo}>Parada · </Text>
               )}
-              {enderecoAlvo ?? "Endereço não informado"}
+              {enderecoAlvo
+                ? enderecoCurto(enderecoAlvo)
+                : "Carregando endereço..."}
             </Text>
             {!navegando && (
               <View style={styles.irBotao}>
@@ -1066,15 +1063,6 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "center",
   },
-  chegadaLinha: { alignItems: "center" },
-  chegadaPonto: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#FF7A2F",
-  },
-  chegadaTexto: { color: "#333", fontSize: 14 },
-  chegadaHora: { color: "#FF7A2F", fontWeight: "700" },
   chipPagamento: {
     flexDirection: "row",
     alignItems: "center",

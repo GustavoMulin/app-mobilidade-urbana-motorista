@@ -19,6 +19,7 @@ import {
   mensagemDeErro,
   MetodoResgate,
   ROTULO_CHAVE_PIX,
+  pedirCodigoDaConta,
   salvarMetodoResgate,
 } from "@/domain/carteira";
 
@@ -54,11 +55,33 @@ export default function AdicionarMetodoResgate({
     useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [avisoCodigo, setAvisoCodigo] = useState("");
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
   const tipoDaChave = detectarTipoChavePix(chavePix);
   const documentoDigitos = cpf.replace(/\D/g, "");
   const podeAdicionar =
     tipoDaChave !== null &&
-    (documentoDigitos.length === 11 || documentoDigitos.length === 14);
+    (documentoDigitos.length === 11 || documentoDigitos.length === 14) &&
+    /^\d{6}$/.test(codigo);
+
+  const enviarCodigo = async () => {
+    if (enviandoCodigo) return;
+    setEnviandoCodigo(true);
+    setErro("");
+    try {
+      const resposta = await pedirCodigoDaConta();
+      setAvisoCodigo(
+        resposta.codigo_teste
+          ? `Ambiente de teste: o código é ${resposta.codigo_teste}`
+          : "Enviamos um código por SMS.",
+      );
+    } catch (falha) {
+      setErro(mensagemDeErro(falha, "Não foi possível enviar o código."));
+    } finally {
+      setEnviandoCodigo(false);
+    }
+  };
 
   const toggleConfirm = useCallback(
     (show: boolean) => {
@@ -106,7 +129,10 @@ export default function AdicionarMetodoResgate({
         pix_tipo: tipoDaChave,
         pix_chave: chavePix,
         documento: cpf,
+        codigo,
       });
+      setCodigo("");
+      setAvisoCodigo("");
       toggleConfirm(false);
       setMetodoResgateAdicionado(true);
       onSalvo?.();
@@ -120,6 +146,8 @@ export default function AdicionarMetodoResgate({
   const handleDrawerClose = useCallback(() => {
     setChavePix("");
     setCpf("");
+    setCodigo("");
+    setAvisoCodigo("");
     setErro("");
     setShowConfirm(false);
     setMetodoResgateAdicionado(false);
@@ -323,6 +351,41 @@ export default function AdicionarMetodoResgate({
                   accessibilityLabel="CPF ou CNPJ do titular"
                 />
               </View>
+
+              <Text style={styles.sectionTitle}>
+                Código de verificação por SMS*
+              </Text>
+              <View style={[styles.inputWrapper, styles.codigoWrapper]}>
+                <TextInput
+                  style={[styles.input, styles.codigoInput]}
+                  placeholder="Código"
+                  keyboardType="numeric"
+                  maxLength={6}
+                  value={codigo}
+                  onChangeText={(texto) => {
+                    setCodigo(texto.replace(/\D/g, ""));
+                    setErro("");
+                  }}
+                  placeholderTextColor="#999"
+                  accessibilityLabel="Código de verificação"
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  disabled={enviandoCodigo}
+                  onPress={() => void enviarCodigo()}
+                >
+                  {enviandoCodigo ? (
+                    <ActivityIndicator color="#111" />
+                  ) : (
+                    <Text style={styles.enviarCodigo}>
+                      {avisoCodigo ? "Reenviar" : "Enviar"}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+              {!!avisoCodigo && (
+                <Text style={styles.avisoCodigo}>{avisoCodigo}</Text>
+              )}
             </View>
           </View>
 
@@ -417,6 +480,20 @@ export default function AdicionarMetodoResgate({
 }
 
 const styles = StyleSheet.create({
+  codigoWrapper: { flexDirection: "row", alignItems: "center" },
+  codigoInput: { flex: 1 },
+  enviarCodigo: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FF6600",
+    paddingHorizontal: 8,
+  },
+  avisoCodigo: {
+    fontSize: 13,
+    color: "#2DB089",
+    marginTop: -8,
+    marginBottom: 12,
+  },
   chaveAtual: { fontSize: 14, color: "#666", marginBottom: 16 },
   tipoDetectado: {
     fontSize: 13,
