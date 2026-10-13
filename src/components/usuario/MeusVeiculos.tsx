@@ -94,7 +94,7 @@ const rotuloDoVeiculo = (veiculo: Veiculo) =>
 
 const mensagemDoErro = (erro: unknown) => {
   if (!erro || typeof erro !== "object" || !("response" in erro)) {
-    return "Não foi possível conectar à API. Tente novamente.";
+    return "Não foi possível carregar seus veículos. Verifique sua conexão e tente novamente.";
   }
 
   const resposta = (
@@ -178,16 +178,31 @@ export default function MeusVeiculos({
     setCarregando(true);
     setErro(null);
     setSucesso(null);
-    try {
-      const { data } = await api.get<{ data: Veiculo[] }>(
-        "/motorista/me/veiculos",
-      );
-      setVeiculos(data.data ?? []);
-    } catch (falha) {
-      setErro(mensagemDoErro(falha));
-    } finally {
-      setCarregando(false);
+
+    // a primeira leitura logo depois de abrir o app às vezes falha sem
+    // resposta: tenta mais uma vez antes de mostrar o erro
+    for (let tentativa = 0; tentativa < 2; tentativa++) {
+      try {
+        const { data } = await api.get<{ data: Veiculo[] }>(
+          "/motorista/me/veiculos",
+        );
+        setVeiculos(data.data ?? []);
+        setCarregando(false);
+        return;
+      } catch (falha) {
+        const semResposta =
+          (falha as { response?: unknown } | null)?.response === undefined;
+
+        if (tentativa === 0 && semResposta) {
+          await new Promise((resolver) => setTimeout(resolver, 800));
+          continue;
+        }
+
+        setErro(mensagemDoErro(falha));
+      }
     }
+
+    setCarregando(false);
   }, []);
 
   useEffect(() => {
