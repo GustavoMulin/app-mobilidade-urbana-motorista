@@ -35,7 +35,7 @@ if (!ehDesenvolvimento && process.env.EAS_BUILD_PLATFORM === "ios" && !iosAppBun
 }
 
 module.exports = {
-  name: "aplicativo-mobilidade-urbana-motorista",
+  name: "69",
   slug: "aplicativo-mobilidade-urbana-motorista",
   version: "1.0.0",
   orientation: "portrait",

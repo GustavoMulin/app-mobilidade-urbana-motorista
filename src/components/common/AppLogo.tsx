@@ -1,4 +1,4 @@
-// Logo do app: "67" ladeado por dois carrinhos pequenos, um virado pra cada
+// Logo do app: "69" ladeado por dois carrinhos pequenos, um virado pra cada
 // lado, alinhados no pé do texto. Ao montar, os carros "saem de trás" do
 // texto: começam pequenos e sobrepostos, depois crescem até a posição final.
 import { FontAwesome5 } from "@expo/vector-icons";
@@ -65,7 +65,7 @@ export default function AppLogo({ size = 48 }: Props) {
         allowFontScaling={false}
         style={[styles.text, { fontSize: size, lineHeight: size }]}
       >
-        67
+        69
       </Text>
 
       <Animated.View
