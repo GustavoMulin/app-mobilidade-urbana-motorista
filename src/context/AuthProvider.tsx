@@ -28,6 +28,8 @@ interface Usuario {
   data_nascimento: string;
   foto: string;
   foto_thumbnail: string;
+  perfil: "motorista";
+  status?: string | null;
 }
 
 interface AuthResponse {
@@ -157,6 +159,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await api.post<AuthResponse>("/auth/login", {
         email,
         password,
+        perfil: PERFIL_DESTE_APP,
       });
 
       const { user, token } = response.data;
@@ -250,7 +253,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const anterior = salvo ? (JSON.parse(salvo) as Partial<Usuario>) : null;
         const mesmaConta =
           anterior !== null && String(anterior.id) === String(data.id);
-        const atualizado = { ...(mesmaConta ? anterior : {}), ...data } as Usuario;
+        const atualizado = {
+          ...(mesmaConta ? anterior : {}),
+          ...data,
+        } as Usuario;
 
         if (JSON.stringify(atualizado) !== salvo) {
           await SecureStore.setItemAsync("user", JSON.stringify(atualizado));

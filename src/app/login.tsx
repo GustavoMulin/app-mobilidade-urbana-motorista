@@ -18,7 +18,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { api } from "../Services/api";
+import { api, ehErroDeRede, mensagemDaApi } from "../Services/api";
 import { useAuth } from "../context/AuthProvider";
 
 export default function Login() {
@@ -74,21 +74,24 @@ export default function Login() {
       });
 
       if (response.data.contaExiste) {
+        await api.post("/auth/enviar-codigo", {
+          telefone,
+          perfil: "motorista",
+        });
         setShowCodigoVerificacao(true);
 
         return;
       }
 
       router.push({ pathname: "/register", params: { telefone } });
-    } catch (error) {
-      const temResposta = Boolean(
-        (error as { response?: unknown })?.response ?? null,
-      );
-
+    } catch (error: unknown) {
       setErroLogin(
-        temResposta
-          ? "Não foi possível verificar seu número. Tente novamente."
-          : "Não foi possível conectar. Verifique sua internet.",
+        ehErroDeRede(error)
+          ? "Não foi possível conectar. Verifique sua internet."
+          : mensagemDaApi(
+              error,
+              "Não foi possível enviar o código. Tente novamente.",
+            ),
       );
     } finally {
       setLoadingVerificarConta(false);
