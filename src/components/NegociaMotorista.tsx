@@ -1,8 +1,24 @@
+import AnelProgresso from "@/components/AnelProgresso";
+import type { PassageiroDaCorrida } from "@/components/CorridaEmAndamento";
 import { Text } from "@/components/common/Texto";
-import { Ionicons } from "@expo/vector-icons";
+import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import {
+  ActivityIndicator,
+  Image,
+  Linking,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// prazo padrão do backend (precificacao.negocia_pagamento_limite_segundos)
+const PRAZO_PAGAMENTO_PADRAO_S = 300;
+
+const minutosESegundos = (segundos: number) =>
+  `${Math.floor(segundos / 60)}:${String(segundos % 60).padStart(2, "0")}`;
 
 const emReais = (valor: number | string | null | undefined) => {
   const numero = Number(valor);
@@ -54,39 +70,137 @@ export function PropostaEnviadaAviso({
   );
 }
 
-// Negocia no Pix/cartão: o passageiro escolheu este motorista e está pagando
+// Negocia no Pix/cartão: o passageiro escolheu este motorista e está pagando.
+// Mesmo layout da espera no embarque (99): endereço numa pílula escura no
+// topo, faixa laranja, contagem em anel, passageiro e quanto o motorista
+// recebe. Não há o que tocar além de ligar: o motorista não cancela aqui.
 export function AguardandoPagamentoNegocia({
   valorMotorista,
   metodoPagamento,
+  origem,
+  passageiro,
+  aceitaEm,
+  pagamentoExpiraEm,
 }: {
   valorMotorista: number | string | null | undefined;
   metodoPagamento: string | null | undefined;
+  origem?: string | null;
+  passageiro?: PassageiroDaCorrida | null;
+  aceitaEm?: string | null;
+  pagamentoExpiraEm?: string | null;
 }) {
   const insets = useSafeAreaInsets();
   const meio = metodoPagamento === "cartao" ? "no cartão" : "no Pix";
+  const restantes = useSegundosAte(pagamentoExpiraEm ?? null);
+  const prazo =
+    aceitaEm && pagamentoExpiraEm
+      ? Math.max(
+          1,
+          (new Date(pagamentoExpiraEm).getTime() -
+            new Date(aceitaEm).getTime()) /
+            1000,
+        )
+      : PRAZO_PAGAMENTO_PADRAO_S;
+  const acabou = restantes === 0;
+
+  const ligar = () => {
+    if (!passageiro?.telefone) return;
+    Linking.openURL(`tel:${passageiro.telefone.replace(/\D/g, "")}`);
+  };
 
   return (
-    <View
-      style={[styles.folha, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}
-      accessibilityLiveRegion="polite"
-    >
-      <View style={styles.icone}>
-        <Ionicons name="checkmark" size={26} color="#fff" />
+    <>
+      <View style={[styles.pilulaEmbarque, { top: insets.top + 10 }]}>
+        <View style={styles.pontoEmbarque} />
+        <Text numberOfLines={1} style={styles.pilulaTexto}>
+          {origem ?? "Local de embarque não informado"}
+        </Text>
       </View>
-      <Text style={styles.folhaTitulo}>O passageiro escolheu sua proposta</Text>
-      <Text style={styles.folhaTexto}>
-        Aguardando o pagamento {meio}. Assim que for confirmado, vá até o
-        embarque.
-      </Text>
-      <View style={styles.valorLinha}>
-        <Text style={styles.valorRotulo}>Você recebe</Text>
-        <Text style={styles.valor}>{emReais(valorMotorista)}</Text>
+
+      <View style={styles.base} accessibilityLiveRegion="polite">
+        <View style={styles.faixa}>
+          <Ionicons name="card" size={22} color="#FFF" />
+          <Text style={styles.faixaTexto}>
+            O passageiro escolheu sua proposta. Vá até o embarque quando o
+            pagamento for confirmado.
+          </Text>
+        </View>
+
+        <View
+          style={[
+            styles.folhaEspera,
+            { paddingBottom: Math.max(insets.bottom, 16) },
+          ]}
+        >
+          <View style={styles.linhaTopo}>
+            <AnelProgresso
+              tamanho={54}
+              espessura={3}
+              progresso={restantes === null ? 1 : restantes / prazo}
+              cor={acabou ? "#DC2626" : "#3D7BFF"}
+            >
+              {restantes === null ? (
+                <ActivityIndicator color="#3D7BFF" />
+              ) : (
+                <Text
+                  style={[styles.anelTexto, acabou && styles.anelTextoFim]}
+                >
+                  {minutosESegundos(restantes)}
+                </Text>
+              )}
+            </AnelProgresso>
+
+            <View style={styles.tituloBloco}>
+              <Text style={styles.tituloEspera}>Por favor, aguarde</Text>
+              <Text style={styles.apoioEspera}>
+                {acabou
+                  ? "O pagamento não chegou a tempo"
+                  : `Esperando o pagamento ${meio}`}
+              </Text>
+            </View>
+
+            <View style={styles.espacoDoMenu} />
+          </View>
+
+          <View style={styles.separador} />
+
+          <View style={styles.linhaPassageiro}>
+            {passageiro?.foto && !passageiro.foto_oculta ? (
+              <Image source={{ uri: passageiro.foto }} style={styles.avatar} />
+            ) : (
+              <View style={[styles.avatar, styles.avatarVazio]}>
+                <Feather name="user" size={22} color="#8B94A1" />
+              </View>
+            )}
+
+            <View style={styles.passageiroBloco}>
+              <Text numberOfLines={1} style={styles.passageiroNome}>
+                {passageiro?.nome ?? "Passageiro"}
+              </Text>
+              <Text style={styles.passageiroApoio}>
+                {reputacaoPassageiro(passageiro?.nota, passageiro?.corridas)}
+              </Text>
+            </View>
+
+            {passageiro?.telefone ? (
+              <TouchableOpacity
+                style={styles.botaoLigar}
+                onPress={ligar}
+                accessibilityRole="button"
+                accessibilityLabel="Ligar para o passageiro"
+              >
+                <Ionicons name="call" size={20} color="#111" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View style={styles.valorLinha}>
+            <Text style={styles.valorRotulo}>Você recebe</Text>
+            <Text style={styles.valor}>{emReais(valorMotorista)}</Text>
+          </View>
+        </View>
       </View>
-      <View style={styles.esperando}>
-        <ActivityIndicator color="#8A5A00" />
-        <Text style={styles.esperandoTexto}>Esperando o pagamento</Text>
-      </View>
-    </View>
+    </>
   );
 }
 
@@ -111,42 +225,104 @@ const styles = StyleSheet.create({
   textos: { flex: 1 },
   titulo: { fontSize: 15, fontWeight: "800", color: "#3D2A00" },
   apoio: { fontSize: 13, color: "#7A5A12", marginTop: 2 },
-  folha: {
+  pilulaEmbarque: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 50,
+    paddingHorizontal: 18,
+    borderRadius: 16,
+    backgroundColor: "#1C1C1E",
+    elevation: 6,
+  },
+  pontoEmbarque: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: "#18C9A0",
+  },
+  pilulaTexto: { flex: 1, color: "#FFF", fontSize: 16, fontWeight: "500" },
+  base: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    backgroundColor: "#fff",
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    gap: 10,
-    elevation: 16,
+    zIndex: 20,
   },
-  icone: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#21C987",
+  faixa: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: 12,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    backgroundColor: "#FF7A35",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    // a folha branca sobe por cima da parte de baixo da faixa
+    paddingBottom: 12 + 16,
   },
-  folhaTitulo: {
-    fontSize: 20,
-    fontWeight: "800",
+  faixaTexto: {
+    flex: 1,
+    color: "#FFF",
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 19,
+  },
+  folhaEspera: {
+    marginTop: -16,
+    gap: 14,
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    elevation: 12,
+  },
+  linhaTopo: { flexDirection: "row", alignItems: "center", gap: 12 },
+  anelTexto: { fontSize: 15, fontWeight: "700", color: "#3D7BFF" },
+  anelTextoFim: { color: "#DC2626" },
+  tituloBloco: { flex: 1, alignItems: "center" },
+  tituloEspera: {
+    fontSize: 19,
+    fontWeight: "700",
     color: "#111",
     textAlign: "center",
   },
-  folhaTexto: {
-    fontSize: 15,
-    lineHeight: 21,
-    color: "#4B5563",
+  apoioEspera: {
+    fontSize: 14,
+    color: "#666",
+    marginTop: 2,
     textAlign: "center",
   },
+  espacoDoMenu: { width: 44 },
+  separador: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E2E4E8",
+    marginHorizontal: -16,
+  },
+  linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },
+  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatarVazio: {
+    backgroundColor: "#E6EDF5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  passageiroBloco: { flex: 1, minWidth: 0 },
+  passageiroNome: { fontSize: 18, fontWeight: "600", color: "#111" },
+  passageiroApoio: { fontSize: 14, color: "#777", marginTop: 2 },
+  botaoLigar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F0F0F0",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   valorLinha: {
-    alignSelf: "stretch",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -154,15 +330,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F5F7",
     paddingHorizontal: 16,
     paddingVertical: 14,
-    marginTop: 4,
   },
   valorRotulo: { fontSize: 15, color: "#4B5563" },
   valor: { fontSize: 22, fontWeight: "800", color: "#111" },
-  esperando: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 8,
-  },
-  esperandoTexto: { fontSize: 14, fontWeight: "700", color: "#8A5A00" },
 });

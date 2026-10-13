@@ -35,16 +35,24 @@ interface NegociarChamadaProps {
   valorBase: number;
   onValorEscolhido: (valor: number) => void;
   percentualNegociacao?: number;
+  // fundo claro (lista de solicitações); o padrão é o cartão escuro da chamada
+  claro?: boolean;
 }
 
 const NegociarChamada = ({
   valorBase,
   onValorEscolhido,
   percentualNegociacao = 40,
+  claro = false,
 }: NegociarChamadaProps) => {
   const [valorEscolhido, setValorEscolhido] = useState<number | null>(null);
+  // do degrau mais perto da oferta do passageiro para o mais alto, sem
+  // nenhum destacado (a maior em primeiro e marcada parecia já escolhida)
   const ofertas = useMemo(
-    () => calcularOfertas(valorBase, percentualNegociacao),
+    () =>
+      [...calcularOfertas(valorBase, percentualNegociacao)].sort(
+        (a, b) => a - b,
+      ),
     [valorBase, percentualNegociacao],
   );
 
@@ -55,10 +63,12 @@ const NegociarChamada = ({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, claro && styles.containerClaro]}>
       <View style={styles.tituloContainer}>
         <Ionicons name="cash-outline" size={20} color="#fbc02d" />
-        <Text style={styles.tituloTexto}>Opções de Negociação</Text>
+        <Text style={[styles.tituloTexto, claro && styles.tituloTextoClaro]}>
+          Ou proponha outro valor
+        </Text>
       </View>
 
       <ScrollView
@@ -68,15 +78,18 @@ const NegociarChamada = ({
       >
         {ofertas.map((valor, index) => {
           const isSelected = valorEscolhido === valor;
-          const isMaxOffer = index === 0;
 
           return (
             <TouchableOpacity
               key={index}
               style={[
                 styles.botaoOferta,
-                isMaxOffer ? styles.bordaMax : styles.bordaNormal,
-                isSelected ? styles.botaoSelecionado : styles.botaoPadrao,
+                styles.bordaNormal,
+                isSelected
+                  ? styles.botaoSelecionado
+                  : claro
+                    ? styles.botaoPadraoClaro
+                    : styles.botaoPadrao,
                 valorEscolhido ? styles.botaoDesativado : null,
               ]}
               onPress={() => handleSelecionarOferta(valor)}
@@ -85,6 +98,7 @@ const NegociarChamada = ({
               <Text
                 style={[
                   styles.textoBotao,
+                  claro && styles.textoBotaoClaro,
                   isSelected ? styles.textoSelecionado : null,
                 ]}
               >
@@ -107,6 +121,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 6,
   },
+  containerClaro: { paddingHorizontal: 0, marginBottom: 0 },
+  tituloTextoClaro: { color: "#444" },
+  botaoPadraoClaro: {
+    backgroundColor: "#F4F5F7",
+    borderColor: "#E2E4E8",
+    shadowOpacity: 0,
+  },
+  textoBotaoClaro: { color: "#111" },
   tituloContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -133,10 +155,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 3,
     shadowOffset: { width: 0, height: 2 },
-  },
-  bordaMax: {
-    borderWidth: 2,
-    borderColor: "#fbc02d",
   },
   bordaNormal: {
     borderWidth: 1,

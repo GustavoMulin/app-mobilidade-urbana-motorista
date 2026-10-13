@@ -58,6 +58,9 @@ export interface CorridaEmCurso {
   } | null;
   produto?: { id: number; nome: string } | null;
   metodo_pagamento?: string | null;
+  tempo_aceite?: string | null;
+  // Negocia no Pix/cartão: até quando o motorista escolhido espera o pagamento
+  pagamento_expira_em?: string | null;
 }
 
 // pedido do passageiro para trocar o destino (backend: AlterarCorridaService)

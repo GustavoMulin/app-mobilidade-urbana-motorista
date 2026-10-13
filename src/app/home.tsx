@@ -121,6 +121,10 @@ export default function Home() {
   // menu e do atalho de ganhos
   const esperandoNoEmbarque =
     corridaExibida?.status_corrida === "motorista_chegou";
+  // esperando o pagamento do Negocia a tela tem o mesmo formato
+  const telaDeEspera =
+    esperandoNoEmbarque ||
+    corridaExibida?.status_corrida === "aguardando_pagamento";
   const embarqueDaCorrida =
     corridaExibida?.corrida_destinos?.find((ponto) => ponto.tipo === "origem")
       ?.endereco ?? null;
@@ -261,7 +265,7 @@ export default function Home() {
           alvo={alvoDaCorrida}
           alvoEhDestino={false}
           alturaFolha={
-            corridaExibida?.status_corrida === "motorista_chegou"
+            telaDeEspera
               ? ALTURA_FOLHA_ESPERA
               : corridaExibida === null
                 ? 0
@@ -392,9 +396,9 @@ export default function Home() {
         visible={ganhoModalVisivel}
         setVisible={setGanhoModalVisivel}
         corridaAtivaId={corridaExibida?.id ?? null}
-        ocultarAtalho={esperandoNoEmbarque}
+        ocultarAtalho={telaDeEspera}
       />
-      {!statusComNavegacao && !esperandoNoEmbarque && (
+      {!statusComNavegacao && !telaDeEspera && (
         <TopMenu onMenuPress={handleMenuOpen} />
       )}
 
@@ -448,6 +452,9 @@ export default function Home() {
               setSolicitacoesCorrida(false);
               void aceitar(corridaId);
             }}
+            onPropor={(corridaId, valorMotorista) =>
+              void propor(corridaId, valorMotorista)
+            }
             onRecusar={(corridaId) => recusar(corridaId)}
           />
 
@@ -479,6 +486,13 @@ export default function Home() {
         <AguardandoPagamentoNegocia
           valorMotorista={corridaExibida.corrida_financeiro?.valor_motorista}
           metodoPagamento={corridaExibida.metodo_pagamento}
+          origem={
+            corridaExibida.corrida_destinos?.find((d) => d.tipo === "origem")
+              ?.endereco
+          }
+          passageiro={passageiroExibido}
+          aceitaEm={corridaExibida.tempo_aceite}
+          pagamentoExpiraEm={corridaExibida.pagamento_expira_em}
         />
       )}
 

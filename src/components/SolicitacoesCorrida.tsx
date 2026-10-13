@@ -1,4 +1,7 @@
 import { Text } from "@/components/common/Texto";
+import NegociarChamada from "@/components/NegociarChamada";
+import { enderecoCurto } from "@/domain/endereco";
+import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import { OfertaCorrida } from "@/hooks/useDespachoMotorista";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -25,12 +28,20 @@ interface Props {
   onClose: () => void;
   onAtualizar: () => void;
   onAceitar: (corridaId: number) => void;
+  // Negocia: sem valor manda a oferta do passageiro; com valor, contraproposta
+  onPropor: (corridaId: number, valorMotorista?: number) => void;
   onRecusar: (corridaId: number) => void;
   duration?: number;
 }
 
 const emKm = (valor: number) => `${valor.toFixed(1).replace(".", ",")} km`;
 const emReais = (valor: number) => `R$ ${valor.toFixed(2).replace(".", ",")}`;
+
+const ROTULO_PAGAMENTO: Record<string, string> = {
+  dinheiro: "Dinheiro",
+  pix: "Pix",
+  cartao: "Cartão",
+};
 
 export default function SolicitacoesCorrida({
   visible,
@@ -41,6 +52,7 @@ export default function SolicitacoesCorrida({
   onClose,
   onAtualizar,
   onAceitar,
+  onPropor,
   onRecusar,
   duration = 250,
 }: Props) {
@@ -180,7 +192,21 @@ export default function SolicitacoesCorrida({
           renderItem={({ item }) => (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.codigo}>{item.codigo_corrida}</Text>
+                <View style={styles.cardTitulo}>
+                  {item.categoria ? (
+                    <Text style={styles.categoria} numberOfLines={1}>
+                      {item.categoria}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.codigo}>
+                    {[
+                      ROTULO_PAGAMENTO[item.metodo_pagamento ?? ""],
+                      item.codigo_corrida,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </Text>
+                </View>
                 <View style={styles.cardValor}>
                   {item.recusada_localmente ? (
                     <Text style={styles.recusadaSelo}>Recusada</Text>
@@ -197,23 +223,25 @@ export default function SolicitacoesCorrida({
               <View style={styles.enderecoLinha}>
                 <View style={[styles.ponto, styles.origem]} />
                 <Text style={styles.endereco} numberOfLines={2}>
-                  {item.origem}
+                  {enderecoCurto(item.origem)}
                 </Text>
               </View>
               <View style={styles.enderecoLinha}>
                 <View style={[styles.ponto, styles.destino]} />
                 <Text style={styles.endereco} numberOfLines={2}>
-                  {item.destino ?? "Destino não informado"}
+                  {item.destino
+                    ? enderecoCurto(item.destino)
+                    : "Destino não informado"}
                 </Text>
               </View>
               <Text style={styles.reputacao}>
-                {typeof item.passageiro_nota === "number"
-                  ? `★ ${item.passageiro_nota.toFixed(2)} · `
+                {reputacaoPassageiro(
+                  item.passageiro_nota,
+                  item.passageiro_corridas,
+                )}
+                {item.paradas > 0
+                  ? ` · ${item.paradas} ${item.paradas === 1 ? "parada" : "paradas"}`
                   : ""}
-                {item.passageiro_corridas === 0
-                  ? "Primeira corrida"
-                  : `${item.passageiro_corridas} corridas`}
-                {item.paradas > 0 ? ` · ${item.paradas} parada(s)` : ""}
               </Text>
               <View style={styles.acoes}>
                 {!item.recusada_localmente ? (
@@ -225,20 +253,45 @@ export default function SolicitacoesCorrida({
                     <Text style={styles.recusarTexto}>Recusar</Text>
                   </TouchableOpacity>
                 ) : null}
-                <TouchableOpacity
-                  style={styles.aceitar}
-                  disabled={ocupado}
-                  onPress={() => onAceitar(item.corrida_id)}
-                >
-                  <Text style={styles.aceitarTexto}>
-                    {ocupado
-                      ? "Aguarde..."
-                      : item.recusada_localmente
-                        ? "Aceitar agora"
-                        : "Aceitar"}
-                  </Text>
-                </TouchableOpacity>
+                {item.negociavel && item.minha_proposta ? (
+                  <View style={styles.propostaEnviada}>
+                    <Text style={styles.propostaEnviadaTexto}>
+                      Proposta enviada
+                      {typeof item.minha_proposta.valor_motorista === "number"
+                        ? `: ${emReais(item.minha_proposta.valor_motorista)}`
+                        : ""}
+                    </Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.aceitar}
+                    disabled={ocupado}
+                    onPress={() =>
+                      item.negociavel
+                        ? onPropor(item.corrida_id)
+                        : onAceitar(item.corrida_id)
+                    }
+                  >
+                    <Text style={styles.aceitarTexto}>
+                      {ocupado
+                        ? "Aguarde..."
+                        : item.negociavel
+                          ? `Aceitar ${emReais(item.valor_motorista)}`
+                          : item.recusada_localmente
+                            ? "Aceitar agora"
+                            : "Aceitar"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
               </View>
+              {/* no Negocia o passageiro escolhe entre as propostas */}
+              {item.negociavel && !item.minha_proposta ? (
+                <NegociarChamada
+                  claro
+                  valorBase={item.valor_motorista}
+                  onValorEscolhido={(valor) => onPropor(item.corrida_id, valor)}
+                />
+              ) : null}
             </View>
           )}
         />
@@ -325,6 +378,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   ponto: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  cardTitulo: { flex: 1, minWidth: 0, gap: 2 },
+  categoria: { fontSize: 15, fontWeight: "800", color: "#111" },
+  propostaEnviada: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: "#FFF6DB",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  propostaEnviadaTexto: { fontSize: 15, fontWeight: "700", color: "#7A5A12" },
   origem: { backgroundColor: "#17A673" },
   destino: { backgroundColor: "#E53935" },
   endereco: { flex: 1, fontSize: 14, lineHeight: 19, color: "#222" },
