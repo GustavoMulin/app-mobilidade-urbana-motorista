@@ -17,7 +17,6 @@ import {
 } from "react-native";
 import CentralAjuda from "./CentralAjuda";
 import CentralGanhos from "./CentralGanhos";
-import ConvidarMotorista from "./ConvidarMotorista";
 import HistoricoCorridas from "./HistoricoCorridas";
 import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
@@ -42,16 +41,18 @@ interface MenuItem {
   label: string;
   onPress?: () => void;
   color?: string;
+  // ainda não existe: aparece com selo e não abre
+  emBreve?: boolean;
 }
 
 const defaultMenuItems: MenuItem[] = [
   { icon: "time-outline", label: "Histórico de corridas" },
   { icon: "cash-outline", label: "Ganhos" },
-  { icon: "people-outline", label: "Indique um amigo" },
   { icon: "chatbubble-outline", label: "Notificações" },
   { icon: "shield-checkmark-outline", label: "Central de Ajuda" },
   { icon: "car-outline", label: "Veículo" },
-  { icon: "time-outline", label: "Horas dirigindo" },
+  // o servidor ainda não conta o tempo online (a tela mostrava 11:24 fixo)
+  { icon: "time-outline", label: "Horas dirigindo", emBreve: true },
   { icon: "settings-outline", label: "Preferências" },
 ];
 
@@ -81,7 +82,6 @@ export default function SideMenu({
   const [showCentralAjuda, setShowCentralAjuda] = useState(false);
   const [showPerfilUsuario, setShowPerfilUsuario] = useState(false);
   const [showMeusVeiculos, setShowMeusVeiculos] = useState(false);
-  const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
   const [showHorasDirigindo, setShowHorasDirigindo] = useState(false);
   const [showCentralGanhos, setShowCentralGanhos] = useState(false);
   const [showPreferencias, setShowPreferencias] = useState(false);
@@ -120,9 +120,8 @@ export default function SideMenu({
         const primeiro = veiculos.data.data?.[0];
         setVeiculoPrincipal(
           primeiro
-            ? [primeiro.marca, primeiro.modelo, primeiro.placa]
-                .filter(Boolean)
-                .join(" · ")
+            ? // a placa vem primeiro: se o nome do modelo for longo, ela não some
+              [primeiro.placa, primeiro.modelo].filter(Boolean).join(" · ")
             : null,
         );
         setEstatisticas(numeros.data);
@@ -149,10 +148,6 @@ export default function SideMenu({
       }
       if (showPerfilUsuario) {
         setShowPerfilUsuario(false);
-        return true;
-      }
-      if (showConvidarMotorista) {
-        setShowConvidarMotorista(false);
         return true;
       }
       if (showHorasDirigindo) {
@@ -192,7 +187,6 @@ export default function SideMenu({
     showPreferencias,
     showCentralGanhos,
     showPerfilUsuario,
-    showConvidarMotorista,
     showHorasDirigindo,
     showHistoricoMensagens,
     showHistoricoCorridas,
@@ -251,9 +245,6 @@ export default function SideMenu({
     if (item.label === "Histórico de corridas") {
       setShowHistoricoCorridas(true);
     }
-    if (item.label === "Indique um amigo") {
-      setShowConvidarMotorista(true);
-    }
     if (item.label === "Notificações") {
       setShowHistoricoMensagens(true);
     }
@@ -297,10 +288,6 @@ export default function SideMenu({
       <MeusVeiculos
         visible={showMeusVeiculos}
         onClose={() => setShowMeusVeiculos(false)}
-      />
-      <ConvidarMotorista
-        visible={showConvidarMotorista}
-        onClose={() => setShowConvidarMotorista(false)}
       />
       <HorasDirigindo
         visible={showHorasDirigindo}
@@ -367,12 +354,15 @@ export default function SideMenu({
             >
               <View style={styles.badgeContent}>
                 <Ionicons name="shield-checkmark" size={14} color="#FFF" />
-                <Text style={styles.statusText}>
+                <Text style={styles.statusText} numberOfLines={1}>
                   {veiculoPrincipal ?? "Cadastrar veículo"}
                 </Text>
                 <Ionicons name="chevron-forward" size={14} color="#FFF" />
               </View>
-              <View style={styles.notificationDot} />
+              {/* o aviso é para cadastrar: com veículo não há o que avisar */}
+              {veiculoPrincipal ? null : (
+                <View style={styles.notificationDot} />
+              )}
             </TouchableOpacity>
 
             <View style={styles.statsRow}>
@@ -402,21 +392,34 @@ export default function SideMenu({
                 key={index}
                 style={styles.menuItem}
                 onPress={() => menuSelecionado(item)}
+                disabled={item.emBreve}
                 accessibilityRole="button"
-                accessibilityLabel={item.label}
+                accessibilityLabel={
+                  item.emBreve ? `${item.label}, em breve` : item.label
+                }
+                accessibilityState={{ disabled: item.emBreve === true }}
               >
                 <Ionicons
                   name={
                     item.icon as React.ComponentProps<typeof Ionicons>["name"]
                   }
                   size={19}
-                  color={item.color ?? "#333"}
+                  color={item.emBreve ? "#9CA3AF" : (item.color ?? "#333")}
                 />
                 <Text
-                  style={[styles.menuText, item.color && { color: item.color }]}
+                  style={[
+                    styles.menuText,
+                    item.color && { color: item.color },
+                    item.emBreve && styles.menuTextoEmBreve,
+                  ]}
                 >
                   {item.label}
                 </Text>
+                {item.emBreve ? (
+                  <View style={styles.emBreve}>
+                    <Text style={styles.emBreveTexto}>Em breve</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             ))}
 
@@ -484,6 +487,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   statusBadge: {
+    maxWidth: "100%",
     backgroundColor: "#313663",
     paddingVertical: 6,
     paddingHorizontal: 16,
@@ -493,11 +497,13 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   badgeContent: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   statusText: {
+    flexShrink: 1,
     color: "#FFF",
     fontSize: 14,
     fontWeight: "600",
@@ -556,6 +562,14 @@ const styles = StyleSheet.create({
     color: "#111",
     fontWeight: "500",
   },
+  menuTextoEmBreve: { color: "#6B7280" },
+  emBreve: {
+    borderRadius: 999,
+    backgroundColor: "#ECEDEF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  emBreveTexto: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   logoutText: {
     color: "#FF4D4D",
   },
