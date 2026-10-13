@@ -57,7 +57,10 @@ export default function HistoricoMensagens({
     let ativo = true;
     setCarregando(true);
     api
-      .get<{ data: Notificacao[]; nao_lidas: number }>("/notificacoes")
+      .get<{ data: Notificacao[]; nao_lidas: number }>("/notificacoes", {
+        // a mesma conta pode ser passageiro e motorista
+        params: { perfil: "motorista" },
+      })
       .then(({ data }) => {
         if (!ativo) return;
         setNotificacoes(data.data);
@@ -75,7 +78,7 @@ export default function HistoricoMensagens({
   const marcarTodasLidas = () => {
     if (naoLidas === 0) return;
     api
-      .post("/notificacoes/lidas")
+      .post("/notificacoes/lidas", null, { params: { perfil: "motorista" } })
       .then(() => {
         setNaoLidas(0);
         setNotificacoes((atuais) =>
