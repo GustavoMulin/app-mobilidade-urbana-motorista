@@ -9,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { enderecoCurto } from "@/domain/endereco";
 import NegociarChamada from "./NegociarChamada";
 
 interface RecebendoChamadaProps {
@@ -61,105 +62,6 @@ const silenciar = (player: AudioPlayer | null) => {
   } catch {}
 };
 
-// ==========================================================
-// 🚀 Componente Interno: PulseOverlay
-// Efeito de pulso com múltiplas ondas (3 ondas) - Adaptado do BottomMenu
-// ==========================================================
-const PulseOverlay = () => {
-  // Referências para as três ondas de pulso
-  const [pulse1] = useState(() => new Animated.Value(0));
-  // const pulse2 = useRef(new Animated.Value(0)).current;
-  // const pulse3 = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    // Duração mais rápida para simular a urgência da chamada
-    const DURATION = 2100;
-    // Função para criar o loop de pulso com atraso
-    const createPulse = (animatedValue: Animated.Value, delay: number) => {
-      // Cria um loop que sequencia: 1) Atraso, 2) Expansão (0 -> 1), 3) Reset (1 -> 0)
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(animatedValue, {
-            toValue: 1,
-            duration: DURATION,
-            easing: Easing.out(Easing.ease),
-            useNativeDriver: false,
-          }),
-          // Reseta a animação para 0 imediatamente para reiniciar o ciclo
-          Animated.timing(animatedValue, {
-            toValue: 0,
-            duration: 0,
-            useNativeDriver: false,
-          }),
-        ]),
-      );
-    };
-
-    // Inicia as animações com atrasos sequenciais
-    const anim1 = createPulse(pulse1, 0);
-
-    anim1.start();
-
-    return () => {
-      anim1.stop();
-    };
-  }, [pulse1]);
-
-  // Função para gerar os estilos animados
-  const getCircleStyle = (animatedValue: Animated.Value) => {
-    // Escala (começa menor e expande)
-    const scale = animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.5, 3.5], // Escala aumentada para cobrir o card inteiro
-    });
-
-    // Opacidade Invertida: Começa mais visível (0.4) e desvanece (0)
-    const opacity = animatedValue.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0.4, 0],
-    });
-
-    return {
-      transform: [{ scale }],
-      opacity,
-    };
-  };
-
-  return (
-    <View style={pulseStyles.container}>
-      <Animated.View
-        style={[pulseStyles.pulseCircle, getCircleStyle(pulse1)]}
-      />
-    </View>
-  );
-};
-
-// Estilos específicos para o PulseOverlay
-const pulseStyles = StyleSheet.create({
-  container: {
-    // Ocupa 100% da área do pai (.card)
-    ...StyleSheet.absoluteFill,
-    justifyContent: "center",
-    alignItems: "center",
-    // ⚠️ Importante: Garante que o pulso fique dentro do card
-    overflow: "hidden",
-    borderRadius: 12,
-  },
-  pulseCircle: {
-    position: "absolute",
-    // Tamanho base para a onda de pulso (grande o suficiente para começar no centro)
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    // Cor do pulso (Amarelo, mas um pouco mais sutil que o fundo do card)
-    backgroundColor: "rgba(251, 192, 45, 0.4)", // #fbc02d com opacidade
-  },
-});
-// ==========================================================
-// 🛑 Fim do Componente: PulseOverlay
-// ==========================================================
-
 export default function RecebendoChamadas({
   onAceitar,
   onRecusar,
@@ -187,10 +89,6 @@ export default function RecebendoChamadas({
   }, [onRecusar]);
   const [progress] = useState(() => new Animated.Value(1));
   const closedRef = useRef(false); // evita múltiplas chamadas de fechamento
-
-  // Variável para controlar a montagem/desmontagem do PulseOverlay
-  // Usaremos um simples state para garantir que a animação seja reiniciada se o componente for remontado.
-  const [isPulsing, setIsPulsing] = useState(true);
 
   useEffect(() => {
     // O React remonta efeitos em desenvolvimento. Reiniciar estas refs evita
@@ -227,7 +125,6 @@ export default function RecebendoChamadas({
       if (closedRef.current) return;
 
       closedRef.current = true;
-      setIsPulsing(false);
 
       silenciar(player);
       if (playerRef.current === player) playerRef.current = null;
@@ -257,7 +154,6 @@ export default function RecebendoChamadas({
   const closeAndUnload = () => {
     if (closedRef.current) return;
     closedRef.current = true;
-    setIsPulsing(false); // Pára o pulso
 
     try {
       onRecusar(); // fecha o card
@@ -271,7 +167,6 @@ export default function RecebendoChamadas({
   const acceptAndUnload = (valorProposto?: number) => {
     // chamado ao aceitar
     if (!closedRef.current) closedRef.current = true;
-    setIsPulsing(false); // Pára o pulso
 
     try {
       if (negociavel && onPropor) onPropor(valorProposto);
@@ -298,16 +193,17 @@ export default function RecebendoChamadas({
 
   const distanciaAteVoce = emKm(distanciaAteOrigem);
   const distanciaViagem = emKm(distanciaDaCorrida);
-  const enderecoPartida = origem ?? "Endereço de partida";
-  const enderecoDestino = destino ?? "Endereço de destino";
+  const enderecoPartida = origem
+    ? enderecoCurto(origem)
+    : "Endereço de partida";
+  const enderecoDestino = destino
+    ? enderecoCurto(destino)
+    : "Endereço de destino";
 
   return (
     <View style={styles.overlay}>
       {/* O card é um View normal, o pulso será um overlay interno */}
       <View style={styles.card}>
-        {/* 🚀 O componente de pulso triplo é adicionado aqui, garantindo que ele fique abaixo de todo o conteúdo do card */}
-        {isPulsing && <PulseOverlay />}
-
         <View style={styles.progressContainer}>
           <Animated.View
             style={[styles.progressBar, { width: widthInterpolated }]}
@@ -332,7 +228,7 @@ export default function RecebendoChamadas({
             <Ionicons name={pagamento.nome} size={18} color="#fff" />
           </View>
           <Text className="ml-2 mt-1" style={styles.topText}>
-            {`${distanciaViagem} · ${emKm(distanciaAteOrigem)} até a partida`}
+            {pagamento.rotulo}
           </Text>
         </View>
 
@@ -358,7 +254,7 @@ export default function RecebendoChamadas({
           <View style={styles.infoItem}>
             <Text className="font-bold" style={styles.infoText}>
               {corridasPassageiro === 0
-                ? "Primeira corrida"
+                ? "Passageiro novo"
                 : `${corridasPassageiro} ${corridasPassageiro === 1 ? "corrida" : "corridas"}`}
             </Text>
           </View>
@@ -421,8 +317,8 @@ export default function RecebendoChamadas({
           </Text>
         </TouchableOpacity>
 
-        {/* só no Negocia o motorista pode pedir mais: o passageiro escolhe
-            entre as propostas */}
+        {/* No Negocia o passageiro escolhe entre quem aceitou sua oferta e as
+            contrapropostas recebidas. */}
         {negociavel ? (
           <>
             <Text style={styles.avisoNegocia}>
