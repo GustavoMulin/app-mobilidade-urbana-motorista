@@ -1,3 +1,4 @@
+import { enderecoCurto } from "@/domain/endereco";
 export type PerspectivaHistorico = "motorista" | "passageiro";
 
 export interface CorridaHistoricoApi {
@@ -162,10 +163,12 @@ export function paraItemHistorico(
     perspectiva === "motorista"
       ? corrida.passageiro?.user
       : corrida.motorista?.user;
-  const ponto = (tipo: string) =>
-    [...(corrida.corrida_destinos ?? [])]
+  const ponto = (tipo: string) => {
+    const endereco = [...(corrida.corrida_destinos ?? [])]
       .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
-      .find((destino) => destino.tipo === tipo)?.endereco ?? "Não informado";
+      .find((destino) => destino.tipo === tipo)?.endereco;
+    return endereco ? enderecoCurto(endereco) : "Não informado";
+  };
   const veiculo = [
     corrida.veiculo?.modelo,
     corrida.veiculo?.cor,

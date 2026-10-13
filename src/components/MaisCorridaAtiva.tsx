@@ -1,6 +1,7 @@
 // CODEX: 486 linhas criadas neste arquivo para detalhes, ajuda e cancelamento seguro da corrida ativa.
 import CentralAjuda from "@/components/CentralAjuda";
 import type { PassageiroDaCorrida } from "@/components/CorridaEmAndamento";
+import { enderecoCurto } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import type { ResultadoCancelamento } from "@/hooks/useDespachoMotorista";
@@ -216,7 +217,9 @@ export default function MaisCorridaAtiva({
                   <Ionicons name="arrow-up" size={12} color="#FFF" />
                 </View>
                 <Text style={styles.enderecoTexto}>
-                  {origem ?? "Local de embarque não informado"}
+                  {origem
+                    ? enderecoCurto(origem)
+                    : "Local de embarque não informado"}
                 </Text>
               </View>
 
@@ -225,7 +228,7 @@ export default function MaisCorridaAtiva({
                   <Ionicons name="arrow-down" size={12} color="#FFF" />
                 </View>
                 <Text style={styles.enderecoTexto}>
-                  {destino ?? "Destino não informado"}
+                  {destino ? enderecoCurto(destino) : "Destino não informado"}
                 </Text>
               </View>
 
@@ -266,11 +269,11 @@ export default function MaisCorridaAtiva({
                     ? "Voltar a aceitar novas corridas"
                     : "Recusar novas corridas"}
                 </Text>
-                {recusarNovas && (
-                  <Text style={styles.botaoRecusarNovasApoio}>
-                    Você fica offline quando esta corrida terminar
-                  </Text>
-                )}
+                <Text style={styles.botaoRecusarNovasApoio}>
+                  {recusarNovas
+                    ? "Você fica offline quando esta corrida terminar"
+                    : "Fica offline quando esta corrida terminar"}
+                </Text>
               </TouchableOpacity>
             )}
           </ScrollView>
