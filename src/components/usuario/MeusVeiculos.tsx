@@ -115,6 +115,24 @@ const mensagemDoErro = (erro: unknown) => {
   );
 };
 
+type ErrosDosCampos = Partial<Record<keyof FormularioVeiculo, string>>;
+
+// o servidor manda todos os campos com problema de uma vez: cada mensagem
+// aparece embaixo do seu campo (antes só a primeira, lá no fim do formulário)
+const errosDosCampos = (erro: unknown): ErrosDosCampos => {
+  const errors = (
+    erro as {
+      response?: { data?: { errors?: Record<string, string[]> } };
+    } | null
+  )?.response?.data?.errors;
+
+  if (!errors) return {};
+
+  return Object.fromEntries(
+    Object.entries(errors).map(([campo, mensagens]) => [campo, mensagens[0]]),
+  ) as ErrosDosCampos;
+};
+
 const gerarDadosDeDesenvolvimento = (): FormularioVeiculo => {
   const instante = Date.now();
   const digito = instante % 10;
@@ -153,6 +171,7 @@ export default function MeusVeiculos({
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [erros, setErros] = useState<ErrosDosCampos>({});
   const [sucesso, setSucesso] = useState<string | null>(null);
 
   const carregarVeiculos = useCallback(async () => {
@@ -232,6 +251,7 @@ export default function MeusVeiculos({
   const enviar = async (dados: FormularioVeiculo) => {
     setSalvando(true);
     setErro(null);
+    setErros({});
     setSucesso(null);
     try {
       const { data } = await api.post<{ data: Veiculo; message: string }>(
@@ -247,7 +267,13 @@ export default function MeusVeiculos({
       setMostrandoFormulario(false);
       setSucesso(data.message ?? "Veículo adicionado com sucesso.");
     } catch (falha) {
-      setErro(mensagemDoErro(falha));
+      const porCampo = errosDosCampos(falha);
+      setErros(porCampo);
+      setErro(
+        Object.keys(porCampo).length > 0
+          ? "Confira os campos em vermelho."
+          : mensagemDoErro(falha),
+      );
     } finally {
       setSalvando(false);
     }
@@ -265,6 +291,10 @@ export default function MeusVeiculos({
       // não existe moto elétrica
       ...(campo === "categoria" && valor === "moto" ? { eletrico: false } : {}),
     }));
+    // corrigiu o campo: a mensagem dele sai
+    setErros((atuais) =>
+      atuais[campo] ? { ...atuais, [campo]: undefined } : atuais,
+    );
   };
 
   return (
@@ -304,6 +334,7 @@ export default function MeusVeiculos({
           <Formulario
             dados={formulario}
             erro={erro}
+            erros={erros}
             salvando={salvando}
             insetsBottom={insets.bottom}
             onAtualizar={atualizar}
@@ -475,6 +506,7 @@ function Marcacao({
 function Formulario({
   dados,
   erro,
+  erros,
   salvando,
   insetsBottom,
   onAtualizar,
@@ -482,6 +514,7 @@ function Formulario({
 }: {
   dados: FormularioVeiculo;
   erro: string | null;
+  erros: ErrosDosCampos;
   salvando: boolean;
   insetsBottom: number;
   onAtualizar: <Campo extends keyof FormularioVeiculo>(
@@ -525,32 +558,16 @@ function Formulario({
             </TouchableOpacity>
           ))}
         </View>
-        {dados.categoria === "carro" ? (
-          <Marcacao
-            titulo="Pedir a categoria Elétrico"
-            apoio="A gestão confere o carro antes de liberar as corridas Elétrico."
-            marcado={dados.eletrico}
-            onAlternar={() => onAtualizar("eletrico", !dados.eletrico)}
-          />
-        ) : null}
-        <Marcacao
-          titulo="Pedir a categoria Táxi"
-          apoio={
-            dados.categoria === "moto"
-              ? "Para moto táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
-              : "Para táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
-          }
-          marcado={dados.taxi}
-          onAlternar={() => onAtualizar("taxi", !dados.taxi)}
-        />
         <Campo
           rotulo="Marca"
+          erro={erros.marca}
           valor={dados.marca}
           onChange={(v) => onAtualizar("marca", v)}
           placeholder="Ex.: Chevrolet"
         />
         <Campo
           rotulo="Modelo"
+          erro={erros.modelo}
           valor={dados.modelo}
           onChange={(v) => onAtualizar("modelo", v)}
           placeholder="Ex.: Onix"
@@ -558,6 +575,7 @@ function Formulario({
         <View style={styles.camposLinha}>
           <Campo
             rotulo="Ano fabricação"
+          erro={erros.ano_fabricacao}
             valor={dados.ano_fabricacao}
             onChange={(v) =>
               onAtualizar("ano_fabricacao", v.replace(/\D/g, "").slice(0, 4))
@@ -567,6 +585,7 @@ function Formulario({
           />
           <Campo
             rotulo="Ano modelo"
+          erro={erros.ano_modelo}
             valor={dados.ano_modelo}
             onChange={(v) =>
               onAtualizar("ano_modelo", v.replace(/\D/g, "").slice(0, 4))
@@ -577,6 +596,7 @@ function Formulario({
         </View>
         <Campo
           rotulo="Cor"
+          erro={erros.cor}
           valor={dados.cor}
           onChange={(v) => onAtualizar("cor", v)}
           placeholder="Ex.: Branco"
@@ -584,6 +604,7 @@ function Formulario({
         <View style={styles.camposLinha}>
           <Campo
             rotulo="Placa"
+          erro={erros.placa}
             valor={dados.placa}
             onChange={(v) =>
               onAtualizar(
@@ -600,6 +621,7 @@ function Formulario({
           />
           <Campo
             rotulo="UF"
+          erro={erros.uf}
             valor={dados.uf}
             onChange={(v) =>
               onAtualizar(
@@ -617,12 +639,32 @@ function Formulario({
         </View>
         <Campo
           rotulo="RENAVAM"
+          erro={erros.renavam}
           valor={dados.renavam}
           onChange={(v) =>
             onAtualizar("renavam", v.replace(/\D/g, "").slice(0, 11))
           }
           placeholder="11 números"
           teclado="number-pad"
+        />
+        <Text style={styles.secaoTitulo}>Categorias especiais (opcional)</Text>
+        {dados.categoria === "carro" ? (
+          <Marcacao
+            titulo="Pedir a categoria Elétrico"
+            apoio="A gestão confere o carro antes de liberar as corridas Elétrico."
+            marcado={dados.eletrico}
+            onAlternar={() => onAtualizar("eletrico", !dados.eletrico)}
+          />
+        ) : null}
+        <Marcacao
+          titulo="Pedir a categoria Táxi"
+          apoio={
+            dados.categoria === "moto"
+              ? "Para moto táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
+              : "Para táxi licenciado. A gestão confere a licença antes de liberar as corridas Táxi."
+          }
+          marcado={dados.taxi}
+          onAlternar={() => onAtualizar("taxi", !dados.taxi)}
         />
         {erro ? <Text style={styles.erro}>{erro}</Text> : null}
         <TouchableOpacity
@@ -643,6 +685,7 @@ function Formulario({
 
 function Campo({
   rotulo,
+  erro,
   valor,
   onChange,
   placeholder,
@@ -651,6 +694,7 @@ function Campo({
   largura = false,
 }: {
   rotulo: string;
+  erro?: string;
   valor: string;
   onChange: (valor: string) => void;
   placeholder?: string;
@@ -662,14 +706,16 @@ function Campo({
     <View style={[styles.campo, largura && styles.campoMetade]}>
       <Text style={styles.campoRotulo}>{rotulo}</Text>
       <TextInput
-        style={styles.input}
+        style={[styles.input, erro && styles.inputComErro]}
         value={valor}
         onChangeText={onChange}
         placeholder={placeholder}
         placeholderTextColor="#999"
         keyboardType={teclado}
         autoCapitalize={autoCapitalize}
+        accessibilityLabel={erro ? `${rotulo}: ${erro}` : rotulo}
       />
+      {erro ? <Text style={styles.campoErro}>{erro}</Text> : null}
     </View>
   );
 }
@@ -855,6 +901,8 @@ const styles = StyleSheet.create({
   campo: { gap: 6 },
   campoMetade: { flexGrow: 1, flexBasis: 140, minWidth: 0 },
   campoRotulo: { fontSize: 13, color: "#444", fontWeight: "600" },
+  inputComErro: { borderColor: "#D92D20", backgroundColor: "#FFFBFA" },
+  campoErro: { fontSize: 12, color: "#B42318" },
   input: {
     minHeight: 48,
     paddingVertical: 10,
