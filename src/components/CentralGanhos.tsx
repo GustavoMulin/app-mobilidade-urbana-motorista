@@ -267,7 +267,7 @@ export default function CentralGanhos({
               accessibilityLabel="Recompensas, em breve"
               accessibilityState={{ disabled: true }}
             >
-              <View style={styles.row}>
+              <View style={[styles.row, styles.improvementConteudo]}>
                 <Ionicons name="gift-outline" size={24} color="#9CA3AF" />
                 <View style={styles.improvementTextContent}>
                   <Text style={[styles.resourceName, styles.emBreveNome]}>
@@ -458,5 +458,10 @@ const styles = StyleSheet.create({
   improvementTextContent: {
     marginLeft: 16,
     flex: 1,
+  },
+  // encolhe para o selo "Em breve" caber na tela
+  improvementConteudo: {
+    flex: 1,
+    marginRight: 12,
   },
 });
