@@ -33,7 +33,14 @@ export default function MenuInferiorMotorista({
   const alternar = () => {
     if (bloqueado) return;
 
-    onAlternarDisponibilidade(!disponivel);
+    // online, um toque sem querer no "Buscando" tirava o motorista do ar:
+    // como no 99, desconectar fica em Preferências › Desconectar
+    if (disponivel) {
+      setDialogPreferenciasVisibleLocal(true);
+      return;
+    }
+
+    onAlternarDisponibilidade(true);
   };
 
   const desconectar = () => {
