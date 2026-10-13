@@ -229,7 +229,10 @@ export function paraItemHistorico(
     cancelledBy: corrida.cancelado_por
       ? (ROTULOS_CANCELAMENTO[corrida.cancelado_por] ?? corrida.cancelado_por)
       : null,
-    cancellationReason: corrida.motivo_cancelamento ?? null,
+    cancellationReason: corrida.motivo_cancelamento
+      ? corrida.motivo_cancelamento.charAt(0).toUpperCase() +
+        corrida.motivo_cancelamento.slice(1)
+      : null,
     isCancelled: cancelada,
     isNoShow: ausencia,
     isFinalized: finalizada,
