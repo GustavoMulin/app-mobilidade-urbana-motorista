@@ -15,6 +15,8 @@ import NegociarChamada from "./NegociarChamada";
 interface RecebendoChamadaProps {
   onAceitar: () => void;
   onRecusar: () => void;
+  // se o tempo acabar sem resposta; sem isso o fim do tempo conta como recusa
+  onExpirar?: () => void;
   // Negocia: aceitar é mandar proposta pela oferta (sem valor) ou por outro valor
   negociavel?: boolean;
   onPropor?: (valorMotorista?: number) => void;
@@ -65,6 +67,7 @@ const silenciar = (player: AudioPlayer | null) => {
 export default function RecebendoChamadas({
   onAceitar,
   onRecusar,
+  onExpirar,
   negociavel = false,
   onPropor,
   valor = 8.2,
@@ -82,11 +85,11 @@ export default function RecebendoChamadas({
   const pagamento =
     ICONE_PAGAMENTO[metodoPagamento ?? "dinheiro"] ?? ICONE_PAGAMENTO.dinheiro;
   const playerRef = useRef<AudioPlayer | null>(null);
-  const onRecusarRef = useRef(onRecusar);
+  const onExpirarRef = useRef(onExpirar ?? onRecusar);
 
   useEffect(() => {
-    onRecusarRef.current = onRecusar;
-  }, [onRecusar]);
+    onExpirarRef.current = onExpirar ?? onRecusar;
+  }, [onExpirar, onRecusar]);
   const [progress] = useState(() => new Animated.Value(1));
   const closedRef = useRef(false); // evita múltiplas chamadas de fechamento
 
@@ -130,7 +133,7 @@ export default function RecebendoChamadas({
       if (playerRef.current === player) playerRef.current = null;
 
       try {
-        onRecusarRef.current();
+        onExpirarRef.current();
       } catch {}
     }, DURACAO_OFERTA_MS);
 
