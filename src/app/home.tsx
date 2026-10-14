@@ -68,6 +68,7 @@ export default function Home() {
     alternarDisponibilidade,
     aceitar,
     recusar,
+    dispensarChamada,
     propor,
     propostaEnviada,
     recarregarOfertas,
@@ -110,6 +111,14 @@ export default function Home() {
       : null;
   const ocupadoExibido = simuladorCorrida.ativa ? false : ocupado;
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
+
+  // a lista de solicitações fecha quando uma corrida começa; sem isso ela
+  // continuava "aberta" por baixo e voltava à tela quando a corrida acabava
+  useEffect(() => {
+    if (corridaExibida === null) return;
+    const fechar = setTimeout(() => setSolicitacoesCorrida(false), 0);
+    return () => clearTimeout(fechar);
+  }, [corridaExibida]);
 
   const statusNavegacao =
     corridaExibida?.status_corrida === "aceita" ||
@@ -381,6 +390,11 @@ export default function Home() {
           onPropor={(valorMotorista) =>
             void propor(ofertaExibida.corrida_id, valorMotorista)
           }
+          onExpirar={
+            !simuladorCorrida.ativa && ofertaExibida.negociavel === true
+              ? () => dispensarChamada(ofertaExibida.corrida_id)
+              : undefined
+          }
           notaPassageiro={ofertaExibida.passageiro_nota}
           corridasPassageiro={ofertaExibida.passageiro_corridas}
           onAceitar={
@@ -453,7 +467,7 @@ export default function Home() {
               void aceitar(corridaId);
             }}
             onPropor={(corridaId, valorMotorista) =>
-              void propor(corridaId, valorMotorista)
+              propor(corridaId, valorMotorista)
             }
             onRecusar={(corridaId) => recusar(corridaId)}
           />
