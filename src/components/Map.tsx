@@ -54,6 +54,8 @@ interface MapProps {
   // altura de um painel fixo no rodapé (ex.: "Buscando"), que fica por cima
   // da folha arrastável quando ela está recolhida
   alturaMinimaRodape?: number;
+  // botão flutuante extra, empilhado acima do "centralizar"
+  botaoAcima?: React.ReactNode;
 }
 
 // Sem posição ainda e sem cache, mostra o país inteiro em vez de 0,0 (que é
@@ -92,6 +94,7 @@ export default function Map({
   alvoEhDestino = false,
   alturaFolha = 0,
   alturaMinimaRodape = 0,
+  botaoAcima,
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -456,6 +459,7 @@ export default function Map({
         <Animated.View
           style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
         >
+          {botaoAcima}
           <TouchableOpacity
             accessibilityLabel="Centralizar na minha localização"
             accessibilityRole="button"
@@ -528,6 +532,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 16,
     zIndex: 20,
+    gap: 12,
   },
   centerButton: {
     backgroundColor: "white",

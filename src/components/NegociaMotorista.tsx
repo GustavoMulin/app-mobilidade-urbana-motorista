@@ -1,6 +1,7 @@
 import AnelProgresso from "@/components/AnelProgresso";
 import type { PassageiroDaCorrida } from "@/components/CorridaEmAndamento";
 import { Text } from "@/components/common/Texto";
+import { enderecoCurto } from "@/domain/endereco";
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -39,33 +40,119 @@ function useSegundosAte(instante: string | null) {
   return Math.max(0, Math.round((new Date(instante).getTime() - agora) / 1000));
 }
 
-// Negocia: proposta mandada, esperando o passageiro escolher
-export function PropostaEnviadaAviso({
-  valorMotorista,
-  expiraEm,
-  distanciaDoRodape,
+export interface PropostaNaPilha {
+  corrida_id: number;
+  origem: string;
+  minha_proposta?: {
+    valor_motorista: number | null;
+    expira_em: string | null;
+  } | null;
+}
+
+const MAXIMO_NA_PILHA = 3;
+// quanto cada card fica escondido atrás do da frente
+const SOBREPOSICAO = 12;
+
+function CartaoDaPilha({
+  proposta,
+  largura,
+  elevacao,
+  sobrepostoPelaFrente,
+  extras,
 }: {
-  valorMotorista: number | null;
-  expiraEm: string | null;
-  distanciaDoRodape: number;
+  proposta: PropostaNaPilha;
+  largura: `${number}%`;
+  elevacao: number;
+  sobrepostoPelaFrente: boolean;
+  extras: number;
 }) {
-  const segundos = useSegundosAte(expiraEm);
+  const segundos = useSegundosAte(proposta.minha_proposta?.expira_em ?? null);
+  const valor = emReais(proposta.minha_proposta?.valor_motorista);
 
   return (
     <View
-      style={[styles.aviso, { bottom: distanciaDoRodape + 12 }]}
-      accessibilityLiveRegion="polite"
+      style={[
+        styles.cartaoPilha,
+        {
+          width: largura,
+          elevation: elevacao,
+          zIndex: elevacao,
+          paddingBottom: sobrepostoPelaFrente ? 10 + SOBREPOSICAO : 10,
+          marginBottom: sobrepostoPelaFrente ? -SOBREPOSICAO : 0,
+        },
+      ]}
+      accessible
+      accessibilityLabel={`Proposta de ${valor} esperando o passageiro${segundos !== null ? `, ${segundos} segundos` : ""}. ${enderecoCurto(proposta.origem)}`}
     >
-      <ActivityIndicator color="#111" />
+      <ActivityIndicator size="small" color="#3D2A00" />
       <View style={styles.textos}>
-        <Text style={styles.titulo}>
-          Proposta enviada: {emReais(valorMotorista)}
-        </Text>
-        <Text style={styles.apoio}>
-          Aguardando o passageiro escolher
+        <Text style={styles.tituloPilha} numberOfLines={1}>
+          {`Proposta enviada: ${valor}`}
           {segundos !== null ? ` · ${segundos}s` : ""}
         </Text>
+        <Text style={styles.apoioPilha} numberOfLines={1}>
+          {`Aguardando o passageiro · ${enderecoCurto(proposta.origem)}`}
+        </Text>
       </View>
+      {extras > 0 ? (
+        <View style={styles.extras}>
+          <Text style={styles.extrasTexto}>+{extras}</Text>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+// Negocia com "empilhar" ligado: as propostas esperando o passageiro ficam
+// empilhadas, a que vence primeiro na frente. Atrás da chamada da vez, a
+// chamada é o card da frente e cobre a borda de baixo da pilha.
+export function PilhaPropostasNegocia({
+  propostas,
+  atrasDaChamada = false,
+  distanciaDoRodape = 0,
+  onAlturaChange,
+}: {
+  propostas: PropostaNaPilha[];
+  atrasDaChamada?: boolean;
+  distanciaDoRodape?: number;
+  // solta no mapa, a home sobe os botões do mapa acima da pilha
+  onAlturaChange?: (altura: number) => void;
+}) {
+  if (propostas.length === 0) return null;
+
+  const visiveis = propostas.slice(0, MAXIMO_NA_PILHA);
+  const escondidas = propostas.length - visiveis.length;
+  // a da frente (vence primeiro) é a última desenhada, embaixo
+  const deTrasParaFrente = [...visiveis].reverse();
+
+  return (
+    <View
+      style={
+        atrasDaChamada
+          ? [styles.pilha, styles.pilhaAtrasDaChamada]
+          : [styles.pilha, { bottom: distanciaDoRodape + 12 }]
+      }
+      accessibilityLiveRegion="polite"
+      onLayout={(evento) => onAlturaChange?.(evento.nativeEvent.layout.height)}
+    >
+      {deTrasParaFrente.map((proposta, indice) => {
+        const distanciaDaFrente = deTrasParaFrente.length - 1 - indice;
+        const naFrente = distanciaDaFrente === 0;
+        const largura = atrasDaChamada
+          ? (`${88 - distanciaDaFrente * 6}%` as const)
+          : (`${100 - distanciaDaFrente * 6}%` as const);
+
+        return (
+          <CartaoDaPilha
+            key={proposta.corrida_id}
+            proposta={proposta}
+            largura={largura}
+            elevacao={2 + indice}
+            sobrepostoPelaFrente={!naFrente || atrasDaChamada}
+            extras={indice === 0 ? escondidas : 0}
+          />
+        );
+      })}
     </View>
   );
 }
@@ -142,9 +229,7 @@ export function AguardandoPagamentoNegocia({
               {restantes === null ? (
                 <ActivityIndicator color="#3D7BFF" />
               ) : (
-                <Text
-                  style={[styles.anelTexto, acabou && styles.anelTextoFim]}
-                >
+                <Text style={[styles.anelTexto, acabou && styles.anelTextoFim]}>
                   {minutosESegundos(restantes)}
                 </Text>
               )}
@@ -205,26 +290,46 @@ export function AguardandoPagamentoNegocia({
 }
 
 const styles = StyleSheet.create({
-  aviso: {
+  textos: { flex: 1 },
+  pilha: {
     position: "absolute",
     left: 16,
     right: 16,
+    alignItems: "center",
+  },
+  pilhaAtrasDaChamada: {
+    position: "relative",
+    left: 0,
+    right: 0,
+    width: "100%",
+  },
+  cartaoPilha: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    borderRadius: 16,
+    gap: 10,
+    borderRadius: 14,
     backgroundColor: "#FFF6DB",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    elevation: 8,
+    borderWidth: 1,
+    borderColor: "#F2DFA7",
+    paddingHorizontal: 14,
+    paddingTop: 10,
     shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
-  textos: { flex: 1 },
-  titulo: { fontSize: 15, fontWeight: "800", color: "#3D2A00" },
-  apoio: { fontSize: 13, color: "#7A5A12", marginTop: 2 },
+  tituloPilha: { fontSize: 14, fontWeight: "800", color: "#3D2A00" },
+  apoioPilha: { fontSize: 12, color: "#7A5A12", marginTop: 1 },
+  extras: {
+    minWidth: 30,
+    height: 24,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#3D2A00",
+  },
+  extrasTexto: { color: "#FFF6DB", fontSize: 12, fontWeight: "800" },
   pilulaEmbarque: {
     position: "absolute",
     left: 12,

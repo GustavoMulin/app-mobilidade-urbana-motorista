@@ -34,12 +34,14 @@ interface ToastContextValue {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-// de sucesso e informação, só estes aparecem: corrida aceita e a resposta do
-// motorista ao novo destino/trajeto pedido pelo passageiro. Erros e avisos
-// sempre aparecem, com o motivo: sem eles a falha ficava muda.
+// de sucesso e informação, só estes aparecem: corrida aceita, a resposta do
+// motorista ao novo destino/trajeto pedido pelo passageiro e o que muda ao
+// ligar ou desligar a pilha do Negocia. Erros e avisos sempre aparecem, com
+// o motivo: sem eles a falha ficava muda.
 const TOASTS_PERMITIDOS = [
   /^corrida:\d+:aceita$/,
   /^destino:\d+:(aceito|recusado)$/,
+  /^empilhar-negociadas:(true|false)$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;

@@ -13,19 +13,29 @@ const INTERVALO_BUSCA_SEM_SOCKET_MS = 5000;
 const INTERVALO_BUSCA_COM_SOCKET_MS = 30000;
 const INTERVALO_POSICAO_MS = 8000;
 
+const esperandoPassageiro = (item: OfertaCorrida) =>
+  item.minha_proposta?.status === "pendente";
+
 // a chamada que toca (e aparece na tela) é a primeira corrida que o motorista
 // ainda não recusou, dispensou nem respondeu com uma proposta; o resto fica
-// só na lista de solicitações
+// só na lista de solicitações. Sem empilhar, quem tem proposta esperando o
+// passageiro não recebe outra chamada até a resposta (ou o fim do prazo).
 const chamadaDaVez = (
   lista: OfertaCorrida[],
   dispensadas: Set<number>,
-): OfertaCorrida | null =>
-  lista.find(
-    (item) =>
-      !item.recusada_localmente &&
-      !dispensadas.has(item.corrida_id) &&
-      !item.minha_proposta,
-  ) ?? null;
+  empilhar: boolean,
+): OfertaCorrida | null => {
+  if (!empilhar && lista.some(esperandoPassageiro)) return null;
+
+  return (
+    lista.find(
+      (item) =>
+        !item.recusada_localmente &&
+        !dispensadas.has(item.corrida_id) &&
+        !item.minha_proposta,
+    ) ?? null
+  );
+};
 
 export interface OfertaCorrida {
   corrida_id: number;
@@ -134,8 +144,12 @@ const mensagemDoErro = (erro: unknown, padrao: string) => {
   return resposta?.data?.message ?? padrao;
 };
 
-export function useDespachoMotorista(pausado = false) {
+export function useDespachoMotorista(
+  pausado = false,
+  empilharNegociadas = true,
+) {
   const { mostrarToast } = useToast();
+  const empilhar = useRef(empilharNegociadas);
   const [disponivel, setDisponivel] = useState(false);
   const [oferta, setOferta] = useState<OfertaCorrida | null>(null);
   const [ofertas, setOfertas] = useState<OfertaCorrida[]>([]);
@@ -468,7 +482,7 @@ export function useDespachoMotorista(pausado = false) {
         // com proposta enviada a chamada não volta a tocar: o motorista só
         // espera a escolha do passageiro (ou faz nova oferta pela lista)
         setOfertas(atuais);
-        setOferta(chamadaDaVez(atuais, dispensadas.current));
+        setOferta(chamadaDaVez(atuais, dispensadas.current, empilhar.current));
 
         // Negocia: a corrida em que ele propôs saiu da lista porque o
         // passageiro escolheu alguém; se foi ele, ela vira a corrida atual
@@ -713,7 +727,9 @@ export function useDespachoMotorista(pausado = false) {
         item.corrida_id === id ? { ...item, recusada_localmente: true } : item,
       );
       setOfertas(atualizadas);
-      setOferta(chamadaDaVez(atualizadas, dispensadas.current));
+      setOferta(
+        chamadaDaVez(atualizadas, dispensadas.current, empilhar.current),
+      );
       mostrarToast({
         tipo: "info",
         titulo: "Solicitação recusada",
@@ -727,7 +743,7 @@ export function useDespachoMotorista(pausado = false) {
   const dispensarChamada = useCallback(
     (corridaId: number) => {
       dispensadas.current.add(corridaId);
-      setOferta(chamadaDaVez(ofertas, dispensadas.current));
+      setOferta(chamadaDaVez(ofertas, dispensadas.current, empilhar.current));
     },
     [ofertas],
   );
@@ -751,7 +767,9 @@ export function useDespachoMotorista(pausado = false) {
             : item,
         );
         setOfertas(atualizadas);
-        setOferta(chamadaDaVez(atualizadas, dispensadas.current));
+        setOferta(
+          chamadaDaVez(atualizadas, dispensadas.current, empilhar.current),
+        );
       } catch (falha) {
         mostrarToast({
           tipo: "warning",
@@ -772,9 +790,40 @@ export function useDespachoMotorista(pausado = false) {
     [ofertas, mostrarToast],
   );
 
-  // proposta do motorista esperando o passageiro escolher (banner na tela)
-  const propostaEnviada =
-    ofertas.find((item) => item.minha_proposta?.status === "pendente") ?? null;
+  // propostas do motorista esperando o passageiro escolher, da que vence
+  // primeiro para a última (a pilha na tela)
+  const propostasPendentes = ofertas
+    .filter(esperandoPassageiro)
+    .sort(
+      (a, b) =>
+        new Date(a.minha_proposta?.expira_em ?? 0).getTime() -
+        new Date(b.minha_proposta?.expira_em ?? 0).getTime(),
+    );
+  const propostaEnviada = propostasPendentes[0] ?? null;
+
+  // trocar a preferência vale na hora: desligar segura a próxima chamada,
+  // ligar solta a que estava esperando a resposta do passageiro
+  useEffect(() => {
+    empilhar.current = empilharNegociadas;
+    setOferta(chamadaDaVez(ofertas, dispensadas.current, empilharNegociadas));
+    // só a troca da preferência; a lista já recalcula a chamada sozinha
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empilharNegociadas]);
+
+  // com o socket a lista só volta a cada 30 s: quando a primeira proposta
+  // vence, a consulta sai na hora (a pilha diminui e, sem empilhar, a
+  // próxima chamada pode tocar)
+  const proximoVencimento = propostaEnviada?.minha_proposta?.expira_em ?? null;
+  useEffect(() => {
+    if (proximoVencimento === null) return;
+
+    const espera = setTimeout(
+      () => setGatilho((atual) => atual + 1),
+      Math.max(0, new Date(proximoVencimento).getTime() - Date.now()) + 1000,
+    );
+
+    return () => clearTimeout(espera);
+  }, [proximoVencimento]);
 
   const recarregarOfertas = useCallback(
     () => setGatilho((atual) => atual + 1),
@@ -1065,6 +1114,7 @@ export function useDespachoMotorista(pausado = false) {
     dispensarChamada,
     propor,
     propostaEnviada,
+    propostasPendentes,
     recarregarOfertas,
     avancar,
     cancelarCorrida,
