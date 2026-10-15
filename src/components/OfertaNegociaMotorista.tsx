@@ -122,7 +122,7 @@ export default function OfertaNegociaMotorista({
           <View style={styles.aviso}>
             <Ionicons name="notifications" size={19} color="#77808C" />
             <Text style={styles.avisoTexto}>
-              Ofertas menores têm mais chances!
+              Valores perto da oferta do passageiro têm mais chances!
             </Text>
           </View>
           <View style={styles.cabecalho}>
@@ -143,9 +143,16 @@ export default function OfertaNegociaMotorista({
 
           <View style={styles.editor}>
             <TouchableOpacity
-              style={styles.passo}
+              style={[
+                styles.passo,
+                valor <= (oferta?.valor_motorista ?? 0) && styles.desabilitado,
+              ]}
               onPress={() => alterar(-PASSO)}
               disabled={valor <= (oferta?.valor_motorista ?? 0)}
+              accessibilityLabel="Diminuir 50 centavos"
+              accessibilityState={{
+                disabled: valor <= (oferta?.valor_motorista ?? 0),
+              }}
             >
               <Text style={styles.passoTexto}>-0,50</Text>
             </TouchableOpacity>
