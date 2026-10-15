@@ -5,10 +5,8 @@ import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
 import PedidoNovoDestino from "@/components/PedidoNovoDestino";
 import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
-import {
-  AguardandoPagamentoNegocia,
-  PilhaPropostasNegocia,
-} from "@/components/NegociaMotorista";
+import { AguardandoPagamentoNegocia } from "@/components/NegociaMotorista";
+import PilhaPropostasNegocia from "@/components/PilhaPropostasNegocia";
 import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
 import GanhoDiario from "@/components/GanhoDiario";
 import Map from "@/components/Map";
@@ -166,13 +164,6 @@ export default function Home() {
   // ✨ NOVO: Estado para armazenar o índice do BottomSheet
   const [bottomSheetIndex, setBottomSheetIndex] = useState<number>(0);
   const [alturaMenuInferior, setAlturaMenuInferior] = useState(0);
-  const [alturaPilha, setAlturaPilha] = useState(0);
-  // propostas do Negocia esperando o passageiro, sem chamada na frente
-  const pilhaSolta =
-    !simuladorCorrida.ativa &&
-    propostasPendentes.length > 0 &&
-    ofertaExibida === null &&
-    corridaExibida === null;
   const bottomSheetAnimatedIndex = useSharedValue(0);
 
   // ✨ NOVO: Estado do modal de ganhos foi elevado para cá
@@ -272,11 +263,7 @@ export default function Home() {
           }
           bottomSheetIndex={bottomSheetIndex}
           indiceFolhaAnimado={bottomSheetAnimatedIndex}
-          alturaMinimaRodape={
-            corridaExibida === null
-              ? alturaMenuInferior + (pilhaSolta ? alturaPilha + 12 : 0)
-              : 0
-          }
+          alturaMinimaRodape={corridaExibida === null ? alturaMenuInferior : 0}
           isGanhoModalVisible={ganhoModalVisivel}
           // já no embarque não há o que traçar: a rota de poucos metros
           // dava a volta no quarteirão por causa da mão da rua
@@ -394,6 +381,17 @@ export default function Home() {
           />
         )}
 
+      {/* Negocia: propostas esperando o passageiro, no topo; a chamada da vez
+          continua chegando embaixo */}
+      {!simuladorCorrida.ativa &&
+        corridaExibida === null &&
+        propostasPendentes.length > 0 && (
+          <PilhaPropostasNegocia
+            propostas={propostasPendentes}
+            chamadaNaTela={ofertaExibida !== null}
+          />
+        )}
+
       {ofertaExibida !== null && corridaExibida === null && (
         <RecebendoChamada
           key={ofertaExibida.corrida_id}
@@ -419,14 +417,6 @@ export default function Home() {
           }
           notaPassageiro={ofertaExibida.passageiro_nota}
           corridasPassageiro={ofertaExibida.passageiro_corridas}
-          pilha={
-            !simuladorCorrida.ativa && propostasPendentes.length > 0 ? (
-              <PilhaPropostasNegocia
-                propostas={propostasPendentes}
-                atrasDaChamada
-              />
-            ) : undefined
-          }
           onAceitar={
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar
           }
@@ -511,14 +501,6 @@ export default function Home() {
             onAlturaChange={setAlturaMenuInferior}
           />
         </>
-      )}
-
-      {pilhaSolta && (
-        <PilhaPropostasNegocia
-          propostas={propostasPendentes}
-          distanciaDoRodape={alturaMenuInferior}
-          onAlturaChange={setAlturaPilha}
-        />
       )}
 
       {corridaExibida?.status_corrida === "aguardando_pagamento" && (

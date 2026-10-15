@@ -31,8 +31,6 @@ interface RecebendoChamadaProps {
   metodoPagamento?: string | null;
   notaPassageiro?: number | null;
   corridasPassageiro?: number;
-  // Negocia: propostas esperando o passageiro, empilhadas atrás desta chamada
-  pilha?: React.ReactNode;
 }
 
 const ICONE_PAGAMENTO: Record<
@@ -83,7 +81,6 @@ export default function RecebendoChamadas({
   metodoPagamento,
   notaPassageiro,
   corridasPassageiro = 0,
-  pilha,
 }: RecebendoChamadaProps) {
   const pagamento =
     ICONE_PAGAMENTO[metodoPagamento ?? "dinheiro"] ?? ICONE_PAGAMENTO.dinheiro;
@@ -208,7 +205,6 @@ export default function RecebendoChamadas({
 
   return (
     <View style={styles.overlay}>
-      {pilha ? <View style={styles.pilha}>{pilha}</View> : null}
       {/* O card é um View normal, o pulso será um overlay interno */}
       <View style={styles.card}>
         <View style={styles.progressContainer}>
@@ -364,19 +360,12 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     elevation: 9999,
   },
-  pilha: {
-    width: "94%",
-    alignItems: "center",
-  },
   card: {
     backgroundColor: "#2a2a2a",
     borderRadius: 12,
     width: "94%",
     paddingVertical: 16,
     paddingHorizontal: 20,
-    // acima da pilha de propostas, que fica com a borda de baixo escondida
-    elevation: 12,
-    zIndex: 12,
     // Adicionar position: 'relative' para que o PulseOverlay use absoluteFillObject corretamente
     position: "relative",
   },

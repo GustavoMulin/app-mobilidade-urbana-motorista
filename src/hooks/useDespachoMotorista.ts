@@ -6,7 +6,7 @@ import { ResumoEspera } from "@/domain/contadorEspera";
 import { comTempoLimite } from "@/domain/localizacao";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
 import * as Location from "expo-location";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 const INTERVALO_BUSCA_SEM_SOCKET_MS = 5000;
@@ -792,13 +792,17 @@ export function useDespachoMotorista(
 
   // propostas do motorista esperando o passageiro escolher, da que vence
   // primeiro para a última (a pilha na tela)
-  const propostasPendentes = ofertas
-    .filter(esperandoPassageiro)
-    .sort(
-      (a, b) =>
-        new Date(a.minha_proposta?.expira_em ?? 0).getTime() -
-        new Date(b.minha_proposta?.expira_em ?? 0).getTime(),
-    );
+  const propostasPendentes = useMemo(
+    () =>
+      ofertas
+        .filter(esperandoPassageiro)
+        .sort(
+          (a, b) =>
+            new Date(a.minha_proposta?.expira_em ?? 0).getTime() -
+            new Date(b.minha_proposta?.expira_em ?? 0).getTime(),
+        ),
+    [ofertas],
+  );
   const propostaEnviada = propostasPendentes[0] ?? null;
 
   // trocar a preferência vale na hora: desligar segura a próxima chamada,
