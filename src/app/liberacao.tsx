@@ -68,6 +68,12 @@ const AVISO: Record<
     texto: "Tudo certo. Você já pode receber corridas.",
     cor: "#17A673",
   },
+  // o servidor chama de "ativo" o motorista com todos os documentos aprovados
+  ativo: {
+    titulo: "Cadastro aprovado",
+    texto: "Tudo certo. Você já pode receber corridas.",
+    cor: "#17A673",
+  },
 };
 
 const ROTULO_PENDENCIA: Record<string, string> = {
@@ -116,7 +122,7 @@ export default function Liberacao() {
   const [saindo, setSaindo] = useState(false);
 
   useEffect(() => {
-    if (cadastro?.situacao === "aprovado") {
+    if (cadastro?.situacao === "aprovado" || cadastro?.situacao === "ativo") {
       router.replace("/home");
     }
   }, [cadastro?.situacao, router]);
@@ -134,7 +140,7 @@ export default function Liberacao() {
     if (!cnhCompleta || validadeIso === null) return;
 
     await enviarCnh({
-      cnh_numero: numero.replace(/\D/g, ""),
+      numero_registro: numero.replace(/\D/g, ""),
       cnh_categoria: categoria,
       cnh_expiracao: validadeIso,
       ear,
@@ -412,23 +418,25 @@ export default function Liberacao() {
             {erroArquivo ? <ErrorBanner message={erroArquivo} /> : null}
             {erro.length > 0 ? <ErrorBanner message={erro} /> : null}
 
-            {__DEV__ && cadastro?.situacao !== "aprovado" && (
-              <TouchableOpacity
-                onPress={() => void aprovarSemDocumentos()}
-                disabled={enviando || saindo}
-                style={styles.testClickableContainer}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.testClickableText,
-                    (enviando || saindo) && styles.testClickableTextDisabled,
-                  ]}
+            {__DEV__ &&
+              cadastro?.situacao !== "aprovado" &&
+              cadastro?.situacao !== "ativo" && (
+                <TouchableOpacity
+                  onPress={() => void aprovarSemDocumentos()}
+                  disabled={enviando || saindo}
+                  style={styles.testClickableContainer}
+                  activeOpacity={0.7}
                 >
-                  Pular e aprovar (dev)
-                </Text>
-              </TouchableOpacity>
-            )}
+                  <Text
+                    style={[
+                      styles.testClickableText,
+                      (enviando || saindo) && styles.testClickableTextDisabled,
+                    ]}
+                  >
+                    Pular e aprovar (dev)
+                  </Text>
+                </TouchableOpacity>
+              )}
 
             <TouchableOpacity
               style={styles.sair}
