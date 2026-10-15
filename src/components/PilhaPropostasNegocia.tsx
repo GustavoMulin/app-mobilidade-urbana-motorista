@@ -54,13 +54,19 @@ const mesclar = (atuais: Item[], propostas: OfertaCorrida[]): Item[] => {
 
 function CartaoAguardando({
   item,
+  compacto,
   onSaiu,
 }: {
   item: Item;
+  // com a chamada da vez na tela, só o essencial para caber mais de um
+  compacto: boolean;
   onSaiu: (corridaId: number) => void;
 }) {
   const { oferta, saindo } = item;
   const expiraEm = oferta.minha_proposta?.expira_em ?? null;
+  const validadeMs =
+    (oferta.minha_proposta?.validade_segundos ?? 0) * 1000 ||
+    VALIDADE_PADRAO_MS;
   const [opacidade] = useState(() => new Animated.Value(0));
   const [deslocamento] = useState(() => new Animated.Value(-10));
   const [progresso] = useState(() => new Animated.Value(0));
@@ -100,9 +106,7 @@ function CartaoAguardando({
     if (saindo || largura === 0 || expiraEm === null) return;
 
     const restante = Math.max(0, new Date(expiraEm).getTime() - Date.now());
-    progresso.setValue(
-      Math.min(1, Math.max(0, 1 - restante / VALIDADE_PADRAO_MS)),
-    );
+    progresso.setValue(Math.min(1, Math.max(0, 1 - restante / validadeMs)));
     const contagem = Animated.timing(progresso, {
       toValue: 1,
       duration: restante,
@@ -112,7 +116,7 @@ function CartaoAguardando({
     contagem.start();
 
     return () => contagem.stop();
-  }, [saindo, largura, expiraEm, progresso]);
+  }, [saindo, largura, expiraEm, validadeMs, progresso]);
 
   const segundos =
     expiraEm === null
@@ -146,28 +150,30 @@ function CartaoAguardando({
         <Text style={styles.valor}>{valor}</Text>
       </View>
 
-      <View style={styles.passageiroLinha}>
-        <View style={styles.foto}>
-          <Ionicons name="person" size={20} color="#9AA1AB" />
+      {!compacto && (
+        <View style={styles.passageiroLinha}>
+          <View style={styles.foto}>
+            <Ionicons name="person" size={20} color="#9AA1AB" />
+          </View>
+          <View style={styles.dados}>
+            <Text style={styles.reputacao} numberOfLines={1}>
+              {reputacao}
+              {corridas}
+            </Text>
+            <Text style={styles.endereco} numberOfLines={1}>
+              {enderecoCurto(oferta.origem)}
+            </Text>
+          </View>
+          <View style={styles.distancias}>
+            <Text style={styles.distancia}>
+              {emKm(oferta.distancia_ate_origem_km)}
+            </Text>
+            <Text style={styles.viagem}>
+              {emKm(oferta.distancia_corrida_km)} de viagem
+            </Text>
+          </View>
         </View>
-        <View style={styles.dados}>
-          <Text style={styles.reputacao} numberOfLines={1}>
-            {reputacao}
-            {corridas}
-          </Text>
-          <Text style={styles.endereco} numberOfLines={1}>
-            {enderecoCurto(oferta.origem)}
-          </Text>
-        </View>
-        <View style={styles.distancias}>
-          <Text style={styles.distancia}>
-            {emKm(oferta.distancia_ate_origem_km)}
-          </Text>
-          <Text style={styles.viagem}>
-            {emKm(oferta.distancia_corrida_km)} de viagem
-          </Text>
-        </View>
-      </View>
+      )}
 
       <View
         style={styles.aguardando}
@@ -245,6 +251,7 @@ export default function PilhaPropostasNegocia({
           <CartaoAguardando
             key={item.oferta.corrida_id}
             item={item}
+            compacto={chamadaNaTela}
             onSaiu={remover}
           />
         ))}

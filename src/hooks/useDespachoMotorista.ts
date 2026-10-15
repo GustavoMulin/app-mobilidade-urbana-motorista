@@ -62,6 +62,7 @@ export interface PropostaEnviada {
   valor_motorista: number | null;
   status: string;
   expira_em: string | null;
+  validade_segundos?: number;
 }
 
 // a corrida que acabou de ser cancelada, para o aviso dizer quem cancelou
@@ -178,6 +179,8 @@ export function useDespachoMotorista(
   const recusadas = useRef<Set<number>>(new Set());
   const dispensadas = useRef<Set<number>>(new Set());
   const propostasMandadas = useRef<Set<number>>(new Set());
+  // propostas que esperavam o passageiro na última consulta (corrida → valor)
+  const esperandoAntes = useRef<Map<number, number | null>>(new Map());
   const corridaRef = useRef<CorridaEmCurso | null>(null);
 
   const aplicarCorrida = useCallback(
@@ -458,6 +461,9 @@ export function useDespachoMotorista(
   }, [corrida, ocupado, alternarDisponibilidade]);
 
   useEffect(() => {
+    // em corrida ou offline as propostas antigas não contam mais: ao voltar,
+    // nada de aviso sobre elas
+    if (corrida !== null || !disponivel) esperandoAntes.current = new Map();
     if (pausado || !appAtivo || !disponivel || corrida !== null) return;
 
     let cancelado = false;
@@ -493,6 +499,47 @@ export function useDespachoMotorista(
           await carregarCorridaAtual();
           decididas.forEach((id) => propostasMandadas.current.delete(id));
         }
+
+        // o card some da pilha: o motorista fica sabendo por quê (quando o
+        // passageiro o escolhe, quem avisa é a corrida que começa)
+        const esperando = new Map(
+          atuais
+            .filter(esperandoPassageiro)
+            .map((item) => [
+              item.corrida_id,
+              item.minha_proposta?.valor_motorista ?? null,
+            ]),
+        );
+        esperandoAntes.current.forEach((valor, corridaId) => {
+          if (esperando.has(corridaId) || corridaRef.current?.id === corridaId)
+            return;
+
+          const status = atuais.find((item) => item.corrida_id === corridaId)
+            ?.minha_proposta?.status;
+          const deValor =
+            valor === null
+              ? ""
+              : ` de R$\u00a0${valor.toFixed(2).replace(".", ",")}`;
+          const motivo =
+            status === "recusada"
+              ? "recusada"
+              : status === undefined
+                ? "outro"
+                : "expirada";
+
+          mostrarToast({
+            tipo: "info",
+            titulo:
+              motivo === "recusada"
+                ? `O passageiro recusou sua proposta${deValor}`
+                : motivo === "outro"
+                  ? "O passageiro fechou com outro motorista"
+                  : `Sua proposta${deValor} venceu sem resposta`,
+            mensagem: "Você continua recebendo novas corridas.",
+            chave: `negocia:${corridaId}:${motivo}`,
+          });
+        });
+        esperandoAntes.current = esperando;
       } catch (falha) {
         if (!cancelado) {
           setOferta(null);
@@ -538,6 +585,7 @@ export function useDespachoMotorista(
     gatilho,
     carregarCorridaAtual,
     sincronizarSituacao,
+    mostrarToast,
   ]);
 
   // WebSocket em cima do polling: avisa que a lista mudou e o hook refaz a
