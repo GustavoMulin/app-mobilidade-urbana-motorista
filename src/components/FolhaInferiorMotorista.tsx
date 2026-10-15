@@ -1,4 +1,6 @@
+import BannersPublicidade from "@/components/BannersPublicidade";
 import { useAuth } from "@/context/AuthProvider";
+import { useBannersPublicidade } from "@/hooks/useBannersPublicidade";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import React, { useCallback, useMemo, useRef } from "react";
 import { Text } from "@/components/common/Texto";
@@ -17,6 +19,7 @@ export default function FolhaInferiorMotorista({
   indiceAnimado,
 }: DriverSearchProps) {
   const { user } = useAuth();
+  const banners = useBannersPublicidade();
   // snap points do bottomsheet
   const snapPoints = useMemo(() => ["18%", "52%", "92%"], []);
   const sheetRef = useRef<BottomSheet>(null);
@@ -46,6 +49,7 @@ export default function FolhaInferiorMotorista({
           <Text maxFontSizeMultiplier={1.1} style={styles.saudacao}>
             Olá, {user?.name?.split(/\s+/)[0]}!
           </Text>
+          <BannersPublicidade banners={banners} />
         </BottomSheetView>
       </BottomSheet>
     </View>
