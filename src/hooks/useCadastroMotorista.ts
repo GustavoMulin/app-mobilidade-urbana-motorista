@@ -6,6 +6,7 @@ export type SituacaoCadastro =
   | "pendente"
   | "em_analise"
   | "aprovado"
+  | "ativo"
   | "reprovado";
 
 export interface DocumentoEnviado {
@@ -29,7 +30,8 @@ export interface CadastroMotorista {
 }
 
 export interface DadosCnh {
-  cnh_numero: string;
+  // nome do campo no backend (antes era cnh_numero)
+  numero_registro: string;
   cnh_categoria: string;
   cnh_expiracao: string;
   ear: boolean;

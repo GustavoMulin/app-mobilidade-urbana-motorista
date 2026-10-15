@@ -4,10 +4,9 @@ import AvaliarPassageiro from "@/components/AvaliarPassageiro";
 import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
 import PedidoNovoDestino from "@/components/PedidoNovoDestino";
-import {
-  AguardandoPagamentoNegocia,
-  PropostaEnviadaAviso,
-} from "@/components/NegociaMotorista";
+import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
+import { AguardandoPagamentoNegocia } from "@/components/NegociaMotorista";
+import PilhaPropostasNegocia from "@/components/PilhaPropostasNegocia";
 import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
 import GanhoDiario from "@/components/GanhoDiario";
 import Map from "@/components/Map";
@@ -22,6 +21,7 @@ import SimuladorCorridaMotorista from "@/components/desenvolvimento/SimuladorCor
 import { useAuth } from "@/context/AuthProvider";
 import { useAvaliacaoPendente } from "@/hooks/useAvaliacaoPendente";
 import { useDespachoMotorista } from "@/hooks/useDespachoMotorista";
+import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
@@ -53,6 +53,7 @@ export default function Home() {
   const [destinationModalVisible, setDestinationModalVisible] = useState(false);
   const [solicitacoesCorrida, setSolicitacoesCorrida] = useState(false);
   const simuladorCorrida = useSimuladorCorridaMotorista();
+  const { empilhar, alternar: alternarEmpilhar } = useEmpilharNegociadas();
   const {
     disponivel,
     oferta,
@@ -70,7 +71,7 @@ export default function Home() {
     recusar,
     dispensarChamada,
     propor,
-    propostaEnviada,
+    propostasPendentes,
     recarregarOfertas,
     avancar,
     cancelarCorrida,
@@ -80,7 +81,7 @@ export default function Home() {
     pedidoNovoDestino,
     respondendoPedido,
     responderNovoDestino,
-  } = useDespachoMotorista(simuladorCorrida.ativa);
+  } = useDespachoMotorista(simuladorCorrida.ativa, empilhar);
 
   const dadosSimulados = simuladorCorrida.dados;
   const corridaExibida = simuladorCorrida.ativa
@@ -280,6 +281,14 @@ export default function Home() {
                 ? 0
                 : ALTURA_FOLHA_CORRIDA
           }
+          botaoAcima={
+            corridaExibida === null ? (
+              <BotaoEmpilharNegociadas
+                ativo={empilhar}
+                onAlternar={alternarEmpilhar}
+              />
+            ) : undefined
+          }
         />
       )}
 
@@ -369,6 +378,17 @@ export default function Home() {
             enviando={enviandoAvaliacao}
             onAvaliar={avaliar}
             onDispensar={dispensarAvaliacao}
+          />
+        )}
+
+      {/* Negocia: propostas esperando o passageiro, no topo; a chamada da vez
+          continua chegando embaixo */}
+      {!simuladorCorrida.ativa &&
+        corridaExibida === null &&
+        propostasPendentes.length > 0 && (
+          <PilhaPropostasNegocia
+            propostas={propostasPendentes}
+            chamadaNaTela={ofertaExibida !== null}
           />
         )}
 
@@ -482,19 +502,6 @@ export default function Home() {
           />
         </>
       )}
-
-      {!simuladorCorrida.ativa &&
-        propostaEnviada !== null &&
-        ofertaExibida === null &&
-        corridaExibida === null && (
-          <PropostaEnviadaAviso
-            valorMotorista={
-              propostaEnviada.minha_proposta?.valor_motorista ?? null
-            }
-            expiraEm={propostaEnviada.minha_proposta?.expira_em ?? null}
-            distanciaDoRodape={alturaMenuInferior}
-          />
-        )}
 
       {corridaExibida?.status_corrida === "aguardando_pagamento" && (
         <AguardandoPagamentoNegocia

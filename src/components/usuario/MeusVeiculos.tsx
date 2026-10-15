@@ -51,11 +51,29 @@ interface FormularioVeiculo {
   cor: string;
   placa: string;
   renavam: string;
+  // dono no CRLV: obrigatório para ficar online e para compartilhar o veículo
+  cpf_cnpj_proprietario: string;
   categoria: Veiculo["categoria"];
   eletrico: boolean;
   taxi: boolean;
   uf: string;
 }
+
+// 000.000.000-00 (CPF) ou 00.000.000/0000-00 (CNPJ), conforme os dígitos
+const formatarCpfCnpj = (texto: string) => {
+  const d = texto.replace(/\D/g, "").slice(0, 14);
+  if (d.length <= 11) {
+    return d
+      .replace(/^(\d{3})(\d)/, "$1.$2")
+      .replace(/^(\d{3})\.(\d{3})(\d)/, "$1.$2.$3")
+      .replace(/\.(\d{3})(\d{1,2})$/, ".$1-$2");
+  }
+  return d
+    .replace(/^(\d{2})(\d)/, "$1.$2")
+    .replace(/^(\d{2})\.(\d{3})(\d)/, "$1.$2.$3")
+    .replace(/\.(\d{3})(\d)/, ".$1/$2")
+    .replace(/(\d{4})(\d{1,2})$/, "$1-$2");
+};
 
 const ANO_ATUAL = new Date().getFullYear();
 const FORMULARIO_INICIAL: FormularioVeiculo = {
@@ -66,6 +84,7 @@ const FORMULARIO_INICIAL: FormularioVeiculo = {
   cor: "",
   placa: "",
   renavam: "",
+  cpf_cnpj_proprietario: "",
   categoria: "carro",
   eletrico: false,
   taxi: false,
@@ -147,6 +166,7 @@ const gerarDadosDeDesenvolvimento = (): FormularioVeiculo => {
     cor: "Branco",
     placa: `DEV${digito}${letra}${finalPlaca}`,
     renavam: String(instante).slice(-11).padStart(11, "0"),
+    cpf_cnpj_proprietario: "123.456.789-09",
     categoria: "carro",
     eletrico: false,
     taxi: false,
@@ -660,6 +680,16 @@ function Formulario({
             onAtualizar("renavam", v.replace(/\D/g, "").slice(0, 11))
           }
           placeholder="11 números"
+          teclado="number-pad"
+        />
+        <Campo
+          rotulo="CPF ou CNPJ do proprietário"
+          erro={erros.cpf_cnpj_proprietario}
+          valor={dados.cpf_cnpj_proprietario}
+          onChange={(v) =>
+            onAtualizar("cpf_cnpj_proprietario", formatarCpfCnpj(v))
+          }
+          placeholder="Como está no documento do veículo"
           teclado="number-pad"
         />
         <Text style={styles.secaoTitulo}>Categorias especiais (opcional)</Text>

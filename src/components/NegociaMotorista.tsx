@@ -39,37 +39,6 @@ function useSegundosAte(instante: string | null) {
   return Math.max(0, Math.round((new Date(instante).getTime() - agora) / 1000));
 }
 
-// Negocia: proposta mandada, esperando o passageiro escolher
-export function PropostaEnviadaAviso({
-  valorMotorista,
-  expiraEm,
-  distanciaDoRodape,
-}: {
-  valorMotorista: number | null;
-  expiraEm: string | null;
-  distanciaDoRodape: number;
-}) {
-  const segundos = useSegundosAte(expiraEm);
-
-  return (
-    <View
-      style={[styles.aviso, { bottom: distanciaDoRodape + 12 }]}
-      accessibilityLiveRegion="polite"
-    >
-      <ActivityIndicator color="#111" />
-      <View style={styles.textos}>
-        <Text style={styles.titulo}>
-          Proposta enviada: {emReais(valorMotorista)}
-        </Text>
-        <Text style={styles.apoio}>
-          Aguardando o passageiro escolher
-          {segundos !== null ? ` · ${segundos}s` : ""}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 // Negocia no Pix/cartão: o passageiro escolheu este motorista e está pagando.
 // Mesmo layout da espera no embarque (99): endereço numa pílula escura no
 // topo, faixa laranja, contagem em anel, passageiro e quanto o motorista
@@ -142,9 +111,7 @@ export function AguardandoPagamentoNegocia({
               {restantes === null ? (
                 <ActivityIndicator color="#3D7BFF" />
               ) : (
-                <Text
-                  style={[styles.anelTexto, acabou && styles.anelTextoFim]}
-                >
+                <Text style={[styles.anelTexto, acabou && styles.anelTextoFim]}>
                   {minutosESegundos(restantes)}
                 </Text>
               )}
@@ -205,26 +172,7 @@ export function AguardandoPagamentoNegocia({
 }
 
 const styles = StyleSheet.create({
-  aviso: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderRadius: 16,
-    backgroundColor: "#FFF6DB",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-  },
   textos: { flex: 1 },
-  titulo: { fontSize: 15, fontWeight: "800", color: "#3D2A00" },
-  apoio: { fontSize: 13, color: "#7A5A12", marginTop: 2 },
   pilulaEmbarque: {
     position: "absolute",
     left: 12,

@@ -276,9 +276,11 @@ export default function SolicitacoesCorrida({
                   <Ionicons name="person-circle" size={20} color="#6B7078" />
                   <Text style={styles.passageiroTexto}>
                     {typeof item.passageiro_nota === "number"
-                      ? item.passageiro_nota.toFixed(2).replace(".", ",")
-                      : "Novo"}
-                    {` · ${item.passageiro_corridas} corridas`}
+                      ? `${item.passageiro_nota.toFixed(2).replace(".", ",")} · `
+                      : ""}
+                    {item.passageiro_corridas === 0
+                      ? "Passageiro novo"
+                      : `${item.passageiro_corridas} ${item.passageiro_corridas === 1 ? "corrida" : "corridas"}`}
                   </Text>
                   {item.metodo_pagamento === "cartao" ? (
                     <>
@@ -329,14 +331,21 @@ export default function SolicitacoesCorrida({
                     onExpirar={aoExpirar}
                   />
                 ) : expirada ? (
-                  <TouchableOpacity
-                    style={styles.novaOferta}
-                    onPress={() => setOfertaNoModal(item)}
-                    disabled={ocupado}
-                  >
-                    <Ionicons name="refresh" size={21} color="#111" />
-                    <Text style={styles.aceitarTexto}>Fazer nova oferta</Text>
-                  </TouchableOpacity>
+                  <>
+                    <Text style={styles.motivoNovaOferta}>
+                      {proposta?.status === "recusada"
+                        ? "O passageiro recusou sua proposta."
+                        : "Sua proposta expirou sem resposta."}
+                    </Text>
+                    <TouchableOpacity
+                      style={[styles.novaOferta, styles.novaOfertaComMotivo]}
+                      onPress={() => setOfertaNoModal(item)}
+                      disabled={ocupado}
+                    >
+                      <Ionicons name="refresh" size={21} color="#111" />
+                      <Text style={styles.aceitarTexto}>Fazer nova oferta</Text>
+                    </TouchableOpacity>
+                  </>
                 ) : (
                   <>
                     <TouchableOpacity
@@ -628,6 +637,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFD400",
     marginTop: 20,
   },
+  motivoNovaOferta: {
+    marginTop: 18,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#8A5A00",
+    textAlign: "center",
+  },
+  novaOfertaComMotivo: { marginTop: 10 },
   sugestoes: { flexDirection: "row", gap: 7, marginTop: 9 },
   sugestao: {
     flex: 1,

@@ -1,4 +1,5 @@
 import { enderecoCurto } from "@/domain/endereco";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -42,6 +43,8 @@ export default function AvaliarPassageiro({
   onDispensar,
 }: Props) {
   const insets = useSafeAreaInsets();
+  // o teclado cobre o comentário se o cartão não subir junto
+  const espacoDoTeclado = useEspacoDoTeclado();
 
   const [nota, setNota] = useState(0);
   const [comentario, setComentario] = useState("");
@@ -60,7 +63,12 @@ export default function AvaliarPassageiro({
 
   return (
     <View style={styles.sobreposicao}>
-      <View style={[styles.cartao, { paddingBottom: insets.bottom + 20 }]}>
+      <View
+        style={[
+          styles.cartao,
+          { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 20 },
+        ]}
+      >
         <Text style={styles.titulo}>Corrida finalizada</Text>
         <Text style={styles.codigo}>Corrida {corrida.codigo_corrida}</Text>
 
