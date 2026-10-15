@@ -19,9 +19,6 @@ export default function BotaoEmpilharNegociadas({ ativo, onAlternar }: Props) {
       titulo: ativo
         ? "Empilhar corridas negociadas: desligado"
         : "Empilhar corridas negociadas: ligado",
-      mensagem: ativo
-        ? "Depois de mandar uma proposta, a próxima chamada espera a resposta do passageiro."
-        : "Novas chamadas continuam chegando; suas propostas ficam empilhadas atrás delas.",
       chave: `empilhar-negociadas:${!ativo}`,
     });
   };

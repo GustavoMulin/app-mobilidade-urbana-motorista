@@ -535,7 +535,6 @@ export function useDespachoMotorista(
                 : motivo === "outro"
                   ? "O passageiro fechou com outro motorista"
                   : `Sua proposta${deValor} venceu sem resposta`,
-            mensagem: "Você continua recebendo novas corridas.",
             chave: `negocia:${corridaId}:${motivo}`,
           });
         });

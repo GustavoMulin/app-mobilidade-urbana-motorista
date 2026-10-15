@@ -181,7 +181,8 @@ export function ToastProvider({ children }: PropsWithChildren) {
       id: proximoId.current++,
       chave,
       titulo: opcoes.titulo,
-      mensagem: problema ? opcoes.mensagem : undefined,
+      // só o título, como no app do passageiro: a segunda linha não aparece
+      mensagem: undefined,
       tipo,
       duracaoMs: problema
         ? Math.min(6000, Math.max(3500, opcoes.duracaoMs ?? 4500))
