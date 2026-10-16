@@ -8,6 +8,7 @@
 // - Voz guiando as manobras (precisa de TTS + lógica de quando anunciar).
 // Paradas: em viagem o alvo é a próxima parada pendente e o botão vira
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
+import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { enderecoCurto } from "@/domain/endereco";
@@ -71,6 +72,9 @@ interface Props {
   rotaSimulada?: RotaNavegacao | null;
   onAvancar: (acao: AcaoCorrida) => void;
   onCancelar: (motivo: string) => Promise<ResultadoCancelamento>;
+  // conversa com o passageiro (ChatDaCorrida, aberto pela home)
+  chatNaoLidas?: number;
+  onAbrirChat?: () => void;
 }
 
 interface Passo {
@@ -164,6 +168,8 @@ export default function NavegacaoAtiva({
   rotaSimulada = null,
   onAvancar,
   onCancelar,
+  chatNaoLidas = 0,
+  onAbrirChat,
 }: Props) {
   const passo = passoDaNavegacao(status, totalParadas, paradasPendentes);
   const corDoAlvo = tipoAlvo === "origem" ? "#18C9A0" : "#FF7A2F";
@@ -713,6 +719,13 @@ export default function NavegacaoAtiva({
               </Text>
             </View>
 
+            {onAbrirChat ? (
+              <BotaoChatPassageiro
+                naoLidas={chatNaoLidas}
+                onPress={onAbrirChat}
+                estilo={styles.botaoLigar}
+              />
+            ) : null}
             {passageiro?.telefone ? (
               <TouchableOpacity
                 style={styles.botaoLigar}

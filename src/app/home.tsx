@@ -27,6 +27,8 @@ import {
 import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
+import { useChatDaCorrida } from "@/hooks/useChatDaCorrida";
+import ChatDaCorrida from "@/components/ChatDaCorrida";
 import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
@@ -125,6 +127,16 @@ export default function Home() {
   // Negocia: o lápis do card abre o valor livre (fica aberto mesmo se a
   // chamada sumir; a corrida continua na lista de Solicitações)
   const [valorLivre, setValorLivre] = useState<OfertaCorrida | null>(null);
+  // conversa com o passageiro da corrida atual (backend: ChatCorridaController)
+  const [chatAberto, setChatAberto] = useState(false);
+  const chat = useChatDaCorrida(
+    simuladorCorrida.ativa ? null : (corridaExibida?.id ?? null),
+    chatAberto,
+  );
+  const abrirChat = () => {
+    chat.marcarLidas();
+    setChatAberto(true);
+  };
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
   // a lista de solicitações fecha quando uma corrida começa; sem isso ela
@@ -354,6 +366,8 @@ export default function Home() {
           onCancelar={
             simuladorCorrida.ativa ? simuladorCorrida.cancelar : cancelarCorrida
           }
+          chatNaoLidas={chat.naoLidas}
+          onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
         />
       )}
 
@@ -386,6 +400,8 @@ export default function Home() {
           onAlternarRecusarNovas={
             simuladorCorrida.ativa ? () => undefined : alternarRecusarNovas
           }
+          chatNaoLidas={chat.naoLidas}
+          onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
         />
       )}
 
@@ -451,6 +467,19 @@ export default function Home() {
           onAlturaChange={setAlturaDaChamada}
         />
       )}
+
+      <ChatDaCorrida
+        visible={chatAberto && corridaExibida !== null}
+        onClose={() => {
+          chat.marcarLidas();
+          setChatAberto(false);
+        }}
+        nomeDoOutro={passageiroExibido?.nome ?? "Passageiro"}
+        mensagens={chat.mensagens}
+        podeEnviar={chat.podeEnviar}
+        onEnviar={(texto) => void chat.enviar(texto)}
+        onReenviar={(mensagem) => void chat.reenviar(mensagem)}
+      />
 
       <OfertaNegociaMotorista
         oferta={valorLivre}
