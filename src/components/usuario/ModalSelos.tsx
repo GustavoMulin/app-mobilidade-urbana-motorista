@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useVoltarFecha } from "@/hooks/useVoltarFecha";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -35,6 +36,7 @@ export default function ModalSelos({
   const [slideAnim] = useState(() => new Animated.Value(height));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+  useVoltarFecha(visible, onClose);
 
   useEffect(() => {
     if (visible) {

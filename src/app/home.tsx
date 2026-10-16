@@ -5,7 +5,10 @@ import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
 import PedidoNovoDestino from "@/components/PedidoNovoDestino";
 import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
-import { AguardandoPagamentoNegocia } from "@/components/NegociaMotorista";
+import {
+  AguardandoPagamentoNegocia,
+  PropostaEnviadaAviso,
+} from "@/components/NegociaMotorista";
 import PilhaPropostasNegocia from "@/components/PilhaPropostasNegocia";
 import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
 import GanhoDiario from "@/components/GanhoDiario";
@@ -127,6 +130,15 @@ export default function Home() {
   // Negocia: o lápis do card abre o valor livre (fica aberto mesmo se a
   // chamada sumir; a corrida continua na lista de Solicitações)
   const [valorLivre, setValorLivre] = useState<OfertaCorrida | null>(null);
+  // empilhar desligado: o card amarelo de antes no rodapé (sem chamada na
+  // frente); os botões do mapa sobem para não ficarem atrás dele
+  const avisoNoRodape =
+    !simuladorCorrida.ativa &&
+    !empilhar &&
+    corridaExibida === null &&
+    ofertaExibida === null &&
+    propostasPendentes.length > 0;
+  const [alturaDoAviso, setAlturaDoAviso] = useState(0);
   // conversa com o passageiro da corrida atual (backend: ChatCorridaController)
   const [chatAberto, setChatAberto] = useState(false);
   const chat = useChatDaCorrida(
@@ -289,7 +301,11 @@ export default function Home() {
           }
           bottomSheetIndex={bottomSheetIndex}
           indiceFolhaAnimado={bottomSheetAnimatedIndex}
-          alturaMinimaRodape={corridaExibida === null ? alturaMenuInferior : 0}
+          alturaMinimaRodape={
+            corridaExibida === null
+              ? alturaMenuInferior + (avisoNoRodape ? alturaDoAviso + 12 : 0)
+              : 0
+          }
           isGanhoModalVisible={ganhoModalVisivel}
           // já no embarque não há o que traçar: a rota de poucos metros
           // dava a volta no quarteirão por causa da mão da rua
@@ -427,6 +443,18 @@ export default function Home() {
             chamadaNaTela={ofertaExibida !== null}
           />
         )}
+
+      {avisoNoRodape && (
+        <PropostaEnviadaAviso
+          valorMotorista={
+            propostasPendentes[0].minha_proposta?.valor_motorista ?? null
+          }
+          expiraEm={propostasPendentes[0].minha_proposta?.expira_em ?? null}
+          outras={propostasPendentes.length - 1}
+          distanciaDoRodape={alturaMenuInferior}
+          onAlturaChange={setAlturaDoAviso}
+        />
+      )}
 
       {ofertaExibida !== null && corridaExibida === null && (
         <RecebendoChamada
