@@ -3,9 +3,9 @@ import { useCallback, useEffect, useState } from "react";
 
 const CHAVE = "@motorista_empilhar_negociadas";
 
-// Negocia: ligado, quem mandou proposta continua recebendo chamadas e as
-// propostas esperando o passageiro ficam empilhadas atrás da chamada da vez;
-// desligado, a próxima chamada só toca depois da resposta do passageiro
+// Negocia: ligado, as propostas esperando o passageiro ficam empilhadas no
+// topo do mapa; desligado, somem da tela (continuam valendo e aparecem na
+// lista de Solicitações). Nos dois casos as chamadas continuam chegando.
 export function useEmpilharNegociadas() {
   const [empilhar, setEmpilhar] = useState(true);
 

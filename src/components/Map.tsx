@@ -56,6 +56,12 @@ interface MapProps {
   alturaMinimaRodape?: number;
   // botão flutuante extra, empilhado acima do "centralizar"
   botaoAcima?: React.ReactNode;
+  // embarque, paradas e destino da chamada que está tocando
+  marcadores?: {
+    latitude: number;
+    longitude: number;
+    tipo: "origem" | "parada" | "destino";
+  }[];
 }
 
 // Sem posição ainda e sem cache, mostra o país inteiro em vez de 0,0 (que é
@@ -95,6 +101,7 @@ export default function Map({
   alturaFolha = 0,
   alturaMinimaRodape = 0,
   botaoAcima,
+  marcadores = [],
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -391,6 +398,40 @@ export default function Map({
           />
         )}
 
+        {marcadores.map((ponto, indice) => (
+          <Marker
+            key={`${ponto.tipo}:${indice}:${ponto.latitude},${ponto.longitude}`}
+            coordinate={ponto}
+            anchor={{ x: 0.5, y: 0.5 }}
+            // com false o Android desenhava o círculo antes do ícone carregar
+            tracksViewChanges
+            zIndex={20}
+          >
+            <View
+              style={[
+                styles.marcadorPonto,
+                ponto.tipo === "origem"
+                  ? styles.marcadorEmbarque
+                  : ponto.tipo === "destino"
+                    ? styles.marcadorDestino
+                    : styles.marcadorParada,
+              ]}
+            >
+              <MaterialIcons
+                name={
+                  ponto.tipo === "origem"
+                    ? "arrow-upward"
+                    : ponto.tipo === "destino"
+                      ? "arrow-downward"
+                      : "more-horiz"
+                }
+                size={20}
+                color="#FFF"
+              />
+            </View>
+          </Marker>
+        ))}
+
         {alvo && (
           <Marker
             coordinate={alvo}
@@ -528,6 +569,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   avisoBotaoTexto: { color: "#FFF", fontSize: 14, fontWeight: "600" },
+  marcadorPonto: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFF",
+  },
+  marcadorEmbarque: { backgroundColor: "#17C08A" },
+  marcadorDestino: { backgroundColor: "#F2662F" },
+  marcadorParada: { backgroundColor: "#6B7280" },
   centerButtonContainer: {
     position: "absolute",
     right: 16,

@@ -4,6 +4,7 @@ import OfertaNegociaMotorista, {
   segundosDaProposta,
 } from "@/components/OfertaNegociaMotorista";
 import { enderecoCurto } from "@/domain/endereco";
+import { minutosEstimados, valoresSugeridos } from "@/domain/negocia";
 import { OfertaCorrida } from "@/hooks/useDespachoMotorista";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -40,8 +41,6 @@ interface Props {
 
 const emKm = (valor: number) => `${valor.toFixed(1).replace(".", ",")} km`;
 const emReais = (valor: number) => `R$${valor.toFixed(2).replace(".", ",")}`;
-const minutosEstimados = (distancia: number) =>
-  Math.max(1, Math.round((distancia / 25) * 60));
 
 export default function SolicitacoesCorrida({
   visible,
@@ -330,26 +329,20 @@ export default function SolicitacoesCorrida({
                     expiraEm={proposta?.expira_em}
                     onExpirar={aoExpirar}
                   />
-                ) : expirada ? (
-                  <>
-                    <Text style={styles.motivoNovaOferta}>
-                      {proposta?.status === "recusada"
-                        ? "O passageiro recusou sua proposta."
-                        : "Sua proposta expirou sem resposta."}
-                    </Text>
-                    <TouchableOpacity
-                      style={[styles.novaOferta, styles.novaOfertaComMotivo]}
-                      onPress={() => setOfertaNoModal(item)}
-                      disabled={ocupado}
-                    >
-                      <Ionicons name="refresh" size={21} color="#111" />
-                      <Text style={styles.aceitarTexto}>Fazer nova oferta</Text>
-                    </TouchableOpacity>
-                  </>
                 ) : (
                   <>
+                    {expirada ? (
+                      <Text style={styles.motivoNovaOferta}>
+                        {proposta?.status === "recusada"
+                          ? "O passageiro recusou sua proposta. Ofereça de novo:"
+                          : "Sua proposta expirou sem resposta. Ofereça de novo:"}
+                      </Text>
+                    ) : null}
                     <TouchableOpacity
-                      style={styles.aceitar}
+                      style={[
+                        styles.aceitar,
+                        expirada && styles.aceitarComMotivo,
+                      ]}
                       disabled={ocupado || item.recusada_localmente}
                       onPress={() =>
                         item.negociavel
@@ -366,14 +359,10 @@ export default function SolicitacoesCorrida({
 
                     {item.negociavel ? (
                       <View style={styles.sugestoes}>
-                        {[1.05, 1.08, 1.1].map((fator) => {
-                          const sugerido =
-                            Math.round(
-                              item.valor_motorista * fator * 100,
-                            ) / 100;
-                          return (
+                        {valoresSugeridos(item.valor_motorista).map(
+                          (sugerido) => (
                             <TouchableOpacity
-                              key={fator}
+                              key={sugerido}
                               style={styles.sugestao}
                               onPress={() =>
                                 void onPropor(item.corrida_id, sugerido)
@@ -384,8 +373,8 @@ export default function SolicitacoesCorrida({
                                 {emReais(sugerido)}
                               </Text>
                             </TouchableOpacity>
-                          );
-                        })}
+                          ),
+                        )}
                         <TouchableOpacity
                           style={styles.editarOferta}
                           onPress={() => setOfertaNoModal(item)}
@@ -627,16 +616,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   aceitarTexto: { color: "#111", fontSize: 17, fontWeight: "800" },
-  novaOferta: {
-    height: 53,
-    flexDirection: "row",
-    gap: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 13,
-    backgroundColor: "#FFD400",
-    marginTop: 20,
-  },
   motivoNovaOferta: {
     marginTop: 18,
     fontSize: 14,
@@ -644,7 +623,7 @@ const styles = StyleSheet.create({
     color: "#8A5A00",
     textAlign: "center",
   },
-  novaOfertaComMotivo: { marginTop: 10 },
+  aceitarComMotivo: { marginTop: 10 },
   sugestoes: { flexDirection: "row", gap: 7, marginTop: 9 },
   sugestao: {
     flex: 1,

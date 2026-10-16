@@ -20,9 +20,14 @@ import { Text } from "@/components/common/Texto";
 import SimuladorCorridaMotorista from "@/components/desenvolvimento/SimuladorCorridaMotorista";
 import { useAuth } from "@/context/AuthProvider";
 import { useAvaliacaoPendente } from "@/hooks/useAvaliacaoPendente";
-import { useDespachoMotorista } from "@/hooks/useDespachoMotorista";
+import {
+  type OfertaCorrida,
+  useDespachoMotorista,
+} from "@/hooks/useDespachoMotorista";
 import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
+import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
+import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
 import { useRouter } from "expo-router";
@@ -81,7 +86,7 @@ export default function Home() {
     pedidoNovoDestino,
     respondendoPedido,
     responderNovoDestino,
-  } = useDespachoMotorista(simuladorCorrida.ativa, empilhar);
+  } = useDespachoMotorista(simuladorCorrida.ativa);
 
   const dadosSimulados = simuladorCorrida.dados;
   const corridaExibida = simuladorCorrida.ativa
@@ -111,6 +116,15 @@ export default function Home() {
         }
       : null;
   const ocupadoExibido = simuladorCorrida.ativa ? false : ocupado;
+  // a chamada que está tocando: o mapa mostra o trajeto dela acima do card
+  const chamadaNoMapa = ofertaExibida !== null && corridaExibida === null;
+  const { rota: rotaDaOferta, pontos: pontosDaOferta } = useRotaDaOferta(
+    chamadaNoMapa && !simuladorCorrida.ativa ? ofertaExibida : null,
+  );
+  const [alturaDaChamada, setAlturaDaChamada] = useState(0);
+  // Negocia: o lápis do card abre o valor livre (fica aberto mesmo se a
+  // chamada sumir; a corrida continua na lista de Solicitações)
+  const [valorLivre, setValorLivre] = useState<OfertaCorrida | null>(null);
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
   // a lista de solicitações fecha quando uma corrida começa; sem isso ela
@@ -268,21 +282,26 @@ export default function Home() {
           // já no embarque não há o que traçar: a rota de poucos metros
           // dava a volta no quarteirão por causa da mão da rua
           rota={
-            corridaExibida?.status_corrida === "motorista_chegou"
-              ? []
-              : rotaDaCorrida
+            chamadaNoMapa
+              ? rotaDaOferta
+              : corridaExibida?.status_corrida === "motorista_chegou"
+                ? []
+                : rotaDaCorrida
           }
-          alvo={alvoDaCorrida}
+          alvo={chamadaNoMapa ? null : alvoDaCorrida}
           alvoEhDestino={false}
+          marcadores={chamadaNoMapa ? pontosDaOferta : []}
           alturaFolha={
             telaDeEspera
               ? ALTURA_FOLHA_ESPERA
-              : corridaExibida === null
-                ? 0
-                : ALTURA_FOLHA_CORRIDA
+              : chamadaNoMapa
+                ? alturaDaChamada
+                : corridaExibida === null
+                  ? 0
+                  : ALTURA_FOLHA_CORRIDA
           }
           botaoAcima={
-            corridaExibida === null ? (
+            corridaExibida === null && !chamadaNoMapa ? (
               <BotaoEmpilharNegociadas
                 ativo={empilhar}
                 onAlternar={alternarEmpilhar}
@@ -384,6 +403,7 @@ export default function Home() {
       {/* Negocia: propostas esperando o passageiro, no topo; a chamada da vez
           continua chegando embaixo */}
       {!simuladorCorrida.ativa &&
+        empilhar &&
         corridaExibida === null &&
         propostasPendentes.length > 0 && (
           <PilhaPropostasNegocia
@@ -423,16 +443,33 @@ export default function Home() {
           onRecusar={
             simuladorCorrida.ativa ? simuladorCorrida.encerrar : recusar
           }
+          onEditarValor={
+            !simuladorCorrida.ativa && ofertaExibida.negociavel === true
+              ? () => setValorLivre(ofertaExibida)
+              : undefined
+          }
+          onAlturaChange={setAlturaDaChamada}
         />
       )}
+
+      <OfertaNegociaMotorista
+        oferta={valorLivre}
+        ocupado={ocupadoExibido}
+        onClose={() => setValorLivre(null)}
+        onConfirmar={async (corridaId, valorMotorista) => {
+          setValorLivre(null);
+          await propor(corridaId, valorMotorista);
+        }}
+      />
 
       <GanhoDiario
         visible={ganhoModalVisivel}
         setVisible={setGanhoModalVisivel}
         corridaAtivaId={corridaExibida?.id ?? null}
-        ocultarAtalho={telaDeEspera}
+        ocultarAtalho={telaDeEspera || chamadaNoMapa}
       />
-      {!statusComNavegacao && !telaDeEspera && (
+      {/* com a chamada na tela o topo fica livre, como no 99 */}
+      {!statusComNavegacao && !telaDeEspera && !chamadaNoMapa && (
         <TopMenu onMenuPress={handleMenuOpen} />
       )}
 

@@ -10,7 +10,12 @@ import {
   View,
 } from "react-native";
 import { enderecoCurto } from "@/domain/endereco";
-import NegociarChamada from "./NegociarChamada";
+import {
+  emDistancia,
+  minutosEstimados,
+  valoresSugeridos,
+} from "@/domain/negocia";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface RecebendoChamadaProps {
   onAceitar: () => void;
@@ -31,6 +36,10 @@ interface RecebendoChamadaProps {
   metodoPagamento?: string | null;
   notaPassageiro?: number | null;
   corridasPassageiro?: number;
+  // Negocia: o lápis abre o valor livre (OfertaNegociaMotorista)
+  onEditarValor?: () => void;
+  // altura do card, para o mapa enquadrar a rota acima dele
+  onAlturaChange?: (altura: number) => void;
 }
 
 const ICONE_PAGAMENTO: Record<
@@ -81,7 +90,10 @@ export default function RecebendoChamadas({
   metodoPagamento,
   notaPassageiro,
   corridasPassageiro = 0,
+  onEditarValor,
+  onAlturaChange,
 }: RecebendoChamadaProps) {
+  const insets = useSafeAreaInsets();
   const pagamento =
     ICONE_PAGAMENTO[metodoPagamento ?? "dinheiro"] ?? ICONE_PAGAMENTO.dinheiro;
   const playerRef = useRef<AudioPlayer | null>(null);
@@ -181,167 +193,226 @@ export default function RecebendoChamadas({
     pararSom();
   };
 
-  const widthInterpolated = progress.interpolate({
+  // o X da tela: no Negocia só some (não conta como recusa); na corrida
+  // normal é a recusa de sempre
+  const dispensar = () => {
+    if (closedRef.current) return;
+    closedRef.current = true;
+
+    try {
+      onExpirarRef.current();
+    } catch {}
+
+    pararSom();
+  };
+
+  // o tempo da chamada: a parte clara do topo e a barra encolhem juntas
+  const larguraDoTempo = progress.interpolate({
     inputRange: [0, 1],
     outputRange: ["0%", "100%"],
   });
 
-  const emKm = (valorEmKm?: number) =>
-    typeof valorEmKm === "number"
-      ? `${valorEmKm.toFixed(1).replace(".", ",")} km`
-      : "—";
-
   const emReais = (valorEmReais: number) =>
-    `R$ ${valorEmReais.toFixed(2).replace(".", ",")}`;
+    `R$${valorEmReais.toFixed(2).replace(".", ",")}`;
 
-  const distanciaAteVoce = emKm(distanciaAteOrigem);
-  const distanciaViagem = emKm(distanciaDaCorrida);
+  const valorPorKm =
+    typeof distanciaDaCorrida === "number" && distanciaDaCorrida > 0
+      ? `${emReais(valor / distanciaDaCorrida)}/km`
+      : null;
+  const ateEmbarque =
+    typeof distanciaAteOrigem === "number"
+      ? `${minutosEstimados(distanciaAteOrigem)} min (${emDistancia(distanciaAteOrigem)})`
+      : "Embarque";
+  const viagem =
+    typeof distanciaDaCorrida === "number"
+      ? `${minutosEstimados(distanciaDaCorrida)} min (${emDistancia(distanciaDaCorrida)})`
+      : "Destino";
   const enderecoPartida = origem
     ? enderecoCurto(origem)
     : "Endereço de partida";
   const enderecoDestino = destino
     ? enderecoCurto(destino)
     : "Endereço de destino";
+  const reputacao = [
+    typeof notaPassageiro === "number"
+      ? notaPassageiro.toFixed(2).replace(".", ",")
+      : null,
+    corridasPassageiro === 0
+      ? "Passageiro novo"
+      : `${corridasPassageiro} ${corridasPassageiro === 1 ? "corrida" : "corridas"}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const sugestoes = negociavel ? valoresSugeridos(valor) : [];
+  const titulo = [categoria ?? (negociavel ? "Negocia" : "Corrida")]
+    .concat(negociavel ? [pagamento.rotulo] : [])
+    .join(" · ");
 
-  return (
-    <View style={styles.overlay}>
-      {/* O card é um View normal, o pulso será um overlay interno */}
-      <View style={styles.card}>
-        <View style={styles.progressContainer}>
-          <Animated.View
-            style={[styles.progressBar, { width: widthInterpolated }]}
-          />
-        </View>
-
-        {categoria ? (
-          <View style={styles.categoriaChip}>
-            <Text style={styles.categoriaTexto}>{categoria}</Text>
+  const conteudo = (
+    <>
+      <View style={[styles.topo, !negociavel && styles.topoCentralizado]}>
+        <Animated.View
+          pointerEvents="none"
+          style={[styles.tempoFundo, { width: larguraDoTempo }]}
+        />
+        {negociavel ? (
+          <View style={styles.chip}>
+            <Text style={styles.chipTexto}>{titulo}</Text>
+          </View>
+        ) : (
+          <Text style={styles.tituloCentral}>{titulo}</Text>
+        )}
+        <Text style={styles.valor}>{emReais(valor)}</Text>
+        {valorPorKm ? (
+          <Text style={[styles.valorKm, !negociavel && styles.valorKmDestaque]}>
+            {valorPorKm}
+          </Text>
+        ) : null}
+        {!negociavel ? (
+          <View style={styles.chipPagamento}>
+            <Ionicons name={pagamento.nome} size={15} color={pagamento.cor} />
+            <Text style={styles.chipPagamentoTexto}>{pagamento.rotulo}</Text>
           </View>
         ) : null}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.tempoBarra,
+            negociavel ? styles.tempoBarraNegocia : styles.tempoBarraNormal,
+            { width: larguraDoTempo },
+          ]}
+        />
+      </View>
 
-        <View style={styles.valorContainer}>
-          <Text style={styles.valorText}>{emReais(valor)}</Text>
-        </View>
-
-        <View style={styles.infoPagamento}>
-          <View
-            style={[styles.iconPagamento, { backgroundColor: pagamento.cor }]}
-            accessibilityLabel={`Pagamento: ${pagamento.rotulo}`}
-          >
-            <Ionicons name={pagamento.nome} size={18} color="#fff" />
-          </View>
-          <Text className="ml-2 mt-1" style={styles.topText}>
-            {pagamento.rotulo}
-          </Text>
-        </View>
-
-        <View style={styles.perfilInfoContainer}>
-          {typeof notaPassageiro === "number" ? (
-            <>
-              <View style={styles.infoItem}>
-                <Ionicons
-                  className="ml-4"
-                  name="star"
-                  size={20}
-                  color="#FFD700"
-                />
-                <Text className="ml-2 font-bold" style={styles.infoText}>
-                  {notaPassageiro.toFixed(2).replace(".", ",")}
-                </Text>
-              </View>
-
-              <Text style={styles.dot}>•</Text>
-            </>
-          ) : null}
-
-          <View style={styles.infoItem}>
-            <Text className="font-bold" style={styles.infoText}>
-              {corridasPassageiro === 0
-                ? "Passageiro novo"
-                : `${corridasPassageiro} ${corridasPassageiro === 1 ? "corrida" : "corridas"}`}
-            </Text>
-          </View>
+      <View style={styles.corpo}>
+        <View style={styles.reputacao}>
+          <Ionicons name="person-circle" size={18} color="#E8E8E8" />
+          <Text style={styles.reputacaoTexto}>{reputacao}</Text>
         </View>
 
         <View style={styles.separador} />
 
-        {/* INFO: tempo / distância / endereços */}
-        <View style={styles.infoContainer}>
-          {/* ✅ Row com o badge ao lado do tempo */}
-          <View style={styles.infoRow}>
-            <View style={[styles.badge, styles.badgeCorInicial]}>
-              <Text style={styles.badgeText}>A</Text>
-            </View>
-            <Text style={styles.infoTempoKm}>{distanciaAteVoce} até você</Text>
+        <View style={styles.ponto}>
+          <View style={[styles.icone, styles.iconeEmbarque]}>
+            <Ionicons name="arrow-up" size={13} color="#FFF" />
           </View>
-
-          {/* Endereço de partida (linha abaixo do tempo) */}
-          <View style={styles.infoRow}>
-            <Ionicons name="arrow-down-outline" size={18} color="white" />
-            <Text className="ml-3" style={styles.infoText}>
+          <View style={styles.pontoTextos}>
+            <Text style={styles.pontoTempo}>{ateEmbarque}</Text>
+            <Text style={styles.pontoEndereco} numberOfLines={2}>
               {enderecoPartida}
             </Text>
           </View>
+        </View>
 
-          {/* espaço entre os dois blocos de tempo/endereço */}
-          <View style={{ height: 2 }} />
-
-          {/* Segundo tempo/distância + destino */}
-          <View style={styles.infoRow}>
-            <View style={[styles.badge, styles.badgeCorFinal]}>
-              <Text style={styles.badgeText}>B</Text>
-            </View>
-            <Text style={[styles.infoTempoKm, { marginTop: 0 }]}>
-              {distanciaViagem} de viagem
+        <View style={styles.ponto}>
+          <View style={[styles.icone, styles.iconeDestino]}>
+            <Ionicons name="arrow-down" size={13} color="#FFF" />
+          </View>
+          <View style={styles.pontoTextos}>
+            <Text style={styles.pontoTempo}>
+              {viagem}
               {paradas > 0
                 ? ` · ${paradas} ${paradas === 1 ? "parada" : "paradas"}`
                 : ""}
             </Text>
-          </View>
-          <Text className="ml-8" style={styles.infoText}>
-            {enderecoDestino}
-          </Text>
-          {paraOutraPessoa && (
-            <Text className="ml-8" style={styles.paraOutraPessoa}>
-              Corrida para outra pessoa
+            <Text style={styles.pontoEndereco} numberOfLines={2}>
+              {enderecoDestino}
             </Text>
-          )}
+            {paraOutraPessoa ? (
+              <Text style={styles.paraOutraPessoa}>
+                Corrida para outra pessoa
+              </Text>
+            ) : null}
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.btnAceitar}
-          onPress={() => {
-            // aceita e para o som
-            acceptAndUnload();
-          }}
-        >
-          <Text style={styles.btnAceitarText}>
-            {`Aceitar por ${emReais(valor)}`}
-          </Text>
-        </TouchableOpacity>
-
-        {/* No Negocia o passageiro escolhe entre quem aceitou sua oferta e as
-            contrapropostas recebidas. */}
         {negociavel ? (
           <>
-            <Text style={styles.avisoNegocia}>
-              O passageiro escolhe entre as propostas recebidas.
-            </Text>
-            <NegociarChamada
-              valorBase={valor}
-              onValorEscolhido={(novoValor) => acceptAndUnload(novoValor)}
-            />
+            <TouchableOpacity
+              style={styles.aceitar}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              onPress={() => acceptAndUnload()}
+            >
+              <Text style={styles.aceitarTexto}>
+                {`Aceitar por ${emReais(valor)}`}
+              </Text>
+            </TouchableOpacity>
+            <View style={styles.sugestoes}>
+              {sugestoes.map((sugerido) => (
+                <TouchableOpacity
+                  key={sugerido}
+                  style={styles.sugestao}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Propor ${emReais(sugerido)}`}
+                  onPress={() => acceptAndUnload(sugerido)}
+                >
+                  <Text style={styles.sugestaoTexto}>{emReais(sugerido)}</Text>
+                </TouchableOpacity>
+              ))}
+              {onEditarValor ? (
+                <TouchableOpacity
+                  style={[styles.sugestao, styles.editar]}
+                  activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Propor outro valor"
+                  onPress={onEditarValor}
+                >
+                  <Ionicons name="pencil" size={20} color="#FFF" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
           </>
         ) : null}
+      </View>
+    </>
+  );
 
-        <TouchableOpacity
-          style={styles.recusarBtn}
-          onPress={() => {
-            closeAndUnload();
-          }}
-        >
-          <Text style={styles.recusarText}>Recusar</Text>
-        </TouchableOpacity>
+  return (
+    <View style={styles.overlay} pointerEvents="box-none">
+      <TouchableOpacity
+        style={[
+          styles.fechar,
+          negociavel ? styles.fecharNegocia : styles.fecharNormal,
+          { top: insets.top + 12 },
+        ]}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={
+          negociavel
+            ? "Fechar a chamada, não afeta a taxa de aceitação"
+            : "Recusar a chamada"
+        }
+        onPress={negociavel ? dispensar : closeAndUnload}
+      >
+        <Ionicons name="close" size={negociavel ? 20 : 26} color="#FFF" />
+        {negociavel ? (
+          <Text style={styles.fecharTexto}>Não afeta a TA</Text>
+        ) : null}
+      </TouchableOpacity>
+
+      <View
+        style={styles.cardArea}
+        onLayout={({ nativeEvent }) =>
+          onAlturaChange?.(nativeEvent.layout.height + 12)
+        }
+      >
+        {negociavel ? (
+          <View style={styles.card}>{conteudo}</View>
+        ) : (
+          // corrida normal: o card inteiro é o botão de aceitar, como no 99
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={`Aceitar corrida de ${emReais(valor)}`}
+            accessibilityHint="Toque no cartão para aceitar"
+            onPress={() => acceptAndUnload()}
+          >
+            {conteudo}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -354,218 +425,122 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    alignItems: "center",
     justifyContent: "flex-end",
     paddingBottom: 12,
     zIndex: 9999,
     elevation: 9999,
   },
-  card: {
-    backgroundColor: "#2a2a2a",
-    borderRadius: 12,
-    width: "94%",
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    // Adicionar position: 'relative' para que o PulseOverlay use absoluteFillObject corretamente
-    position: "relative",
-  },
-  progressContainer: {
-    height: 3,
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 10,
-    // Garante que a barra de progresso esteja acima do pulso
-    zIndex: 2,
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#fbc02d",
-  },
-  topText: {
-    color: "white",
-    fontSize: 16,
-    marginBottom: 8,
-    fontWeight: "bold",
-    alignItems: "center",
-    justifyContent: "center",
-    // Garante que o texto esteja acima do pulso
-    zIndex: 2,
-  },
-  categoriaChip: {
-    alignSelf: "center",
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.12)",
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 2,
-    zIndex: 2,
-  },
-  categoriaTexto: { color: "#fff", fontSize: 14, fontWeight: "700" },
-  avisoNegocia: {
-    color: "#bbb",
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 10,
-  },
-  valorContainer: {
-    alignItems: "center",
-    justifyContent: "center",
+  fechar: {
+    position: "absolute",
+    right: 14,
     flexDirection: "row",
-    // Garante que o valor esteja acima do pulso
-    zIndex: 2,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "#1F1F1F",
+    elevation: 6,
   },
-  valorText: {
-    color: "#fff",
-    fontSize: 50,
-    fontWeight: "600",
-    // Garante que o valor esteja acima do pulso
-    zIndex: 2,
+  fecharNormal: { width: 52, height: 52, borderRadius: 26 },
+  fecharNegocia: { height: 44, borderRadius: 22, paddingHorizontal: 16 },
+  fecharTexto: { color: "#FFF", fontSize: 15, fontWeight: "600" },
+  cardArea: { paddingHorizontal: 12 },
+  card: {
+    backgroundColor: "#1F1F1F",
+    borderRadius: 16,
+    overflow: "hidden",
   },
-  valorKm: {
-    color: "#ccc",
-    fontSize: 14,
-    marginTop: 2,
-    // Garante que o texto esteja acima do pulso
-    zIndex: 2,
+  topo: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 16,
+    alignItems: "flex-start",
+    backgroundColor: "#1F1F1F",
   },
-  infoContainer: {
-    marginVertical: 14,
-    flexDirection: "column",
+  topoCentralizado: { alignItems: "center" },
+  tempoFundo: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "#353535",
+  },
+  tempoBarra: { position: "absolute", left: 0, bottom: 0, height: 5 },
+  tempoBarraNormal: { backgroundColor: "#FFD400" },
+  tempoBarraNegocia: { backgroundColor: "#12A150" },
+  chip: {
+    borderRadius: 8,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 6,
+  },
+  chipTexto: { color: "#FFF", fontSize: 16, fontWeight: "700" },
+  tituloCentral: {
+    color: "#FFF",
+    fontSize: 18,
+    fontWeight: "500",
+    marginBottom: 2,
+  },
+  valor: { color: "#FFF", fontSize: 44, fontWeight: "700", lineHeight: 52 },
+  valorKm: { color: "#BDBDBD", fontSize: 15, marginTop: 2 },
+  valorKmDestaque: { color: "#FFF", fontSize: 18, fontWeight: "700" },
+  chipPagamento: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,255,255,0.1)",
     paddingHorizontal: 12,
-    // Garante que o bloco de informações esteja acima do pulso
-    zIndex: 2,
+    paddingVertical: 5,
+    marginTop: 8,
   },
-  infoTempoKm: {
-    color: "#fff",
-    fontSize: 16,
-    lineHeight: 20,
-    fontWeight: "bold",
+  chipPagamentoTexto: { color: "#F5C542", fontSize: 14, fontWeight: "600" },
+  corpo: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 },
+  reputacao: { flexDirection: "row", alignItems: "center", gap: 8 },
+  reputacaoTexto: { color: "#FFF", fontSize: 16 },
+  separador: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#4A4A4A",
+    marginVertical: 12,
   },
-  infoText: {
-    color: "#fff",
-    fontSize: 16,
-    lineHeight: 20,
+  ponto: { flexDirection: "row", gap: 10, marginBottom: 10 },
+  icone: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
   },
+  iconeEmbarque: { backgroundColor: "#17C08A" },
+  iconeDestino: { backgroundColor: "#F2662F" },
+  pontoTextos: { flex: 1 },
+  pontoTempo: { color: "#FFF", fontSize: 17, fontWeight: "700" },
+  pontoEndereco: { color: "#DADADA", fontSize: 16, lineHeight: 21 },
   paraOutraPessoa: {
     color: "#FBC02D",
     fontSize: 14,
     fontWeight: "700",
+    marginTop: 4,
+  },
+  aceitar: {
+    minHeight: 50,
+    borderRadius: 12,
+    backgroundColor: "#FFD400",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 6,
   },
-  btnAceitar: {
-    backgroundColor: "#fbc02d",
-    paddingVertical: 14,
-    borderRadius: 50,
-    alignItems: "center",
-    marginBottom: 14,
-    // Garante que o botão Aceitar esteja acima do pulso
-    zIndex: 2,
-  },
-  btnAceitarText: {
-    color: "#111",
-    fontWeight: "600",
-    fontSize: 16,
-  },
-  footerButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    // Garante que os botões de rodapé estejam acima do pulso
-    zIndex: 2,
-  },
-  footerButton: {
+  aceitarTexto: { color: "#111", fontSize: 17, fontWeight: "600" },
+  sugestoes: { flexDirection: "row", gap: 8, marginTop: 10 },
+  sugestao: {
     flex: 1,
-    backgroundColor: "#3b3b3b",
-    paddingVertical: 10,
-    marginHorizontal: 3,
-    borderRadius: 8,
-  },
-  footerButtonText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "600",
-  },
-  recusarBtn: {
-    alignItems: "center",
-    marginTop: 10,
-    // Garante que o botão Recusar esteja acima do pulso
-    zIndex: 2,
-  },
-  recusarText: {
-    color: "#ccc",
-    fontSize: 14,
-  },
-  infoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  badge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11, // metade do tamanho = círculo perfeito
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 6,
-  },
-  badgeCorInicial: {
-    backgroundColor: "#4CAF50",
-  },
-  badgeCorFinal: {
-    backgroundColor: "red",
-  },
-  badgeText: {
-    color: "#fff",
-    fontWeight: "bold",
-    fontSize: 13,
-  },
-  infoPagamento: {
-    flexDirection: "row",
+    minHeight: 50,
+    borderRadius: 12,
+    backgroundColor: "#3A3A3A",
     alignItems: "center",
     justifyContent: "center",
-    // Garante que o info de pagamento esteja acima do pulso
-    zIndex: 2,
   },
-  iconPagamento: {
-    backgroundColor: "#2ecc71",
-    paddingHorizontal: 6, // deixa mais largo
-    height: 20, // um pouco mais alto
-    borderRadius: 6, // arredondamento suave
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-  },
-  perfilInfoContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    justifyContent: "center",
-    // Garante que o info de perfil esteja acima do pulso
-    zIndex: 2,
-  },
-  infoItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  dot: {
-    color: "#aaa",
-    marginHorizontal: 6,
-  },
-  badgePerfil: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#2979ff",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  separador: {
-    height: 1,
-    backgroundColor: "#444",
-    marginVertical: 10,
-    marginHorizontal: 20,
-    borderRadius: 1,
-    opacity: 0.6,
-    // Garante que o separador esteja acima do pulso
-    zIndex: 2,
-  },
+  sugestaoTexto: { color: "#FFF", fontSize: 17, fontWeight: "700" },
+  editar: { flex: 0, width: 64 },
 });
