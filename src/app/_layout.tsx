@@ -1,4 +1,6 @@
 // app/_layout.tsx
+import { configurarNotificacoes, registrarAparelho } from "@/Services/push";
+import { useEffect } from "react";
 import { AuthProvider, useAuth } from "@/context/AuthProvider";
 import { ToastProvider } from "@/context/ToastContext";
 import "@/styles/global.css";
@@ -10,9 +12,26 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 // Rotas protegidas: com a sessão aberta, login e cadastro saem da pilha (o
 // voltar do celular não cai mais no login); sem sessão, a área logada sai.
+configurarNotificacoes();
+
 function Rotas() {
   const { user, loading } = useAuth();
   const logado = Boolean(user);
+
+  // push da corrida: o aparelho é registrado com a sessão aberta
+  useEffect(() => {
+    if (!user?.id) return;
+    let cancelar: () => void = () => undefined;
+    let ativo = true;
+    void registrarAparelho().then((desfazer) => {
+      if (ativo) cancelar = desfazer;
+      else desfazer();
+    });
+    return () => {
+      ativo = false;
+      cancelar();
+    };
+  }, [user?.id]);
 
   return (
     <Stack>

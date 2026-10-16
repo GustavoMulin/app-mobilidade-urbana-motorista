@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 
+import { removerAparelho } from "@/Services/push";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { AppState } from "react-native";
@@ -209,6 +210,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     logoutEmAndamento.current = true;
     try {
       const token = await SecureStore.getItemAsync("token");
+      // o aparelho para de receber o push desta conta (precisa do token ainda)
+      if (token) await removerAparelho();
       if (token) await api.post("/auth/logout");
     } catch {
       // Token expirado ou rede indisponível não impedem a saída local.
