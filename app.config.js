@@ -23,6 +23,13 @@ const googleMapsAndroidKey = lerEnv("GOOGLE_MAPS_ANDROID_KEY");
 // CODEX: preserve o identificador do APK já instalado ao informá-lo no ambiente de build.
 const androidAppPackage = lerEnv("ANDROID_APP_PACKAGE");
 const iosAppBundleId = lerEnv("IOS_APP_BUNDLE_ID");
+// push (Firebase): o google-services.json do projeto Firebase, baixado no
+// console para o pacote deste app. Sem ele o app funciona, só não recebe push.
+const googleServicesFile =
+  lerEnv("GOOGLE_SERVICES_FILE") ||
+  (fs.existsSync(path.join(__dirname, "google-services.json"))
+    ? "./google-services.json"
+    : "");
 
 if (!ehDesenvolvimento && process.env.EAS_BUILD_PLATFORM !== "ios" && !googleMapsAndroidKey) {
   throw new Error("GOOGLE_MAPS_ANDROID_KEY é obrigatória no build Android de produção.");
@@ -50,6 +57,7 @@ module.exports = {
   },
 
   android: {
+    ...(googleServicesFile ? { googleServicesFile } : {}),
     ...(androidAppPackage ? { package: androidAppPackage } : {}),
     adaptiveIcon: {
       backgroundColor: "#E6F4FE",
@@ -70,6 +78,14 @@ module.exports = {
   },
 
   plugins: [
+    [
+      "expo-notifications",
+      {
+        icon: "./assets/images/android-icon-monochrome.png",
+        color: "#FFD600",
+        defaultChannel: "corridas",
+      },
+    ],
     "expo-router",
     ["react-native-maps", { androidGoogleMapsApiKey: googleMapsAndroidKey }],
     [
