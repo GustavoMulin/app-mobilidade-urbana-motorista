@@ -1,5 +1,6 @@
 import { Text } from "@/components/common/Texto";
 import { enderecoCurto } from "@/domain/endereco";
+import { emDistancia } from "@/domain/negocia";
 import type { OfertaCorrida } from "@/hooks/useDespachoMotorista";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -31,9 +32,6 @@ const emReais = (valor: number | string | null | undefined) => {
     ? `R$ ${numero.toFixed(2).replace(".", ",")}`
     : "";
 };
-
-const emKm = (valor?: number) =>
-  typeof valor === "number" ? `${valor.toFixed(1).replace(".", ",")} km` : "—";
 
 // quem já está na tela não muda de lugar (quem sumiu sai com fade ali mesmo)
 // e as propostas novas entram embaixo, na ordem em que foram mandadas
@@ -166,10 +164,10 @@ function CartaoAguardando({
           </View>
           <View style={styles.distancias}>
             <Text style={styles.distancia}>
-              {emKm(oferta.distancia_ate_origem_km)}
+              {emDistancia(oferta.distancia_ate_origem_km)}
             </Text>
             <Text style={styles.viagem}>
-              {emKm(oferta.distancia_corrida_km)} de viagem
+              {emDistancia(oferta.distancia_corrida_km)} de viagem
             </Text>
           </View>
         </View>
