@@ -31,14 +31,16 @@ import {
 import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
-import { useChatDaCorrida } from "@/hooks/useChatDaCorrida";
+import { ehMinha, useChatDaCorrida } from "@/hooks/useChatDaCorrida";
+import AvisosDoChat from "@/components/AvisosDoChat";
+import { ouvirToqueNoChat } from "@/Services/push";
 import ChatDaCorrida from "@/components/ChatDaCorrida";
 import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -152,6 +154,40 @@ export default function Home() {
     chat.marcarLidas();
     setChatAberto(true);
   };
+  // tocar no push de uma mensagem abre a conversa quando a corrida carregar
+  const [chatPedidoPeloPush, setChatPedidoPeloPush] = useState<{
+    corridaId: number;
+    vez: number;
+  } | null>(null);
+  const pedidoAtendido = useRef(0);
+  const abrirChatRef = useRef(abrirChat);
+  useEffect(() => {
+    abrirChatRef.current = abrirChat;
+  });
+  useEffect(
+    () =>
+      ouvirToqueNoChat((corridaId) =>
+        setChatPedidoPeloPush((atual) => ({
+          corridaId,
+          vez: (atual?.vez ?? 0) + 1,
+        })),
+      ),
+    [],
+  );
+  useEffect(() => {
+    if (
+      !chatPedidoPeloPush ||
+      chatPedidoPeloPush.vez === pedidoAtendido.current
+    )
+      return;
+    if (corridaExibida?.id !== chatPedidoPeloPush.corridaId) return;
+    pedidoAtendido.current = chatPedidoPeloPush.vez;
+    abrirChatRef.current();
+  }, [chatPedidoPeloPush, corridaExibida?.id]);
+  const mensagensEnviadas = useMemo(
+    () => chat.mensagens.filter(ehMinha).map((item) => item.conteudo),
+    [chat.mensagens],
+  );
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
   // a lista de solicitações fecha quando uma corrida começa; sem isso ela
@@ -421,6 +457,10 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          mensagensEnviadas={mensagensEnviadas}
+          onEnviarMensagem={
+            simuladorCorrida.ativa || !chat.podeEnviar ? undefined : chat.enviar
+          }
         />
       )}
 
@@ -506,6 +546,19 @@ export default function Home() {
               : undefined
           }
           onAlturaChange={setAlturaDaChamada}
+        />
+      )}
+
+      {!chatAberto && corridaExibida !== null && (
+        <AvisosDoChat
+          corridaId={chat.corridaId}
+          recebidas={chat.recebidasNaoLidas}
+          carregada={chat.carregada}
+          onAbrir={abrirChat}
+          // na navegação o cartão de manobra fica livre
+          distanciaDoTopo={
+            corridaExibida.status_corrida === "motorista_chegou" ? 66 : 170
+          }
         />
       )}
 

@@ -29,14 +29,19 @@ export function configurarNotificacoes() {
   if (!Notificacoes) return;
 
   try {
-    // com o app aberto o aviso também aparece no topo, como no 99
+    // com o app aberto o aviso também aparece no topo, como no 99; a
+    // mensagem do chat não, porque o próprio app já mostra o pop-up dela
     Notificacoes.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
+      handleNotification: async (notificacao) => {
+        const doChat =
+          notificacao.request.content.data?.tipo === "chat_corrida";
+        return {
+          shouldShowBanner: !doChat,
+          shouldShowList: !doChat,
+          shouldPlaySound: !doChat,
+          shouldSetBadge: false,
+        };
+      },
     });
 
     if (Platform.OS === "android") {
@@ -85,6 +90,40 @@ export async function registrarAparelho(): Promise<() => void> {
     return () => assinatura.remove();
   } catch {
     // sem Firebase configurado no build (google-services.json) não há token
+    return () => undefined;
+  }
+}
+
+const toquesTratados = new Set<string>();
+
+// tocar no push de uma mensagem abre a conversa da corrida (também quando o
+// toque abriu o app); o conteúdo vem da API, o push só diz qual corrida
+export function ouvirToqueNoChat(
+  aoAbrir: (corridaId: number) => void,
+): () => void {
+  const Notificacoes = notificacoes();
+  if (!Notificacoes) return () => undefined;
+
+  const tratar = (
+    resposta: import("expo-notifications").NotificationResponse | null,
+  ) => {
+    if (!resposta) return;
+    const { identifier, content } = resposta.notification.request;
+    if (content.data?.tipo !== "chat_corrida" || toquesTratados.has(identifier))
+      return;
+    toquesTratados.add(identifier);
+    const corridaId = Number(content.data?.corrida_id);
+    if (Number.isFinite(corridaId) && corridaId > 0) aoAbrir(corridaId);
+  };
+
+  try {
+    void Notificacoes.getLastNotificationResponseAsync()
+      .then(tratar)
+      .catch(() => undefined);
+    const assinatura =
+      Notificacoes.addNotificationResponseReceivedListener(tratar);
+    return () => assinatura.remove();
+  } catch {
     return () => undefined;
   }
 }

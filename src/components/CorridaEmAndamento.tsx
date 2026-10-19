@@ -2,6 +2,7 @@
 // numa pílula escura no topo, faixa laranja da taxa de espera, relógio em
 // anel, passageiro e "Iniciar corrida". O ≡ abre a tela Mais (cancelar com
 // motivo, ausência do passageiro, recusar novas corridas).
+import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
 import AnelProgresso from "@/components/AnelProgresso";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
@@ -57,6 +58,9 @@ interface props {
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // mensagens de um toque ao chegar (o que já foi para a conversa some)
+  mensagensEnviadas?: string[];
+  onEnviarMensagem?: (texto: string) => Promise<boolean>;
 }
 
 // o backend só aceita encerrar por ausência depois de 3 min no embarque
@@ -92,6 +96,8 @@ export default function CorridaEmAndamento({
   onAlternarRecusarNovas,
   chatNaoLidas = 0,
   onAbrirChat,
+  mensagensEnviadas = [],
+  onEnviarMensagem,
 }: props) {
   const insets = useSafeAreaInsets();
   const { height: alturaTela } = useWindowDimensions();
@@ -196,6 +202,12 @@ export default function CorridaEmAndamento({
       </View>
 
       <View style={[styles.base, { maxHeight: alturaTela - insets.top - 80 }]}>
+        {onEnviarMensagem ? (
+          <BaloesDaChegada
+            enviadas={mensagensEnviadas}
+            onEnviar={onEnviarMensagem}
+          />
+        ) : null}
         {faixa && (
           <TouchableOpacity
             activeOpacity={0.85}
