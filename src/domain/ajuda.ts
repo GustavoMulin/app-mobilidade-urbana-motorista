@@ -17,13 +17,7 @@ export const ROTULO_MOTIVO: Record<Motivo, string> = {
   outro: "Outro assunto",
 };
 
-export type StatusPedido =
-  | "open"
-  | "waiting"
-  | "in_progress"
-  | "pending"
-  | "resolved"
-  | "closed";
+export type StatusPedido = "open" | "waiting" | "in_progress" | "resolved";
 
 export const SITUACAO_DO_PEDIDO: Record<
   StatusPedido,
@@ -40,17 +34,22 @@ export const SITUACAO_DO_PEDIDO: Record<
     fundo: "#FFF6DB",
   },
   in_progress: { texto: "Em atendimento", cor: "#1C6FD1", fundo: "#E8F1FD" },
-  pending: {
-    texto: "Aguardando sua resposta",
-    cor: "#B45309",
-    fundo: "#FFF1E6",
-  },
-  resolved: { texto: "Resolvido", cor: "#18794E", fundo: "#E7F6EE" },
-  closed: { texto: "Encerrado", cor: "#5F6368", fundo: "#F1F3F4" },
+  resolved: { texto: "Finalizado", cor: "#18794E", fundo: "#E7F6EE" },
+};
+
+// status que o app não conhece aparece como "Em análise" e não libera envio
+const SITUACAO_DESCONHECIDA = {
+  texto: "Em análise",
+  cor: "#5F6368",
+  fundo: "#F1F3F4",
 };
 
 export const situacaoDoPedido = (status: string) =>
-  SITUACAO_DO_PEDIDO[status as StatusPedido] ?? SITUACAO_DO_PEDIDO.open;
+  SITUACAO_DO_PEDIDO[status as StatusPedido] ?? SITUACAO_DESCONHECIDA;
+
+// ticket finalizado não reabre: novo assunto pede novo atendimento
+export const aceitaMensagens = (status: string) =>
+  status === "open" || status === "waiting" || status === "in_progress";
 
 export interface PedidoDeAjuda {
   id: number;

@@ -2,6 +2,7 @@ import { Text, TextInput } from "@/components/common/Texto";
 import {
   MensagemDeAjuda,
   ROTULO_MOTIVO,
+  aceitaMensagens,
   situacaoDoPedido,
 } from "@/domain/ajuda";
 import AnexoDaMensagem from "@/components/central-de-ajuda/AnexoDaMensagem";
@@ -128,7 +129,8 @@ export default function ConversaAjuda({ pedidoId, onVoltar }: Props) {
   const visiveis = avisoDaFila
     ? mensagens.filter((item) => item.tipo_sistema !== "fila_atendimento")
     : mensagens;
-  const encerrado = pedido?.status === "closed";
+  // finalizado (ou status desconhecido) é só consulta
+  const encerrado = pedido ? !aceitaMensagens(pedido.status) : false;
   const podeEnviar = (texto.trim().length > 0 || imagem !== null) && !encerrado;
 
   useEffect(() => {
@@ -247,16 +249,26 @@ export default function ConversaAjuda({ pedidoId, onVoltar }: Props) {
         ]}
       >
         {encerrado ? (
-          <Text style={styles.encerrado}>
-            Este atendimento foi encerrado. Se precisar, abra um novo pedido.
-          </Text>
+          <View style={styles.finalizado}>
+            <Text style={styles.encerrado}>
+              {pedido?.status === "resolved"
+                ? "Este atendimento foi finalizado. Para outro assunto, abra um novo atendimento."
+                : "Este atendimento não recebe mensagens agora."}
+            </Text>
+            {pedido?.status === "resolved" && (
+              <TouchableOpacity
+                style={styles.novoAtendimento}
+                accessibilityRole="button"
+                onPress={() => onVoltar(pedido?.ultima_mensagem_em ?? null)}
+              >
+                <Text style={styles.novoAtendimentoTexto}>
+                  Abrir novo atendimento
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         ) : (
           <>
-            {pedido?.status === "resolved" && (
-              <Text style={styles.dica}>
-                Se ainda precisar de ajuda, responda que o atendimento volta.
-              </Text>
-            )}
             {imagem ? (
               <View style={styles.previa}>
                 <Image
@@ -415,7 +427,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 6,
   },
-  dica: { fontSize: 12, color: "#6B7280", paddingHorizontal: 4 },
   composicao: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   campo: {
     flex: 1,
@@ -462,6 +473,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  finalizado: { gap: 10, paddingTop: 4 },
+  novoAtendimento: {
+    alignItems: "center",
+    backgroundColor: "#FFD600",
+    borderRadius: 999,
+    justifyContent: "center",
+    minHeight: 48,
+    paddingHorizontal: 20,
+  },
+  novoAtendimentoTexto: { color: "#111", fontSize: 15, fontWeight: "700" },
   encerrado: {
     textAlign: "center",
     fontSize: 14,
