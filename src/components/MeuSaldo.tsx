@@ -38,6 +38,7 @@ const ICONE_MOVIMENTO: Record<
 > = {
   corrida: "car",
   taxa_dinheiro: "cash",
+  taxa_cancelamento: "cash-plus",
   saque: "bank-transfer-out",
 };
 
@@ -209,6 +210,13 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
                   Corridas pagas no app entram no saldo. Nas corridas em
                   dinheiro, a taxa da plataforma é descontada daqui.
                 </Text>
+                {carteira && carteira.saldo < 0 && (
+                  <Text style={styles.avisoNegativo}>
+                    O saldo está negativo por causa das taxas de corridas em
+                    dinheiro: você já recebeu o valor delas em mãos. O valor é
+                    abatido das próximas corridas pagas pelo app.
+                  </Text>
+                )}
                 {erroCarteira && (
                   <Text style={styles.erroTexto} accessibilityRole="alert">
                     Não foi possível atualizar o saldo.
@@ -263,7 +271,7 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
                         <View style={styles.itemLeft}>
                           <View style={styles.iconCircle}>
                             <MaterialCommunityIcons
-                              name={ICONE_MOVIMENTO[item.tipo]}
+                              name={ICONE_MOVIMENTO[item.tipo] ?? "cash"}
                               size={22}
                               color="#444"
                             />
@@ -275,6 +283,13 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
                             <Text style={styles.itemTime} numberOfLines={1}>
                               {hora(item.quando)} · {situacao}
                             </Text>
+                            {typeof item.recebido_em_maos === "number" && (
+                              <Text style={styles.recebidoEmMaos}>
+                                Você recebeu{" "}
+                                {formatarReais(item.recebido_em_maos)} em
+                                dinheiro
+                              </Text>
+                            )}
                           </View>
                         </View>
                         <View style={styles.itemRight}>
@@ -393,6 +408,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666",
   },
+  avisoNegativo: {
+    color: "#8A6100",
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 8,
+  },
+  recebidoEmMaos: { color: "#18794E", fontSize: 12, marginTop: 2 },
   subText: {
     fontSize: 13,
     color: "#999",
