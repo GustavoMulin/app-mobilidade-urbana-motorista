@@ -180,6 +180,11 @@ export function useDespachoMotorista(pausado = false) {
     longitude: number;
   } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // fim de corrida: o valor que o motorista ganhou, para o "cha-ching" na tela
+  const [ganhoRecebido, setGanhoRecebido] = useState<{
+    corridaId: number;
+    valor: number;
+  } | null>(null);
   const [socketAtivo, setSocketAtivo] = useState(false);
   const [gatilho, setGatilho] = useState(0);
   const [appAtivo, setAppAtivo] = useState(AppState.currentState === "active");
@@ -937,6 +942,10 @@ export function useDespachoMotorista(pausado = false) {
         });
 
         if (acao === "finalizar") {
+          const ganho = Number(data?.corrida_financeiro?.valor_motorista);
+          if (Number.isFinite(ganho) && ganho > 0) {
+            setGanhoRecebido({ corridaId: corrida.id, valor: ganho });
+          }
           setDisponivel(true);
           setChegada(null);
           setEspera(null);
@@ -1137,6 +1146,8 @@ export function useDespachoMotorista(pausado = false) {
     ],
   );
 
+  const fecharGanhoRecebido = useCallback(() => setGanhoRecebido(null), []);
+
   return {
     disponivel,
     oferta,
@@ -1165,5 +1176,7 @@ export function useDespachoMotorista(pausado = false) {
     pedidoNovoDestino,
     respondendoPedido,
     responderNovoDestino,
+    ganhoRecebido,
+    fecharGanhoRecebido,
   };
 }

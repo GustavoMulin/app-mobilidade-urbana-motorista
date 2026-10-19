@@ -2,6 +2,7 @@
 // CODEX: 168 linhas adicionadas e 68 removidas no diff atual; integra o simulador local ao fluxo do motorista. Remover após validação/commit.
 import AvaliarPassageiro from "@/components/AvaliarPassageiro";
 import CorridaEmAndamento from "@/components/CorridaEmAndamento";
+import DinheiroRecebido from "@/components/DinheiroRecebido";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
 import PedidoNovoDestino from "@/components/PedidoNovoDestino";
 import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
@@ -91,6 +92,8 @@ export default function Home() {
     pedidoNovoDestino,
     respondendoPedido,
     responderNovoDestino,
+    ganhoRecebido,
+    fecharGanhoRecebido,
   } = useDespachoMotorista(simuladorCorrida.ativa);
 
   const dadosSimulados = simuladorCorrida.dados;
@@ -433,6 +436,14 @@ export default function Home() {
             onDispensar={dispensarAvaliacao}
           />
         )}
+
+      {ganhoRecebido !== null && (
+        <DinheiroRecebido
+          key={ganhoRecebido.corridaId}
+          valor={ganhoRecebido.valor}
+          onFim={fecharGanhoRecebido}
+        />
+      )}
 
       {/* Negocia: propostas esperando o passageiro, no topo; a chamada da vez
           continua chegando embaixo */}
