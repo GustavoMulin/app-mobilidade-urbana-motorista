@@ -38,11 +38,13 @@ export interface Saque {
 }
 
 export interface Movimento {
-  tipo: "corrida" | "taxa_dinheiro" | "saque";
+  tipo: "corrida" | "taxa_dinheiro" | "taxa_cancelamento" | "saque";
   id: number;
   descricao: string;
   detalhe: string;
   valor: number;
+  // corrida em dinheiro: o que o passageiro pagou em mãos (fora do saldo)
+  recebido_em_maos?: number | null;
   status: StatusSaque | null;
   quando: string | null;
 }

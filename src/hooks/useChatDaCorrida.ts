@@ -74,6 +74,8 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
   );
   const [podeEnviar, setPodeEnviar] = useState(false);
   const [vistoAte, setVistoAte] = useState(0);
+  // primeira busca da corrida feita: o que veio nela é histórico, não aviso
+  const [carregadaDe, setCarregadaDe] = useState<number | null>(null);
   const ultimoId = useRef(0);
 
   const guardar = useCallback(
@@ -102,6 +104,7 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
       );
       setPodeEnviar(data.pode_enviar);
       guardar(data.data);
+      setCarregadaDe(corridaId);
     } catch {
       // a próxima rodada tenta de novo
     }
@@ -161,11 +164,12 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
     ).catch(() => {});
   }, [corridaId, ultimaRecebida, vistoAte]);
 
-  const naoLidas = aberto
-    ? 0
+  const recebidasNaoLidas = aberto
+    ? []
     : mensagens.filter(
         (item) => !ehMinha(item) && item.id !== null && item.id > vistoAte,
-      ).length;
+      );
+  const naoLidas = recebidasNaoLidas.length;
 
   const mandar = useCallback(
     async (mensagem: MensagemDaCorrida) => {
@@ -212,9 +216,12 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
   );
 
   return {
+    corridaId,
     mensagens,
     podeEnviar,
     naoLidas,
+    recebidasNaoLidas,
+    carregada: corridaId !== null && carregadaDe === corridaId,
     enviar,
     reenviar: mandar,
     marcarLidas,

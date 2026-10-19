@@ -46,3 +46,6 @@ app-example
 
 # notas de contexto (nao versionado)
 docs/docs-*/
+
+# Firebase (push): cada um baixa o seu no console
+google-services.json
