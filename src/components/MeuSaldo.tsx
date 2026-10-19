@@ -303,6 +303,11 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
                                 dinheiro
                               </Text>
                             )}
+                            {typeof item.saldo_apos === "number" && (
+                              <Text style={styles.saldoApos}>
+                                Saldo: {formatarReais(item.saldo_apos)}
+                              </Text>
+                            )}
                           </View>
                         </View>
                         <View style={styles.itemRight}>
@@ -427,6 +432,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     marginTop: 8,
   },
+  saldoApos: { color: "#6B7280", fontSize: 12, marginTop: 2 },
   recebidoEmMaos: { color: "#18794E", fontSize: 12, marginTop: 2 },
   subText: {
     fontSize: 13,
