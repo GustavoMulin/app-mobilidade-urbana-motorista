@@ -163,6 +163,11 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
   if (!isMounted) return null;
 
   const grupos = agruparPorDia(carteira?.movimentos ?? []);
+  // sem saldo para o mínimo do saque o botão não engana o motorista
+  const podeResgatar =
+    carteira !== null &&
+    carteira.disponivel_para_saque > 0 &&
+    carteira.disponivel_para_saque >= carteira.valor_minimo;
 
   return (
     <>
@@ -226,12 +231,20 @@ export default function MeuSaldo({ visible, onClose, duration = 200 }: props) {
 
               <TouchableOpacity
                 onPress={mostrarSacarSaldo}
-                disabled={!carteira}
+                disabled={!podeResgatar}
                 accessibilityRole="button"
-                style={[styles.btnResgatar, !carteira && styles.btnInativo]}
+                accessibilityState={{ disabled: !podeResgatar }}
+                style={[styles.btnResgatar, !podeResgatar && styles.btnInativo]}
               >
                 <Text style={styles.btnResgatarText}>Resgatar</Text>
               </TouchableOpacity>
+              {carteira && !podeResgatar && (
+                <Text style={styles.resgateIndisponivel}>
+                  {`O resgate fica disponível a partir de ${formatarReais(
+                    Math.max(carteira.valor_minimo, 0.01),
+                  )} de saldo.`}
+                </Text>
+              )}
 
               <MaterialCommunityIcons
                 name="currency-usd"
@@ -488,6 +501,12 @@ const styles = StyleSheet.create({
   },
   btnInativo: {
     opacity: 0.5,
+  },
+  resgateIndisponivel: {
+    color: "#6B7280",
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: "center",
   },
   erroTexto: {
     fontSize: 13,
