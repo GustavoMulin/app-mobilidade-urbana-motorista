@@ -516,21 +516,16 @@ export function useDespachoMotorista(pausado = false) {
             valor === null
               ? ""
               : ` de R$\u00a0${valor.toFixed(2).replace(".", ",")}`;
-          const motivo =
-            status === "recusada"
-              ? "recusada"
-              : status === undefined
-                ? "outro"
-                : "expirada";
+          // proposta que venceu sem resposta do passageiro sai sem aviso
+          if (status !== undefined && status !== "recusada") return;
+          const motivo = status === "recusada" ? "recusada" : "outro";
 
           mostrarToast({
             tipo: "info",
             titulo:
               motivo === "recusada"
                 ? `O passageiro recusou sua proposta${deValor}`
-                : motivo === "outro"
-                  ? "O passageiro fechou com outro motorista"
-                  : `Sua proposta${deValor} venceu sem resposta`,
+                : "O passageiro fechou com outro motorista",
             chave: `negocia:${corridaId}:${motivo}`,
           });
         });

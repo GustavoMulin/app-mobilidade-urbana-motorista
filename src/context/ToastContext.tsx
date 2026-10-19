@@ -42,7 +42,7 @@ const TOASTS_PERMITIDOS = [
   /^corrida:\d+:aceita$/,
   /^destino:\d+:(aceito|recusado)$/,
   /^empilhar-negociadas:(true|false)$/,
-  /^negocia:\d+:(recusada|expirada|outro)$/,
+  /^negocia:\d+:(recusada|outro)$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;
