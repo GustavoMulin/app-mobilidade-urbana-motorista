@@ -29,6 +29,16 @@ interface Props {
   onReenviar: (mensagem: MensagemDaCorrida) => void;
 }
 
+const INTERVALO_RAPIDAS_MS = 1500;
+
+// toques seguidos numa mensagem rápida: só o primeiro passa
+const passouIntervalo = (ultima: { current: number }) => {
+  const agora = Date.now();
+  if (agora - ultima.current < INTERVALO_RAPIDAS_MS) return false;
+  ultima.current = agora;
+  return true;
+};
+
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -64,6 +74,19 @@ export default function ChatDaCorrida({
     );
     return () => clearTimeout(espera);
   }, [visible, mensagens.length, espacoDoTeclado]);
+
+  // mensagem rápida vai uma vez por corrida e some da fileira; o intervalo
+  // segura toques repetidos antes de a lista atualizar
+  const ultimaRapida = useRef(0);
+  const jaEnviadas = new Set(
+    mensagens.filter(ehMinha).map((item) => item.conteudo.trim()),
+  );
+  const rapidas = [...MENSAGENS_RAPIDAS_PADRAO, ...personalizadas].filter(
+    (resposta) => !jaEnviadas.has(resposta.trim()),
+  );
+  const enviarRapida = (resposta: string) => {
+    if (passouIntervalo(ultimaRapida)) enviar(resposta);
+  };
 
   const enviar = (conteudo: string) => {
     if (!podeEnviar || conteudo.trim() === "") return;
@@ -237,31 +260,29 @@ export default function ChatDaCorrida({
                 >
                   <Ionicons name="create-outline" size={18} color="#111" />
                 </TouchableOpacity>
-                {[...MENSAGENS_RAPIDAS_PADRAO, ...personalizadas].map(
-                  (resposta) => {
-                    const minha = personalizadas.includes(resposta);
-                    return (
-                      <TouchableOpacity
-                        key={resposta}
-                        style={[styles.rapida, minha && styles.rapidaMinha]}
-                        accessibilityRole="button"
-                        accessibilityHint={
-                          minha
-                            ? "Toque para enviar. Toque e segure para remover."
-                            : "Toque para enviar."
-                        }
-                        onPress={() => enviar(resposta)}
-                        onLongPress={
-                          minha ? () => confirmarRemocao(resposta) : undefined
-                        }
-                      >
-                        <Text style={styles.rapidaTexto} numberOfLines={1}>
-                          {resposta}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  },
-                )}
+                {rapidas.map((resposta) => {
+                  const minha = personalizadas.includes(resposta);
+                  return (
+                    <TouchableOpacity
+                      key={resposta}
+                      style={[styles.rapida, minha && styles.rapidaMinha]}
+                      accessibilityRole="button"
+                      accessibilityHint={
+                        minha
+                          ? "Toque para enviar. Toque e segure para remover."
+                          : "Toque para enviar."
+                      }
+                      onPress={() => enviarRapida(resposta)}
+                      onLongPress={
+                        minha ? () => confirmarRemocao(resposta) : undefined
+                      }
+                    >
+                      <Text style={styles.rapidaTexto} numberOfLines={1}>
+                        {resposta}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </ScrollView>
               <View style={styles.composicao}>
                 <TextInput

@@ -1,7 +1,7 @@
 import { Text } from "@/components/common/Texto";
 import { MENSAGENS_DA_CHEGADA } from "@/domain/mensagensRapidas";
 import { Ionicons } from "@expo/vector-icons";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
   FadeInRight,
@@ -20,6 +20,8 @@ interface Props {
 export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
   const [enviando, setEnviando] = useState<string | null>(null);
   const [oculto, setOculto] = useState(false);
+  // trava na hora do toque: dois toques seguidos não mandam duas mensagens
+  const travado = useRef(false);
 
   const pendentes = MENSAGENS_DA_CHEGADA.filter(
     (mensagem) => !enviadas.includes(mensagem),
@@ -28,12 +30,14 @@ export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
   if (oculto || pendentes.length === 0) return null;
 
   const enviar = async (mensagem: string) => {
-    if (enviando !== null) return;
+    if (travado.current) return;
+    travado.current = true;
     setEnviando(mensagem);
     try {
       await onEnviar(mensagem);
     } finally {
       setEnviando(null);
+      travado.current = false;
     }
   };
 
