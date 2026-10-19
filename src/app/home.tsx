@@ -421,8 +421,10 @@ export default function Home() {
         />
       )}
 
+      {/* com uma chamada tocando, a avaliação sai da frente e volta depois */}
       {corridaParaAvaliar !== null &&
         corridaExibida === null &&
+        ofertaExibida === null &&
         !simuladorCorrida.finalizada && (
           <AvaliarPassageiro
             corrida={corridaParaAvaliar}
