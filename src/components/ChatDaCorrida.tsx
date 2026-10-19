@@ -1,11 +1,18 @@
 import { Text, TextInput } from "@/components/common/Texto";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
+import {
+  MENSAGENS_RAPIDAS_PADRAO,
+  TAMANHO_MAXIMO_MENSAGEM_RAPIDA,
+} from "@/domain/mensagensRapidas";
 import { ehMinha, type MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
+import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
   Modal,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -21,13 +28,6 @@ interface Props {
   onEnviar: (texto: string) => void;
   onReenviar: (mensagem: MensagemDaCorrida) => void;
 }
-
-// respostas de um toque, como no 99
-const RESPOSTAS_RAPIDAS = [
-  "Estou a caminho",
-  "Cheguei ao embarque",
-  "Estou preso no trânsito",
-];
 
 const hora = (iso: string) =>
   new Date(iso).toLocaleTimeString("pt-BR", {
@@ -49,6 +49,11 @@ export default function ChatDaCorrida({
   const espacoDoTeclado = useEspacoDoTeclado();
   const [texto, setTexto] = useState("");
   const lista = useRef<FlatList<MensagemDaCorrida>>(null);
+  // respostas de um toque: as fixas e as que o motorista criou aqui
+  const { personalizadas, adicionar, remover } = useMensagensRapidas();
+  const [criando, setCriando] = useState(false);
+  const [novaRapida, setNovaRapida] = useState("");
+  const [erroRapida, setErroRapida] = useState<string | null>(null);
   const primeiroNome = nomeDoOutro.trim().split(/\s+/)[0] || "Passageiro";
 
   useEffect(() => {
@@ -65,6 +70,31 @@ export default function ChatDaCorrida({
     onEnviar(conteudo);
     setTexto("");
   };
+
+  const fecharCriacao = () => {
+    setCriando(false);
+    setNovaRapida("");
+    setErroRapida(null);
+  };
+
+  const salvarRapida = () => {
+    const motivo = adicionar(novaRapida);
+    if (motivo !== null) {
+      setErroRapida(motivo);
+      return;
+    }
+    fecharCriacao();
+  };
+
+  const confirmarRemocao = (mensagem: string) =>
+    Alert.alert("Remover mensagem rápida?", `“${mensagem}” sai da sua lista.`, [
+      { text: "Cancelar", style: "cancel" },
+      {
+        text: "Remover",
+        style: "destructive",
+        onPress: () => remover(mensagem),
+      },
+    ]);
 
   return (
     <Modal
@@ -146,20 +176,93 @@ export default function ChatDaCorrida({
             { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 10 },
           ]}
         >
-          {podeEnviar ? (
+          {podeEnviar && criando ? (
             <>
-              <View style={styles.rapidas}>
-                {RESPOSTAS_RAPIDAS.map((resposta) => (
-                  <TouchableOpacity
-                    key={resposta}
-                    style={styles.rapida}
-                    accessibilityRole="button"
-                    onPress={() => enviar(resposta)}
-                  >
-                    <Text style={styles.rapidaTexto}>{resposta}</Text>
-                  </TouchableOpacity>
-                ))}
+              <Text style={styles.criarTitulo}>Nova mensagem rápida</Text>
+              <View style={styles.composicao}>
+                <TextInput
+                  style={styles.campo}
+                  placeholder="Ex.: Estou no carro prata"
+                  placeholderTextColor="#8A8F98"
+                  autoFocus
+                  maxLength={TAMANHO_MAXIMO_MENSAGEM_RAPIDA}
+                  value={novaRapida}
+                  onChangeText={(valor) => {
+                    setNovaRapida(valor);
+                    setErroRapida(null);
+                  }}
+                  onSubmitEditing={salvarRapida}
+                  returnKeyType="done"
+                  accessibilityLabel="Texto da nova mensagem rápida"
+                />
+                <TouchableOpacity
+                  style={styles.cancelarCriacao}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancelar nova mensagem rápida"
+                  onPress={fecharCriacao}
+                >
+                  <Ionicons name="close" size={22} color="#111" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.enviar,
+                    novaRapida.trim() === "" && styles.enviarInativo,
+                  ]}
+                  disabled={novaRapida.trim() === ""}
+                  accessibilityRole="button"
+                  accessibilityLabel="Salvar mensagem rápida"
+                  onPress={salvarRapida}
+                >
+                  <Ionicons name="checkmark" size={22} color="#111" />
+                </TouchableOpacity>
               </View>
+              <Text style={[styles.criarApoio, erroRapida && styles.criarErro]}>
+                {erroRapida ??
+                  "Fica salva neste celular para as próximas corridas."}
+              </Text>
+            </>
+          ) : podeEnviar ? (
+            <>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.rapidas}
+              >
+                <TouchableOpacity
+                  style={[styles.rapida, styles.rapidaNova]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Criar mensagem rápida"
+                  onPress={() => setCriando(true)}
+                >
+                  <Ionicons name="create-outline" size={18} color="#111" />
+                </TouchableOpacity>
+                {[...MENSAGENS_RAPIDAS_PADRAO, ...personalizadas].map(
+                  (resposta) => {
+                    const minha = personalizadas.includes(resposta);
+                    return (
+                      <TouchableOpacity
+                        key={resposta}
+                        style={[styles.rapida, minha && styles.rapidaMinha]}
+                        accessibilityRole="button"
+                        accessibilityHint={
+                          minha
+                            ? "Toque para enviar. Toque e segure para remover."
+                            : "Toque para enviar."
+                        }
+                        onPress={() => enviar(resposta)}
+                        onLongPress={
+                          minha ? () => confirmarRemocao(resposta) : undefined
+                        }
+                      >
+                        <Text style={styles.rapidaTexto} numberOfLines={1}>
+                          {resposta}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  },
+                )}
+              </ScrollView>
               <View style={styles.composicao}>
                 <TextInput
                   style={styles.campo}
@@ -254,7 +357,7 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 8,
   },
-  rapidas: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  rapidas: { flexDirection: "row", gap: 8, paddingRight: 4 },
   rapida: {
     borderRadius: 999,
     borderWidth: 1,
@@ -262,6 +365,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
+    maxWidth: 260,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  rapidaMinha: { backgroundColor: "#FFF8D6", borderColor: "#F2D45C" },
+  rapidaNova: {
+    borderStyle: "dashed",
+    borderColor: "#9CA3AF",
+    paddingHorizontal: 10,
+  },
+  criarTitulo: { fontSize: 14, fontWeight: "700", color: "#111" },
+  criarApoio: { fontSize: 12, color: "#6B7280" },
+  criarErro: { color: "#B42318", fontWeight: "600" },
+  cancelarCriacao: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#F2F3F5",
+    alignItems: "center",
     justifyContent: "center",
   },
   rapidaTexto: { fontSize: 13, color: "#111", fontWeight: "600" },
