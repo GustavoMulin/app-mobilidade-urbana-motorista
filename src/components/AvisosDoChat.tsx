@@ -1,4 +1,4 @@
-import { Text } from "@/components/common/Texto";
+import { FATOR_FONTE_GLOBAL, Text } from "@/components/common/Texto";
 import type { MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
@@ -32,6 +32,9 @@ interface Aviso {
 }
 
 const VIDA_MS = 6000;
+// o app do motorista reduz toda a tipografia; o pop-up fica do tamanho do
+// pop-up do passageiro
+const fonte = (tamanho: number) => tamanho / FATOR_FONTE_GLOBAL;
 const MAXIMO_NA_TELA = 3;
 
 function BarraDeVida() {
@@ -213,9 +216,9 @@ const styles = StyleSheet.create({
     width: 36,
   },
   textos: { flex: 1 },
-  autor: { color: "#111", fontSize: 14, fontWeight: "800" },
-  conteudo: { color: "#333", fontSize: 14, lineHeight: 19 },
-  responder: { color: "#1C6FD1", fontSize: 13, fontWeight: "700" },
+  autor: { color: "#111", fontSize: fonte(14), fontWeight: "800" },
+  conteudo: { color: "#333", fontSize: fonte(14), lineHeight: fonte(19) },
+  responder: { color: "#1C6FD1", fontSize: fonte(13), fontWeight: "700" },
   barra: {
     backgroundColor: "#FFD600",
     height: 3,
