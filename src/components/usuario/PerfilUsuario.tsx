@@ -382,7 +382,7 @@ export default function PerfilUsuario({
                 </View>
                 <View style={styles.conquestCard}>
                   <Ionicons name="medal" size={40} color="#C0C0C0" />
-                  <Text style={styles.conquestTitle}>2 anos com a 99</Text>
+                  <Text style={styles.conquestTitle}>2 anos na plataforma</Text>
                   <Text style={styles.conquestSub}>Pioneiro nas ruas</Text>
                 </View>
               </ScrollView>

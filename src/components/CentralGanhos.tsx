@@ -101,7 +101,6 @@ export default function CentralGanhos({
     if (visible) recarregar();
   }, [visible, recarregar]);
 
-
   useEffect(() => {
     if (visible) {
       setTimeout(() => setIsMounted(true), 0);
@@ -236,26 +235,31 @@ export default function CentralGanhos({
 
               <View style={styles.divider} />
 
-              {/* CONTA 99 */}
-              <TouchableOpacity style={styles.resourceItem}>
+              {/* CONTA DIGITAL: ainda não existe */}
+              <View
+                style={styles.resourceItem}
+                accessibilityLabel="Conta digital, em breve"
+                accessibilityState={{ disabled: true }}
+              >
                 <View style={styles.row}>
                   <View
-                    style={[styles.iconBox, { backgroundColor: "#FFEBEE" }]}
+                    style={[styles.iconBox, { backgroundColor: "#F3F4F6" }]}
                   >
-                    <Ionicons name="wallet" size={22} color="#D32F2F" />
+                    <Ionicons name="wallet" size={22} color="#9CA3AF" />
                   </View>
                   <View>
-                    <Text style={styles.resourceName}>Conta99</Text>
+                    <Text style={[styles.resourceName, styles.emBreveNome]}>
+                      Conta digital
+                    </Text>
                     <Text style={styles.resourceSubtext}>
                       Saque quando quiser, pague boleto
                     </Text>
                   </View>
                 </View>
-                <View style={styles.row}>
-                  <Text style={styles.resourceValue}>—</Text>
-                  <Ionicons name="chevron-forward" size={18} color="#CCC" />
+                <View style={styles.emBreve}>
+                  <Text style={styles.emBreveTexto}>Em breve</Text>
                 </View>
-              </TouchableOpacity>
+              </View>
             </View>
 
             <Text style={styles.sectionTitle}>Melhore seus ganhos</Text>
