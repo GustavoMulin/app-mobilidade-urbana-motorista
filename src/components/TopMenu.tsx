@@ -9,14 +9,14 @@ interface TopMenuProps {
 
 export default function TopMenu({ onMenuPress }: TopMenuProps) {
   return (
-    <SafeAreaView style={styles.topMenuWrapper}>
+    <SafeAreaView edges={["top"]} style={styles.topMenuWrapper}>
       <View style={styles.topMenu}>
         <TouchableOpacity
           onPress={onMenuPress}
           style={styles.iconButton}
           accessibilityLabel="Abrir menu"
         >
-          <Ionicons name="menu" size={32} color="#111" />
+          <Ionicons name="menu" size={26} color="#111" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -32,15 +32,15 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   topMenu: {
-    marginHorizontal: 16,
+    marginHorizontal: 14,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#ffffff",
     borderRadius: 50,
     elevation: 4,
-    shadowRadius: 6,
-    width: 56,
-    height: 56,
+    shadowRadius: 4,
+    width: 48,
+    height: 48,
     justifyContent: "center",
     shadowOffset: { width: 0, height: 2 },
   },

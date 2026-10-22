@@ -1,5 +1,5 @@
 // Buscando.tsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -19,7 +19,8 @@ import {
  * <Buscando />
  */
 
-const WORDS = ["Buscando", "Você está online", "Preços dinâmicos"];
+// "Preços dinâmicos" saiu: o app não tem preço dinâmico
+const WORDS = ["Buscando", "Você está online"];
 const FADE_DURATION = 400; // ms para fade in/out
 const WORD_DISPLAY_DELAY = 5000; // tempo total antes de trocar (inclui fades)
 const LINE_TRAVEL_DURATION = 700; // duração do movimento completo da linha (ida ou volta)
@@ -29,10 +30,10 @@ export default function Buscando() {
   const [index, setIndex] = useState(0);
 
   // animação de opacidade da palavra
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [opacity] = useState(() => new Animated.Value(0));
 
   // animação da linha (0 -> 1), será interpolada para translateX com base no width do contêiner
-  const lineAnim = useRef(new Animated.Value(0)).current;
+  const [lineAnim] = useState(() => new Animated.Value(0));
 
   // largura do container disponível (usado para calcular range da linha)
   const [containerWidth, setContainerWidth] = useState(0);
@@ -111,7 +112,7 @@ export default function Buscando() {
   const lineTranslateX = lineAnim.interpolate({
     inputRange: [0, 1],
     // vamos mover a linha entre 0 e (containerWidth - lineWidth)
-    outputRange: [0, Math.max(0, containerWidth - 48)], // 48 => largura do elemento em que a linha se move (ajuste mais abaixo)
+    outputRange: [0, Math.max(0, containerWidth - 44)],
     extrapolate: "clamp",
   });
 
@@ -143,6 +144,12 @@ export default function Buscando() {
           ]}
           accessible
           accessibilityRole="text"
+          numberOfLines={1}
+          // "Você está online" não cabia entre os dois ícones em telas
+          // estreitas e virava "Você está o…": encolhe em vez de cortar
+          adjustsFontSizeToFit
+          minimumFontScale={0.7}
+          maxFontSizeMultiplier={1.1}
         >
           {WORDS[index]}
         </Animated.Text>
@@ -182,19 +189,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   center: {
+    alignSelf: "stretch",
     alignItems: "center",
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 12,
   },
   word: {
     color: "#000",
-    fontSize: 28,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     letterSpacing: 0.3,
   },
   hint: {
-    marginTop: 6,
-    fontSize: 12,
+    marginTop: 4,
+    fontSize: 11,
+    lineHeight: 15,
     color: "#666",
   },
   lineWrapper: {
@@ -204,7 +214,7 @@ const styles = StyleSheet.create({
   },
   lineTrack: {
     width: "82%", // área na qual a "pill" se move (ajuste pra seu layout)
-    height: 8,
+    height: 6,
     backgroundColor: "#F0F0F0",
     borderRadius: 999,
     overflow: "hidden",
@@ -213,8 +223,8 @@ const styles = StyleSheet.create({
   linePill: {
     position: "absolute",
     left: 0,
-    width: 48, // largura da "pílula" móvel
-    height: 8,
+    width: 44,
+    height: 6,
     borderRadius: 999,
     backgroundColor: "#FFD600", // amarelo similar ao design
     // sombra leve (iOS)

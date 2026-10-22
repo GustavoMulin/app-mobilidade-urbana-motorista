@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -12,6 +13,13 @@ import {
   View,
 } from "react-native";
 import RegistroMetodoResgateConta from "./RegistroMetodoResgateConta";
+import { MetodoResgate } from "@/domain/carteira";
+
+// mostra só o começo e o fim do CPF/CNPJ do titular
+const mascararDocumento = (documento: string) =>
+  documento.length === 14
+    ? `${documento.slice(0, 2)}.•••.•••/••••-${documento.slice(-2)}`
+    : `•••.${documento.slice(3, 6)}.•••-${documento.slice(-2)}`;
 
 const { width } = Dimensions.get("window");
 
@@ -19,15 +27,20 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
+  conta: MetodoResgate | null;
+  onSalvo?: () => void;
 }
 
 export default function InformacoesMetodoResgateConta({
   visible,
   onClose,
   duration = 200,
+  conta,
+  onSalvo,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
   const [
@@ -56,7 +69,7 @@ export default function InformacoesMetodoResgateConta({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -83,7 +96,7 @@ export default function InformacoesMetodoResgateConta({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
@@ -91,6 +104,11 @@ export default function InformacoesMetodoResgateConta({
     <>
       <RegistroMetodoResgateConta
         visible={visibleRegistroMetodoResgateConta}
+        existente={conta}
+        onSalvo={() => {
+          setVisibleRegistroMetodoResgateConta(false);
+          onSalvo?.();
+        }}
         onClose={() => setVisibleRegistroMetodoResgateConta(false)}
       />
 
@@ -106,7 +124,12 @@ export default function InformacoesMetodoResgateConta({
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           {/* HEADER RETO */}
-          <View style={styles.orangeHeader}>
+          <View
+            style={[
+              styles.orangeHeader,
+              { paddingTop: Math.max(insets.top + 12, 50) },
+            ]}
+          >
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
               <Ionicons name="chevron-back" size={28} color="#fff" />
             </TouchableOpacity>
@@ -116,9 +139,9 @@ export default function InformacoesMetodoResgateConta({
             <View style={styles.headerInfoContainer}>
               <Text style={styles.headerTitleLarge}>Conta bancária</Text>
               <Text style={styles.headerSubText}>
-                Para configurar resgates automáticos, acesse Saldo {">"}{" "}
-                Configurações {">"} Gerenciamento de resgates automáticos. Os
-                resgates são iniciados todas as quartas-feiras.
+                {conta?.principal
+                  ? "Seus saques vão para esta conta."
+                  : "Para sacar para esta conta, escolha-a em Saldo > Configurações."}
               </Text>
             </View>
           </View>
@@ -136,32 +159,40 @@ export default function InformacoesMetodoResgateConta({
 
                 <View style={styles.infoGroup}>
                   <Text style={styles.label}>Nome</Text>
-                  <Text style={styles.value}>Diogo GuimarãesDe Souza</Text>
+                  <Text style={styles.value}>{conta?.titular_nome ?? "—"}</Text>
                   <View style={styles.line} />
                 </View>
 
                 <View style={styles.infoGroup}>
                   <Text style={styles.label}>CPF/CNPJ</Text>
-                  <Text style={styles.value}>***498972**</Text>
+                  <Text style={styles.value}>
+                    {conta ? mascararDocumento(conta.documento) : "—"}
+                  </Text>
                   <View style={styles.line} />
                 </View>
 
                 <View style={styles.infoGroup}>
                   <Text style={styles.label}>Banco</Text>
-                  <Text style={styles.value}>CAIXA ECONÔMICA</Text>
+                  <Text style={styles.value}>
+                    {conta
+                      ? `${conta.banco_codigo} - ${conta.banco_nome}`
+                      : "—"}
+                  </Text>
                   <View style={styles.line} />
                 </View>
 
                 <View style={styles.rowInputs}>
                   <View style={[styles.infoGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Agência</Text>
-                    <Text style={styles.value}>3430</Text>
+                    <Text style={styles.value}>{conta?.agencia ?? "—"}</Text>
                     <View style={styles.line} />
                   </View>
                   <View style={{ width: 20 }} />
                   <View style={[styles.infoGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Dígito</Text>
-                    <Text style={styles.value}>0</Text>
+                    <Text style={styles.value}>
+                      {conta?.agencia_digito || "—"}
+                    </Text>
                     <View style={styles.line} />
                   </View>
                 </View>
@@ -169,20 +200,30 @@ export default function InformacoesMetodoResgateConta({
                 <View style={styles.rowInputs}>
                   <View style={[styles.infoGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Conta</Text>
-                    <Text style={styles.value}>1646</Text>
+                    <Text style={styles.value}>
+                      {conta?.conta ? `•••${conta.conta.slice(-3)}` : "—"}
+                    </Text>
                     <View style={styles.line} />
                   </View>
                   <View style={{ width: 20 }} />
                   <View style={[styles.infoGroup, { flex: 1 }]}>
                     <Text style={styles.label}>Dígito</Text>
-                    <Text style={styles.value}>0</Text>
+                    <Text style={styles.value}>
+                      {conta?.conta_digito || "—"}
+                    </Text>
                     <View style={styles.line} />
                   </View>
                 </View>
 
                 <View style={styles.infoGroup}>
                   <Text style={styles.label}>Tipo</Text>
-                  <Text style={styles.value}>Conta poupança</Text>
+                  <Text style={styles.value}>
+                    {conta?.conta_tipo === "corrente"
+                      ? "Conta corrente"
+                      : conta?.conta_tipo === "poupanca"
+                        ? "Conta poupança"
+                        : "—"}
+                  </Text>
                   <View style={styles.line} />
                 </View>
               </View>

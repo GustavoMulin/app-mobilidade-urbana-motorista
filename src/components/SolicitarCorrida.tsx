@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
 import {
   Animated,
@@ -24,8 +24,8 @@ export default function DestinationDrawer({
   onClose,
   duration = 300,
 }: DestinationDrawerProps) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   // ✅ Estado interno para controlar a presença na tela
   const [isMounted, setIsMounted] = useState(visible);
@@ -51,7 +51,7 @@ export default function DestinationDrawer({
   // ✅ Animações de abertura e fechamento
   useEffect(() => {
     if (visible) {
-      setIsMounted(true); // garante que o componente está montado
+      setTimeout(() => setIsMounted(true), 0); // garante que o componente está montado
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,

@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useState } from "react";
 import {
   Animated,
   BackHandler,
@@ -24,7 +24,7 @@ interface props {
 // 🚀 Novo Componente: SearchingIndicator (Efeito Pulsante)
 // ==========================================================
 const SearchingIndicator = () => {
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     // Função para iniciar a animação de pulso
@@ -119,8 +119,8 @@ export default function DestinationDrawer({
   onClose,
   duration = 300,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   // ✅ Estado interno para controlar a presença na tela
   const [isMounted, setIsMounted] = useState(visible);
@@ -146,7 +146,7 @@ export default function DestinationDrawer({
   // ✅ Animações de abertura e fechamento
   useEffect(() => {
     if (visible) {
-      setIsMounted(true); // garante que o componente está montado
+      setTimeout(() => setIsMounted(true), 0); // garante que o componente está montado
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,

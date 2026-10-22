@@ -1,311 +1,655 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import OfertaNegociaMotorista, {
+  EsperaProposta,
+  segundosDaProposta,
+} from "@/components/OfertaNegociaMotorista";
+import { enderecoCurto } from "@/domain/endereco";
+import { minutosEstimados, valoresSugeridos } from "@/domain/negocia";
+import { OfertaCorrida } from "@/hooks/useDespachoMotorista";
+import { Ionicons } from "@expo/vector-icons";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Animated,
   BackHandler,
-  Dimensions,
   FlatList,
-  Pressable,
   RefreshControl,
   StyleSheet,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
-
-interface props {
+interface Props {
   visible: boolean;
+  disponivel: boolean;
+  carregando: boolean;
+  ofertas: OfertaCorrida[];
+  ocupado: boolean;
   onClose: () => void;
+  onAtualizar: () => void;
+  onAceitar: (corridaId: number) => void;
+  // Negocia: sem valor manda a oferta do passageiro; com valor, contraproposta
+  onPropor: (
+    corridaId: number,
+    valorMotorista?: number,
+  ) => void | Promise<void>;
+  onRecusar: (corridaId: number) => void;
   duration?: number;
 }
 
+const emKm = (valor: number) => `${valor.toFixed(1).replace(".", ",")} km`;
+const emReais = (valor: number) => `R$${valor.toFixed(2).replace(".", ",")}`;
+
 export default function SolicitacoesCorrida({
   visible,
+  disponivel,
+  carregando,
+  ofertas,
+  ocupado,
   onClose,
-  duration = 300,
-}: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const fadeAnim = useRef(new Animated.Value(1)).current; // 👈 controla o fade da lista
-
+  onAtualizar,
+  onAceitar,
+  onPropor,
+  onRecusar,
+  duration = 250,
+}: Props) {
+  const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const [translateX] = useState(() => new Animated.Value(width));
   const [isMounted, setIsMounted] = useState(visible);
-  const [refreshing, setRefreshing] = useState(false);
-  const [solicitacoes, setSolicitacoes] = useState(gerarSolicitacoes());
+  const [aba, setAba] = useState<"corridas" | "entregas">("corridas");
+  const [ordenacao, setOrdenacao] = useState<"distancia" | "recentes">(
+    "distancia",
+  );
+  const [ofertaNoModal, setOfertaNoModal] = useState<OfertaCorrida | null>(
+    null,
+  );
+  const [, atualizarRelogio] = useState(0);
+  const aoExpirar = useCallback(() => atualizarRelogio((n) => n + 1), []);
 
-  // 👉 Gera novas solicitações simuladas
-  function gerarSolicitacoes() {
-    const cores = ["#003F44", "#1E1E1E", "#111", "#024E54", "#1C1C1C"];
-    const valores = ["15,20", "16,10", "6,30", "18,50", "12,80"];
-    return Array.from({ length: 3 }).map((_, i) => ({
-      id: Math.random().toString(),
-      tipo: "Pop",
-      novo: true,
-      valor: `R$${valores[Math.floor(Math.random() * valores.length)]}`,
-      valorKm: `R$${(1.2 + Math.random() * 1.8).toFixed(2)}/km`,
-      estrelas: (4.8 + Math.random() * 0.2).toFixed(2),
-      corridas: Math.floor(Math.random() * 300),
-      perfil: "Perfil Essencial",
-      tempo: `${5 + Math.floor(Math.random() * 10)} min`,
-      distancia: `${(1 + Math.random() * 5).toFixed(1)} km`,
-      destino1: "Destino Aleatório 1",
-      tempo2: `${10 + Math.floor(Math.random() * 8)} min`,
-      distancia2: `${(3 + Math.random() * 6).toFixed(1)} km`,
-      destino2: "Destino Aleatório 2",
-      cor: cores[Math.floor(Math.random() * cores.length)],
-    }));
-  }
-
-  // 🔄 Atualiza a lista simulando novas corridas
-  const onRefresh = () => {
-    setRefreshing(true);
-
-    // Fade-out
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start(() => {
-      // troca lista
-      setSolicitacoes(gerarSolicitacoes());
-
-      // Fade-in
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }).start(() => setRefreshing(false));
-    });
-  };
-
-  // 🔙 Botão voltar Android
   useEffect(() => {
-    const onBackPress = () => {
-      if (visible) {
-        onClose();
+    const assinatura = BackHandler.addEventListener("hardwareBackPress", () => {
+      if (!visible) return false;
+      if (ofertaNoModal) {
+        setOfertaNoModal(null);
         return true;
       }
-      return false;
-    };
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      onBackPress,
-    );
-    return () => subscription.remove();
-  }, [visible, onClose]);
+      onClose();
+      return true;
+    });
+    return () => assinatura.remove();
+  }, [visible, ofertaNoModal, onClose]);
 
-  // 🎬 Animações de entrada e saída do drawer
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: duration * 0.8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: width,
-          duration,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0,
-          duration: duration * 0.8,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => {
-        if (finished) setIsMounted(false);
-      });
+      const montar = setTimeout(() => setIsMounted(true), 0);
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration,
+        useNativeDriver: true,
+      }).start();
+      onAtualizar();
+      return () => clearTimeout(montar);
     }
-  }, [visible]);
+
+    Animated.timing(translateX, {
+      toValue: width,
+      duration,
+      useNativeDriver: true,
+    }).start(({ finished }) => finished && setIsMounted(false));
+  }, [duration, onAtualizar, translateX, visible, width]);
+
+  const corridas = useMemo(() => {
+    const copia = [...ofertas];
+    copia.sort((a, b) =>
+      ordenacao === "distancia"
+        ? a.distancia_ate_origem_km - b.distancia_ate_origem_km
+        : b.corrida_id - a.corrida_id,
+    );
+    return copia;
+  }, [ofertas, ordenacao]);
 
   if (!isMounted) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
-      {/* Fundo escuro */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(0,0,0,0.25)", opacity: overlayOpacity },
-          ]}
-        />
-      </Pressable>
-
-      {/* Drawer */}
+    <View style={[StyleSheet.absoluteFill, styles.camada]}>
       <Animated.View
         style={[
           styles.drawer,
           {
+            paddingTop: Math.max(insets.top, 16),
             transform: [{ translateX }],
-            zIndex: 31,
           },
         ]}
       >
-        {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={onClose}>
-            <Ionicons name="arrow-back-outline" size={28} color="#111" />
+          <TouchableOpacity
+            style={styles.botaoVoltar}
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Fechar solicitações"
+          >
+            <Ionicons name="chevron-back" size={29} color="#111" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Solicitações</Text>
-          <View style={{ width: 28 }} />
         </View>
 
-        {/* Lista animada */}
-        <Animated.View style={{ flex: 1, opacity: fadeAnim }}>
-          <FlatList
-            data={solicitacoes}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <View style={[styles.card, { backgroundColor: item.cor }]}>
+        <View style={styles.abas}>
+          {(["corridas", "entregas"] as const).map((item) => (
+            <TouchableOpacity
+              key={item}
+              style={styles.aba}
+              onPress={() => setAba(item)}
+            >
+              <Text
+                style={[
+                  styles.abaTexto,
+                  aba === item && styles.abaTextoAtiva,
+                ]}
+              >
+                {item === "corridas" ? "Corridas" : "Entregas"}
+              </Text>
+              {aba === item ? <View style={styles.abaIndicador} /> : null}
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.filtros}>
+          <Text style={styles.quantidade}>
+            {aba === "entregas"
+              ? "Nenhuma entrega"
+              : corridas.length === 0
+                ? "Escolha uma"
+                : `${corridas.length} encontrada${corridas.length === 1 ? "" : "s"}`}
+          </Text>
+          {aba === "corridas" ? (
+            <TouchableOpacity
+              style={styles.ordenacao}
+              onPress={() =>
+                setOrdenacao((atual) =>
+                  atual === "distancia" ? "recentes" : "distancia",
+                )
+              }
+            >
+              <Text style={styles.ordenacaoTexto}>
+                {ordenacao === "distancia"
+                  ? "Km até o embarque"
+                  : "Mais recentes"}
+              </Text>
+              <Ionicons name="caret-down" size={13} color="#666" />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+
+        <FlatList
+          data={aba === "corridas" ? corridas : []}
+          keyExtractor={(item) => String(item.corrida_id)}
+          contentContainerStyle={
+            corridas.length === 0 ? styles.listaVazia : styles.lista
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={carregando && corridas.length === 0}
+              onRefresh={onAtualizar}
+              enabled={disponivel}
+              colors={["#FFB800"]}
+              tintColor="#FFB800"
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.vazio}>
+              {carregando && aba === "corridas" ? (
+                <ActivityIndicator size="large" color="#FFB800" />
+              ) : (
+                <Ionicons name="car-outline" size={46} color="#AAA" />
+              )}
+              <Text style={styles.vazioTitulo}>
+                {aba === "entregas"
+                  ? "Nenhuma entrega disponível"
+                  : disponivel
+                    ? "Nenhuma corrida disponível agora"
+                    : "Você está offline"}
+              </Text>
+              <Text style={styles.vazioTexto}>
+                {aba === "entregas"
+                  ? "As entregas aparecerão aqui quando estiverem disponíveis."
+                  : disponivel
+                    ? "Novas solicitações aparecem automaticamente."
+                    : "Volte e toque em Conectar para receber solicitações."}
+              </Text>
+            </View>
+          }
+          ListFooterComponent={
+            corridas.length > 0 ? (
+              <Text style={styles.fimLista}>Isso é tudo por enquanto</Text>
+            ) : null
+          }
+          renderItem={({ item }) => {
+            const proposta = item.minha_proposta;
+            const pendente =
+              item.negociavel &&
+              proposta?.status === "pendente" &&
+              segundosDaProposta(proposta.expira_em) > 0;
+            const expirada = item.negociavel && proposta && !pendente;
+            const minutosEmbarque = minutosEstimados(
+              item.distancia_ate_origem_km,
+            );
+            const minutosCorrida = minutosEstimados(item.distancia_corrida_km);
+            const valorKm =
+              item.valor_motorista /
+              Math.max(item.distancia_corrida_km, 0.1);
+
+            return (
+              <View style={[styles.card, pendente && styles.cardEsperando]}>
                 <View style={styles.cardHeader}>
-                  <View style={styles.tipoContainer}>
-                    <Text style={styles.tipoText}>{item.tipo}</Text>
-                    {item.novo && <Text style={styles.novoBadge}>Novo</Text>}
+                  <View style={styles.categoriaChip}>
+                    <Text style={styles.categoria}>
+                      {item.negociavel
+                        ? "Negocia Nova"
+                        : item.categoria ?? "Corrida"}
+                    </Text>
                   </View>
-                  <Ionicons
-                    name="document-text-outline"
-                    size={20}
-                    color="#fff"
+                  <View style={styles.iconeMapa}>
+                    <Ionicons name="map-outline" size={24} color="#737983" />
+                  </View>
+                </View>
+
+                <View style={styles.precoLinha}>
+                  <Text style={styles.valor}>
+                    {emReais(item.valor_motorista)}
+                  </Text>
+                  {item.negociavel ? (
+                    <View style={styles.ganhosChip}>
+                      <Ionicons name="ribbon" size={14} color="#D69D00" />
+                      <Text style={styles.ganhosTexto}>100% dos ganhos</Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.valorKm}>
+                    {"R$" + valorKm.toFixed(2).replace(".", ",") + "/km"}
+                  </Text>
+                </View>
+
+                <View style={styles.passageiroLinha}>
+                  <Ionicons name="person-circle" size={20} color="#6B7078" />
+                  <Text style={styles.passageiroTexto}>
+                    {typeof item.passageiro_nota === "number"
+                      ? `${item.passageiro_nota.toFixed(2).replace(".", ",")} · `
+                      : ""}
+                    {item.passageiro_corridas === 0
+                      ? "Passageiro novo"
+                      : `${item.passageiro_corridas} ${item.passageiro_corridas === 1 ? "corrida" : "corridas"}`}
+                  </Text>
+                  {item.metodo_pagamento === "cartao" ? (
+                    <>
+                      <Text style={styles.separadorTexto}>·</Text>
+                      <Ionicons
+                        name="shield-checkmark"
+                        size={16}
+                        color="#5893C6"
+                      />
+                      <Text style={styles.verificado}>Cartão verif.</Text>
+                    </>
+                  ) : null}
+                </View>
+
+                <View style={styles.rota}>
+                  <View style={styles.linhaVertical} />
+                  <View style={styles.enderecoLinha}>
+                    <View style={[styles.ponto, styles.origem]}>
+                      <Ionicons name="arrow-up" size={10} color="#FFF" />
+                    </View>
+                    <Text style={styles.endereco} numberOfLines={2}>
+                      <Text style={styles.tempoEndereco}>
+                        ({minutosEmbarque} min{" "}
+                        {emKm(item.distancia_ate_origem_km)}){" "}
+                      </Text>
+                      {enderecoCurto(item.origem)}
+                    </Text>
+                  </View>
+                  <View style={styles.enderecoLinha}>
+                    <View style={[styles.ponto, styles.destino]}>
+                      <Ionicons name="arrow-down" size={10} color="#FFF" />
+                    </View>
+                    <Text style={styles.endereco} numberOfLines={2}>
+                      <Text style={styles.tempoEndereco}>
+                        ({minutosCorrida} min{" "}
+                        {emKm(item.distancia_corrida_km)}){" "}
+                      </Text>
+                      {item.destino
+                        ? enderecoCurto(item.destino)
+                        : "Destino não informado"}
+                    </Text>
+                  </View>
+                </View>
+
+                {pendente ? (
+                  <EsperaProposta
+                    expiraEm={proposta?.expira_em}
+                    onExpirar={aoExpirar}
                   />
-                </View>
+                ) : (
+                  <>
+                    {expirada ? (
+                      <Text style={styles.motivoNovaOferta}>
+                        {proposta?.status === "recusada"
+                          ? "O passageiro recusou sua proposta. Ofereça de novo:"
+                          : "Sua proposta expirou sem resposta. Ofereça de novo:"}
+                      </Text>
+                    ) : null}
+                    <TouchableOpacity
+                      style={[
+                        styles.aceitar,
+                        expirada && styles.aceitarComMotivo,
+                      ]}
+                      disabled={ocupado || item.recusada_localmente}
+                      onPress={() =>
+                        item.negociavel
+                          ? void onPropor(item.corrida_id)
+                          : onAceitar(item.corrida_id)
+                      }
+                    >
+                      <Text style={styles.aceitarTexto}>
+                        {item.negociavel
+                          ? `Aceitar por ${emReais(item.valor_motorista)}`
+                          : "Aceitar corrida"}
+                      </Text>
+                    </TouchableOpacity>
 
-                <View style={styles.valorContainer}>
-                  <Text style={styles.valor}>{item.valor}</Text>
-                  <Text style={styles.valorKm}>{item.valorKm}</Text>
-                </View>
+                    {item.negociavel ? (
+                      <View style={styles.sugestoes}>
+                        {valoresSugeridos(item.valor_motorista).map(
+                          (sugerido) => (
+                            <TouchableOpacity
+                              key={sugerido}
+                              style={styles.sugestao}
+                              onPress={() =>
+                                void onPropor(item.corrida_id, sugerido)
+                              }
+                              disabled={ocupado}
+                            >
+                              <Text style={styles.sugestaoTexto}>
+                                {emReais(sugerido)}
+                              </Text>
+                            </TouchableOpacity>
+                          ),
+                        )}
+                        <TouchableOpacity
+                          style={styles.editarOferta}
+                          onPress={() => setOfertaNoModal(item)}
+                          accessibilityLabel="Editar oferta"
+                        >
+                          <Ionicons
+                            name="pencil-outline"
+                            size={21}
+                            color="#111"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        style={styles.recusar}
+                        onPress={() => onRecusar(item.corrida_id)}
+                      >
+                        <Text style={styles.recusarTexto}>Recusar</Text>
+                      </TouchableOpacity>
+                    )}
+                  </>
+                )}
 
-                <Text style={styles.info}>
-                  ⭐ {item.estrelas} · {item.corridas} corridas · {item.perfil}
-                </Text>
-
-                <View style={{ marginTop: 8 }}>
-                  <Text style={styles.destino}>
-                    🕒 {item.tempo} ({item.distancia}) {item.destino1}
-                  </Text>
-                  <Text style={styles.destino}>
-                    🕒 {item.tempo2} ({item.distancia2}) {item.destino2}
-                  </Text>
-                </View>
-
-                <TouchableOpacity style={styles.escolherButton}>
-                  <Text style={styles.escolherText}>Escolher</Text>
-                </TouchableOpacity>
+                {carregando && corridas.length > 0 ? (
+                  <View style={styles.atualizando} pointerEvents="none">
+                    <ActivityIndicator color="#111" />
+                  </View>
+                ) : null}
               </View>
-            )}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                colors={["#FFD84D"]}
-                tintColor="#FFD84D"
-              />
-            }
-          />
-        </Animated.View>
+            );
+          }}
+        />
       </Animated.View>
+      <OfertaNegociaMotorista
+        oferta={ofertaNoModal}
+        ocupado={ocupado}
+        onClose={() => setOfertaNoModal(null)}
+        onConfirmar={onPropor}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  camada: { zIndex: 100 },
   drawer: {
     position: "absolute",
-    right: 0,
     top: 0,
+    right: 0,
     bottom: 0,
-    width: "100%",
-    backgroundColor: "#fff",
-    padding: 16,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    left: 0,
+    backgroundColor: "#F5F5F7",
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 50,
-    marginBottom: 10,
+    minHeight: 68,
+    paddingHorizontal: 20,
+    gap: 2,
+    backgroundColor: "#FFF",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E3E3E3",
   },
-  headerTitle: {
+  botaoVoltar: { width: 46, height: 46, justifyContent: "center" },
+  headerTitle: { fontSize: 24, fontWeight: "700", color: "#171717" },
+  abas: {
+    height: 82,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 34,
+    paddingHorizontal: 20,
+    backgroundColor: "#FFF",
+  },
+  aba: { height: 63, justifyContent: "center" },
+  abaTexto: { fontSize: 22, color: "#242424" },
+  abaTextoAtiva: { fontWeight: "800" },
+  abaIndicador: {
+    position: "absolute",
+    bottom: 6,
+    left: "25%",
+    right: "25%",
+    height: 5,
+    borderRadius: 4,
+    backgroundColor: "#FFD400",
+  },
+  filtros: {
+    height: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    backgroundColor: "#F0F0F1",
+  },
+  quantidade: { fontSize: 18, color: "#222" },
+  ordenacao: { flexDirection: "row", alignItems: "center", gap: 7 },
+  ordenacaoTexto: { fontSize: 17, color: "#555" },
+  lista: { padding: 12, paddingBottom: 40 },
+  listaVazia: { flexGrow: 1 },
+  vazio: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 30,
+  },
+  vazioTitulo: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: "700",
+    marginTop: 14,
+    color: "#222",
+  },
+  vazioTexto: {
+    fontSize: 14,
+    color: "#777",
+    textAlign: "center",
+    marginTop: 6,
+    lineHeight: 20,
+  },
+  fimLista: {
+    textAlign: "center",
+    fontSize: 16,
+    color: "#777",
+    marginVertical: 24,
   },
   card: {
-    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFF",
+    borderRadius: 14,
     padding: 16,
-    marginBottom: 14,
+    marginBottom: 12,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
+  cardEsperando: { opacity: 0.72 },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  tipoContainer: {
+  categoriaChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 7,
+    backgroundColor: "#EAF9F2",
+  },
+  iconeMapa: {
+    width: 42,
+    height: 38,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F2F3F5",
+  },
+  precoLinha: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 7,
+    marginTop: 5,
   },
-  tipoText: {
-    color: "#00E0C6",
-    fontWeight: "700",
-  },
-  novoBadge: {
-    backgroundColor: "#00E0C6",
-    color: "#003F44",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    fontSize: 11,
-    fontWeight: "700",
-  },
-  valorContainer: {
+  valor: { color: "#111", fontSize: 29, fontWeight: "800" },
+  ganhosChip: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    marginBottom: 4,
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: "#FFF9E5",
   },
-  valor: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "800",
-    marginRight: 8,
-  },
+  ganhosTexto: { fontSize: 12, color: "#B48612" },
   valorKm: {
-    color: "#A0FFA8",
-    fontWeight: "700",
+    marginLeft: "auto",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 9,
+    fontSize: 12,
+    color: "#745C2A",
+    backgroundColor: "#FFF7E4",
   },
-  info: {
-    color: "#A7A7A7",
-    fontSize: 13,
-  },
-  destino: {
-    color: "#D9D9D9",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  escolherButton: {
-    backgroundColor: "#FFD84D",
-    paddingVertical: 10,
-    borderRadius: 8,
+  passageiroLinha: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 9,
+    gap: 4,
   },
-  escolherText: {
-    color: "#000",
+  passageiroTexto: { fontSize: 14, color: "#6A6D73" },
+  separadorTexto: { color: "#A1A4A8" },
+  verificado: { fontSize: 13, color: "#71818F" },
+  rota: { marginTop: 17, gap: 15, position: "relative" },
+  linhaVertical: {
+    position: "absolute",
+    left: 8,
+    top: 15,
+    bottom: 16,
+    width: 1,
+    borderStyle: "dashed",
+    borderWidth: 0.5,
+    borderColor: "#C2C6CA",
+  },
+  enderecoLinha: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+  },
+  ponto: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 1,
+    zIndex: 2,
+  },
+  categoria: {
+    fontSize: 13,
     fontWeight: "700",
-    fontSize: 15,
+    fontStyle: "italic",
+    color: "#15A96C",
+  },
+  origem: { backgroundColor: "#20C99A" },
+  destino: { backgroundColor: "#FF7849" },
+  endereco: { flex: 1, fontSize: 15, lineHeight: 20, color: "#222" },
+  tempoEndereco: { fontWeight: "800" },
+  recusar: {
+    alignSelf: "center",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  recusarTexto: { color: "#8B1717", fontWeight: "600" },
+  aceitar: {
+    height: 53,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 13,
+    backgroundColor: "#FFD400",
+    marginTop: 20,
+  },
+  aceitarTexto: { color: "#111", fontSize: 17, fontWeight: "800" },
+  motivoNovaOferta: {
+    marginTop: 18,
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#8A5A00",
+    textAlign: "center",
+  },
+  aceitarComMotivo: { marginTop: 10 },
+  sugestoes: { flexDirection: "row", gap: 7, marginTop: 9 },
+  sugestao: {
+    flex: 1,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: "#F3F3F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sugestaoTexto: { fontSize: 15, fontWeight: "700", color: "#1B1B1B" },
+  editarOferta: {
+    width: 48,
+    height: 46,
+    borderRadius: 13,
+    backgroundColor: "#F3F3F5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  atualizando: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

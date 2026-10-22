@@ -1,3 +1,5 @@
+import { enderecoCurto } from "@/domain/endereco";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
@@ -41,13 +43,19 @@ export default function AvaliarPassageiro({
   onDispensar,
 }: Props) {
   const insets = useSafeAreaInsets();
+  // o teclado cobre o comentário se o cartão não subir junto
+  const espacoDoTeclado = useEspacoDoTeclado();
 
   const [nota, setNota] = useState(0);
   const [comentario, setComentario] = useState("");
 
   const ganho = formatarValor(corrida.corrida_financeiro?.valor_motorista);
+  const cobrarEmDinheiro = formatarValor(
+    corrida.corrida_financeiro?.valor_pago_passageiro,
+  );
   const distancia = formatarKm(corrida.distancia_total);
-  const passageiro = corrida.passageiro?.user?.name;
+  const passageiro =
+    corrida.convidado_nome || corrida.passageiro?.user?.name;
 
   const destino = corrida.corrida_destinos?.find(
     (ponto) => ponto.tipo === "destino",
@@ -55,15 +63,34 @@ export default function AvaliarPassageiro({
 
   return (
     <View style={styles.sobreposicao}>
-      <View style={[styles.cartao, { paddingBottom: insets.bottom + 20 }]}>
+      <View
+        style={[
+          styles.cartao,
+          { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 20 },
+        ]}
+      >
         <Text style={styles.titulo}>Corrida finalizada</Text>
+        <Text style={styles.codigo}>Corrida {corrida.codigo_corrida}</Text>
 
         {ganho !== null && (
           <>
             <Text style={styles.ganho}>{ganho}</Text>
-            <Text style={styles.ganhoApoio}>o seu ganho nesta corrida</Text>
+            <Text style={styles.ganhoApoio}>Seu ganho nesta corrida</Text>
           </>
         )}
+
+        {/* no dinheiro o passageiro paga ao motorista o valor cheio (com a
+            taxa da plataforma): sem isso o motorista cobrava só o ganho */}
+        {corrida.metodo_pagamento === "dinheiro" && cobrarEmDinheiro ? (
+          <View style={styles.cobrar}>
+            <Ionicons name="cash-outline" size={22} color="#0F7B4E" />
+            <Text style={styles.cobrarTexto}>
+              Receba{" "}
+              <Text style={styles.cobrarValor}>{cobrarEmDinheiro}</Text> em
+              dinheiro do passageiro
+            </Text>
+          </View>
+        ) : null}
 
         <View style={styles.detalhes}>
           {distancia !== null && (
@@ -72,7 +99,7 @@ export default function AvaliarPassageiro({
 
           {destino && (
             <Text style={styles.linha} numberOfLines={1}>
-              Até {destino.endereco}
+              Até {enderecoCurto(destino.endereco)}
             </Text>
           )}
         </View>
@@ -125,7 +152,7 @@ export default function AvaliarPassageiro({
           disabled={enviando}
           onPress={onDispensar}
         >
-          <Text style={styles.textoPular}>Agora não</Text>
+          <Text style={styles.textoPular}>Lembrar depois</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -151,12 +178,24 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
+  codigo: { fontSize: 12, color: "#777", marginTop: 3 },
   ganho: {
     fontSize: 34,
     fontWeight: "800",
     color: "#111",
     marginTop: 8,
   },
+  cobrar: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 14,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#E8F8F1",
+  },
+  cobrarTexto: { flex: 1, fontSize: 15, color: "#0F5132" },
+  cobrarValor: { fontWeight: "800" },
   ganhoApoio: {
     fontSize: 13,
     color: "#777",

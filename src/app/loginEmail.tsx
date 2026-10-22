@@ -1,9 +1,10 @@
+// CODEX: 0 linhas alteradas; adapta formulário, teclado e rodapé às áreas seguras. Remover após validação ou commit.
 import AppLogo from "@/components/common/AppLogo";
 import ErrorBanner from "@/components/common/ErrorBanner";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
-import { ehErroDeRede } from "@/Services/api";
+import { ehErroDeRede, mensagemDaApi } from "@/Services/api";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -17,15 +18,19 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 export default function LoginEmail() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const { user, loading, login } = useAuth();
 
   const [step, setStep] = useState(1);
-  const espacoDoTeclado = useEspacoDoTeclado();
+  const espacoDoTeclado = useEspacoDoTeclado(false);
 
   // voltar tem que andar um passo de cada vez; só sai da tela no primeiro
 
@@ -83,13 +88,11 @@ export default function LoginEmail() {
       await login(email.trim(), senha);
 
       router.replace("/home");
-    } catch (error: any) {
-      console.log(error);
-
+    } catch (error: unknown) {
       setErroLogin(
         ehErroDeRede(error)
           ? "Não foi possível conectar. Verifique sua internet."
-          : "E-mail ou senha inválidos",
+          : mensagemDaApi(error, "E-mail ou senha inválidos."),
       );
     }
   };
@@ -118,7 +121,7 @@ export default function LoginEmail() {
         }}
       />
 
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboard}
@@ -127,9 +130,15 @@ export default function LoginEmail() {
             style={styles.scroll}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
           >
             {/* HEADER */}
-            <View style={styles.header}>
+            <View
+              style={[
+                styles.header,
+                { paddingTop: Math.max(insets.top + 12, 36) },
+              ]}
+            >
               <AppLogo />
 
               <View style={styles.badgeContainer}>
@@ -237,7 +246,12 @@ export default function LoginEmail() {
           </ScrollView>
 
           <View
-            style={[styles.footer, { paddingBottom: 60 + espacoDoTeclado }]}
+            style={[
+              styles.footer,
+              {
+                paddingBottom: Math.max(insets.bottom, 16) + espacoDoTeclado,
+              },
+            ]}
           >
             <TouchableOpacity
               style={styles.roundedButton}
@@ -325,6 +339,9 @@ const styles = StyleSheet.create({
   },
 
   content: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
     flexGrow: 1,
     paddingHorizontal: 30,
     marginTop: 20,
@@ -374,6 +391,9 @@ const styles = StyleSheet.create({
   },
 
   footer: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

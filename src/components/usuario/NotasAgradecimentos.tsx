@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -26,8 +27,9 @@ export default function NotasAgradecimento({
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
   useEffect(() => {
@@ -43,11 +45,11 @@ export default function NotasAgradecimento({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible]);
+  }, [onClose, visible]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -74,7 +76,7 @@ export default function NotasAgradecimento({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible]);
+  }, [duration, overlayOpacity, translateX, visible]);
 
   if (!isMounted) return null;
 
@@ -174,7 +176,9 @@ export default function NotasAgradecimento({
       {/* Drawer */}
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="arrow-back-outline" size={26} color="#111" />

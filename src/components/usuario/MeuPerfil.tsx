@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -27,12 +28,12 @@ interface props {
 }
 
 export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
   const [showAlterarNumero, setShowAlterarNumero] = useState(false);
   const [showAlterarEmail, setShowAlterarEmail] = useState(false);
-  const [showAlterarCidade, setShowAlterarCidade] = useState(false);
   const [showAlterarSenha, setShowAlterarSenha] = useState(false);
   const [showDocumentosPendentes, setShowDocumentosPendentes] = useState(false);
   const [showGestaoDispositivos, setShowGestaoDispositivos] = useState(false);
@@ -50,11 +51,11 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible]);
+  }, [onClose, visible]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -81,7 +82,7 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible]);
+  }, [duration, overlayOpacity, translateX, visible]);
 
   if (!isMounted) return null;
 
@@ -120,7 +121,12 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
         {/* Drawer */}
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           {/* HEADER */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
+          >
             <View style={styles.headerRow}>
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="close-outline" size={26} color="#111" />
@@ -169,9 +175,7 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
                   "diogoguimaraes.br@gmail.com",
                   () => setShowAlterarEmail(true),
                 )}
-                {renderItem("location-outline", "Cidade", "Porto Velho", () =>
-                  setShowAlterarCidade(true),
-                )}
+                {renderItem("location-outline", "Cidade", "Porto Velho")}
                 {renderItem("key-outline", "Senha", "", () =>
                   setShowAlterarSenha(true),
                 )}

@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -19,7 +20,7 @@ import ModalSelos from "./ModalSelos";
 import NotasAgradecimentos from "./NotasAgradecimentos";
 import VerificacoesUsuario from "./VerificacoesUsuario";
 
-const { width, height } = Dimensions.get("window");
+const { width } = Dimensions.get("window");
 
 interface props {
   visible: boolean;
@@ -27,13 +28,32 @@ interface props {
   duration?: number;
 }
 
+const RatingRow = ({
+  stars,
+  count,
+  percentage,
+}: {
+  stars: number;
+  count: number;
+  percentage: number;
+}) => (
+  <View style={styles.ratingRow}>
+    <Text style={styles.starLabel}>{stars} ★</Text>
+    <View style={styles.barBackground}>
+      <View style={[styles.barFill, { width: `${percentage}%` }]} />
+    </View>
+    <Text style={styles.ratingCount}>{count}</Text>
+  </View>
+);
+
 export default function PerfilUsuario({
   visible,
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
   const [showMeuPerfil, setShowMeuPerfil] = useState(false);
   const [showNotasAgradecimentos, setShowNotasAgradecimentos] = useState(false);
@@ -146,7 +166,7 @@ export default function PerfilUsuario({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -173,27 +193,9 @@ export default function PerfilUsuario({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
-
-  const RatingRow = ({
-    stars,
-    count,
-    percentage,
-  }: {
-    stars: number;
-    count: number;
-    percentage: number;
-  }) => (
-    <View style={styles.ratingRow}>
-      <Text style={styles.starLabel}>{stars} ★</Text>
-      <View style={styles.barBackground}>
-        <View style={[styles.barFill, { width: `${percentage}%` }]} />
-      </View>
-      <Text style={styles.ratingCount}>{count}</Text>
-    </View>
-  );
 
   return (
     <>
@@ -210,7 +212,10 @@ export default function PerfilUsuario({
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           {/* HEADER */}
           <View
-            style={styles.header}
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
             onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           >
             <View style={styles.headerContent}>

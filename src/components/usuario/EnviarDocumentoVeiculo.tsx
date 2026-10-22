@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -22,13 +23,53 @@ interface props {
   duration?: number;
 }
 
+interface OptionProps {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  selected: string | null;
+  onSelect: (id: string) => void;
+}
+
+const Option = ({
+  id,
+  title,
+  description,
+  image,
+  selected,
+  onSelect,
+}: OptionProps) => {
+  const isSelected = selected === id;
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      style={styles.optionCard}
+      onPress={() => onSelect(id)}
+    >
+      <Image source={{ uri: image }} style={styles.optionImage} />
+
+      <View style={{ flex: 1 }}>
+        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={styles.optionDesc}>{description}</Text>
+      </View>
+
+      <View style={[styles.radio, isSelected && styles.radioSelected]}>
+        {isSelected && <View style={styles.radioInner} />}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
 export default function EnviarDocumentoVeiculo({
   visible,
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
   const [selected, setSelected] = useState<string | null>(null);
@@ -67,7 +108,7 @@ export default function EnviarDocumentoVeiculo({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -94,42 +135,9 @@ export default function EnviarDocumentoVeiculo({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
-
-  const Option = ({
-    id,
-    title,
-    description,
-    image,
-  }: {
-    id: string;
-    title: string;
-    description: string;
-    image: string;
-  }) => {
-    const isSelected = selected === id;
-
-    return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={styles.optionCard}
-        onPress={() => setSelected(id)}
-      >
-        <Image source={{ uri: image }} style={styles.optionImage} />
-
-        <View style={{ flex: 1 }}>
-          <Text style={styles.optionTitle}>{title}</Text>
-          <Text style={styles.optionDesc}>{description}</Text>
-        </View>
-
-        <View style={[styles.radio, isSelected && styles.radioSelected]}>
-          {isSelected && <View style={styles.radioInner} />}
-        </View>
-      </TouchableOpacity>
-    );
-  };
 
   return (
     <>
@@ -147,7 +155,12 @@ export default function EnviarDocumentoVeiculo({
         {/* Drawer */}
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           {/* HEADER */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
+          >
             <View style={styles.headerContent}>
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="arrow-back-outline" size={26} color="#111" />
@@ -173,6 +186,8 @@ export default function EnviarDocumentoVeiculo({
               title="Documento físico"
               description="Selecione esta opção se você tiver o CRLV físico"
               image="https://cdn-icons-png.flaticon.com/512/337/337946.png"
+              selected={selected}
+              onSelect={setSelected}
             />
 
             <Option
@@ -180,6 +195,8 @@ export default function EnviarDocumentoVeiculo({
               title="Documento digital (somente PDF)"
               description="Selecione esta opção se você tiver o CRLV digital em PDF"
               image="https://cdn-icons-png.flaticon.com/512/337/337932.png"
+              selected={selected}
+              onSelect={setSelected}
             />
           </View>
 

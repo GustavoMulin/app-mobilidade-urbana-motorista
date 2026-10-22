@@ -1,7 +1,9 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
 import {
+  ActivityIndicator,
   Animated,
   BackHandler,
   Dimensions,
@@ -12,6 +14,14 @@ import {
   View,
 } from "react-native";
 import SaqueStatus from "./SaqueStatus";
+import {
+  Carteira,
+  formatarReais,
+  lerValorEmReais,
+  mensagemDeErro,
+  sacar,
+  Saque,
+} from "@/domain/carteira";
 
 const { width, height } = Dimensions.get("window");
 
@@ -19,40 +29,116 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
+  carteira: Carteira | null;
+  onSacado?: (saque: Saque) => void;
 }
 
 export default function SacarSaldo({
   visible,
   onClose,
   duration = 200,
+  carteira,
+  onSacado,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const slideConfirm = useRef(new Animated.Value(height)).current;
-  const confirmOverlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
+  const [slideConfirm] = useState(() => new Animated.Value(height));
+  const [confirmOverlayOpacity] = useState(() => new Animated.Value(0));
 
   const [isMounted, setIsMounted] = useState(visible);
   const [valor, setValor] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
   const [saqueStatus, setSaqueStatus] = useState(false);
+  const [saqueFeito, setSaqueFeito] = useState<Saque | null>(null);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  const mostrarSaqueStatus = () => {
-    toggleConfirm(false);
-    setSaqueStatus(true);
+  const disponivel = carteira?.disponivel_para_saque ?? 0;
+  const minimo = carteira?.valor_minimo ?? 0;
+  const taxa = carteira?.taxa ?? 0;
+  const metodo = carteira?.metodo_principal ?? null;
+  const valorNumerico = lerValorEmReais(valor);
+  const problemaDoValor =
+    valorNumerico === null || valorNumerico <= 0
+      ? ""
+      : valorNumerico > disponivel
+        ? "Valor maior que o saldo disponível."
+        : valorNumerico < minimo
+          ? `O mínimo para saque é ${formatarReais(minimo)}.`
+          : "";
+  const podeSacar =
+    metodo !== null &&
+    valorNumerico !== null &&
+    valorNumerico > 0 &&
+    problemaDoValor === "";
+
+  const toggleConfirm = useCallback(
+    (show: boolean) => {
+      if (show) {
+        Keyboard.dismiss();
+        setShowConfirm(true);
+        Animated.parallel([
+          Animated.timing(slideConfirm, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(confirmOverlayOpacity, {
+            toValue: 1,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } else {
+        Animated.parallel([
+          Animated.timing(slideConfirm, {
+            toValue: height,
+            duration: 250,
+            useNativeDriver: true,
+          }),
+          Animated.timing(confirmOverlayOpacity, {
+            toValue: 0,
+            duration: 200,
+            useNativeDriver: true,
+          }),
+        ]).start(() => setShowConfirm(false));
+      }
+    },
+    [confirmOverlayOpacity, slideConfirm],
+  );
+
+  const confirmarSaque = async () => {
+    if (!podeSacar || valorNumerico === null || enviando) return;
+    setEnviando(true);
+    setErro("");
+    try {
+      const saque = await sacar(valorNumerico);
+      setSaqueFeito(saque);
+      setValor("");
+      toggleConfirm(false);
+      setSaqueStatus(true);
+      onSacado?.(saque);
+    } catch (falha) {
+      setErro(mensagemDeErro(falha, "Não foi possível sacar agora."));
+    } finally {
+      setEnviando(false);
+    }
   };
 
-  const handleSaqueStatusClose = () => {
-    setSaqueStatus(false);
-    // Não fecha o SacarSaldo, apenas volta para ele
-  };
-
-  const handleDrawerClose = () => {
-    // Limpa os estados ao fechar
+  const handleDrawerClose = useCallback(() => {
     setValor("");
+    setErro("");
     setShowConfirm(false);
     setSaqueStatus(false);
     onClose();
+  }, [onClose]);
+
+  // depois de sacar, fechar o andamento volta direto para o saldo
+  const handleSaqueStatusClose = () => {
+    setSaqueStatus(false);
+    handleDrawerClose();
   };
 
   useEffect(() => {
@@ -78,11 +164,18 @@ export default function SacarSaldo({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible, showConfirm, saqueStatus, onClose]);
+  }, [
+    visible,
+    showConfirm,
+    saqueStatus,
+    onClose,
+    toggleConfirm,
+    handleDrawerClose,
+  ]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -109,45 +202,17 @@ export default function SacarSaldo({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
-
-  const toggleConfirm = (show: boolean) => {
-    if (show) {
-      Keyboard.dismiss();
-      setShowConfirm(true);
-      Animated.parallel([
-        Animated.timing(slideConfirm, {
-          toValue: 0,
-          duration: 300,
-          useNativeDriver: true,
-        }),
-        Animated.timing(confirmOverlayOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(slideConfirm, {
-          toValue: height,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(confirmOverlayOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => setShowConfirm(false));
-    }
-  };
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
   return (
     <>
-      <SaqueStatus visible={saqueStatus} onClose={handleSaqueStatusClose} />
+      <SaqueStatus
+        visible={saqueStatus}
+        saque={saqueFeito}
+        onClose={handleSaqueStatusClose}
+      />
       <View style={[StyleSheet.absoluteFill, { zIndex: 60 }]}>
         {/* Overlay geral do drawer */}
         <Pressable style={StyleSheet.absoluteFill}>
@@ -162,7 +227,10 @@ export default function SacarSaldo({
         {/* Drawer */}
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           <View
-            style={styles.header}
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
             onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
           >
             <View style={styles.headerContent}>
@@ -206,7 +274,12 @@ export default function SacarSaldo({
           <View style={styles.body}>
             <View style={styles.sectionRow}>
               <Text style={styles.sectionLabel}>Conta para saque</Text>
-              <Text style={styles.sectionValue}>Conta99</Text>
+              <Text
+                style={[styles.sectionValue, styles.sectionValueFlex]}
+                numberOfLines={2}
+              >
+                {metodo?.descricao ?? "Cadastre um método de resgate"}
+              </Text>
             </View>
 
             <View style={styles.divider} />
@@ -218,20 +291,38 @@ export default function SacarSaldo({
                 <Text style={styles.currencyPrefix}>R$</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="0.00"
-                  keyboardType="numeric"
+                  placeholder="0,00"
+                  keyboardType="decimal-pad"
                   value={valor}
-                  onChangeText={setValor}
+                  onChangeText={(texto) => {
+                    setValor(texto);
+                    setErro("");
+                  }}
                   placeholderTextColor="#999"
+                  accessibilityLabel="Valor do resgate"
                 />
-                <TouchableOpacity onPress={() => setValor("161,67")}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Sacar todo o saldo"
+                  onPress={() =>
+                    setValor(disponivel.toFixed(2).replace(".", ","))
+                  }
+                >
                   <Text style={styles.tudoText}>Tudo</Text>
                 </TouchableOpacity>
               </View>
 
+              {(!!problemaDoValor || !!erro) && (
+                <Text style={styles.erroTexto} accessibilityRole="alert">
+                  {erro || problemaDoValor}
+                </Text>
+              )}
+
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Saldo disponível</Text>
-                <Text style={styles.infoValue}>R$161,67</Text>
+                <Text style={styles.infoValue}>
+                  {formatarReais(disponivel)}
+                </Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -244,7 +335,7 @@ export default function SacarSaldo({
                     style={{ marginLeft: 4 }}
                   />
                 </View>
-                <Text style={styles.infoValue}>- R$0</Text>
+                <Text style={styles.infoValue}>- {formatarReais(taxa)}</Text>
               </View>
 
               <View style={styles.infoRow}>
@@ -257,7 +348,7 @@ export default function SacarSaldo({
                     { textAlign: "right", flex: 1, color: "#00C853" },
                   ]}
                 >
-                  Obtenha fundos em 1 minuto
+                  Em poucos minutos
                 </Text>
               </View>
             </View>
@@ -265,12 +356,16 @@ export default function SacarSaldo({
 
           <View style={styles.footer}>
             <TouchableOpacity
-              style={[styles.btnSacar, !valor && styles.btnDisabled]}
-              disabled={!valor}
+              style={[styles.btnSacar, !podeSacar && styles.btnDisabled]}
+              disabled={!podeSacar}
+              accessibilityRole="button"
               onPress={() => toggleConfirm(true)}
             >
               <Text
-                style={[styles.btnSacarText, !valor && styles.btnTextDisabled]}
+                style={[
+                  styles.btnSacarText,
+                  !podeSacar && styles.btnTextDisabled,
+                ]}
               >
                 Sacar
               </Text>
@@ -298,16 +393,23 @@ export default function SacarSaldo({
 
             <View style={styles.confirmBody}>
               <Text style={styles.confirmValueLabel}>Valor do resgate</Text>
-              <Text style={styles.confirmValueLarge}>R${valor || "0,00"}</Text>
+              <Text style={styles.confirmValueLarge}>
+                {formatarReais(valorNumerico ?? 0)}
+              </Text>
 
               <View style={styles.confirmDetails}>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Conta para saque</Text>
-                  <Text style={styles.detailValue}>Conta99</Text>
+                  <Text
+                    style={[styles.detailValue, styles.sectionValueFlex]}
+                    numberOfLines={2}
+                  >
+                    {metodo?.descricao ?? "—"}
+                  </Text>
                 </View>
                 <View style={styles.detailRow}>
                   <Text style={styles.detailLabel}>Taxa de serviço</Text>
-                  <Text style={styles.detailValue}>R$0,00</Text>
+                  <Text style={styles.detailValue}>{formatarReais(taxa)}</Text>
                 </View>
               </View>
 
@@ -318,17 +420,29 @@ export default function SacarSaldo({
                   color="#FF6600"
                 />
                 <Text style={styles.alertText}>
-                  O valor deve chegar em sua conta em até 1 minuto.
+                  O valor deve chegar em sua conta em poucos minutos.
                 </Text>
               </View>
+
+              {!!erro && (
+                <Text style={styles.erroTexto} accessibilityRole="alert">
+                  {erro}
+                </Text>
+              )}
             </View>
 
             <View style={styles.confirmFooter}>
               <TouchableOpacity
-                style={styles.btnConfirmarFinal}
-                onPress={mostrarSaqueStatus}
+                style={[styles.btnConfirmarFinal, enviando && { opacity: 0.6 }]}
+                disabled={enviando}
+                accessibilityRole="button"
+                onPress={() => void confirmarSaque()}
               >
-                <Text style={styles.btnConfirmarText}>Confirmar</Text>
+                {enviando ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <Text style={styles.btnConfirmarText}>Confirmar</Text>
+                )}
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -370,6 +484,8 @@ const styles = StyleSheet.create({
   },
   sectionLabel: { fontSize: 16, fontWeight: "700" },
   sectionValue: { fontSize: 16 },
+  sectionValueFlex: { flex: 1, textAlign: "right", marginLeft: 16 },
+  erroTexto: { fontSize: 13, color: "#C62828", marginTop: 8 },
   divider: { height: 8, backgroundColor: "#F7F7F7" },
   resgateContainer: { padding: 20 },
   resgateLabel: { fontSize: 16, fontWeight: "700", marginBottom: 20 },

@@ -1,6 +1,7 @@
+// CODEX: 6 linhas alteradas (4 adicionadas, 2 removidas); permite contraste próprio no rótulo do deslizador. Remover após validação/commit.
 import { Text } from "@/components/common/Texto";
 import { Feather } from "@expo/vector-icons";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Animated,
   LayoutChangeEvent,
@@ -15,6 +16,7 @@ const MARGEM = 4;
 interface props {
   rotulo: string;
   cor: string;
+  corTexto?: string;
   onConfirmar: () => void;
   desabilitado?: boolean;
 }
@@ -22,18 +24,27 @@ interface props {
 export default function BotaoDeslizar({
   rotulo,
   cor,
+  corTexto = "#FFF",
   onConfirmar,
   desabilitado = false,
 }: props) {
   const [largura, setLargura] = useState(0);
-  const deslocamento = useRef(new Animated.Value(0)).current;
+  const [deslocamento] = useState(() => new Animated.Value(0));
   const confirmado = useRef(false);
+  const desabilitadoRef = useRef(desabilitado);
+
+  useEffect(() => {
+    desabilitadoRef.current = desabilitado;
+  }, [desabilitado]);
 
   // o curso é medido a cada render; o PanResponder lê pela ref pra não
   // ficar preso ao valor do primeiro layout
   const cursoRef = useRef(0);
+  const curso = Math.max(largura - TAMANHO_ALCA - MARGEM * 2, 0);
 
-  cursoRef.current = Math.max(largura - TAMANHO_ALCA - MARGEM * 2, 0);
+  useEffect(() => {
+    cursoRef.current = curso;
+  }, [curso]);
 
   const voltar = () => {
     Animated.spring(deslocamento, {
@@ -46,13 +57,20 @@ export default function BotaoDeslizar({
   // mantém o callback atual sem recriar o PanResponder
   const onConfirmarRef = useRef(onConfirmar);
 
-  onConfirmarRef.current = onConfirmar;
+  useEffect(() => {
+    onConfirmarRef.current = onConfirmar;
+  }, [onConfirmar]);
 
-  const responder = useRef(
+  // O responder só lê as refs quando o usuário inicia um gesto.
+  // eslint-disable-next-line react-hooks/refs
+  const [responder] = useState(() =>
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesto) => Math.abs(gesto.dx) > 4,
+      onMoveShouldSetPanResponder: (_, gesto) =>
+        !desabilitadoRef.current &&
+        Math.abs(gesto.dx) > 4 &&
+        Math.abs(gesto.dx) > Math.abs(gesto.dy),
       onPanResponderMove: (_, gesto) => {
-        if (confirmado.current) return;
+        if (confirmado.current || desabilitadoRef.current) return;
 
         const limitado = Math.min(Math.max(gesto.dx, 0), cursoRef.current);
 
@@ -60,6 +78,10 @@ export default function BotaoDeslizar({
       },
       onPanResponderRelease: (_, gesto) => {
         if (confirmado.current) return;
+        if (desabilitadoRef.current) {
+          voltar();
+          return;
+        }
 
         const curso = cursoRef.current;
 
@@ -70,8 +92,8 @@ export default function BotaoDeslizar({
             toValue: curso,
             duration: 120,
             useNativeDriver: true,
-          }).start(() => {
-            onConfirmarRef.current();
+          }).start(({ finished }) => {
+            if (finished && !desabilitadoRef.current) onConfirmarRef.current();
 
             // libera pro próximo passo do fluxo
             confirmado.current = false;
@@ -85,13 +107,13 @@ export default function BotaoDeslizar({
       },
       onPanResponderTerminate: voltar,
     }),
-  ).current;
+  );
 
   const medir = (evento: LayoutChangeEvent) =>
     setLargura(evento.nativeEvent.layout.width);
 
   const opacidadeRotulo = deslocamento.interpolate({
-    inputRange: [0, Math.max(cursoRef.current, 1)],
+    inputRange: [0, Math.max(curso, 1)],
     outputRange: [1, 0],
     extrapolate: "clamp",
   });
@@ -105,8 +127,13 @@ export default function BotaoDeslizar({
         desabilitado && styles.desabilitado,
       ]}
     >
-      <Animated.View style={{ opacity: opacidadeRotulo }}>
-        <Text style={styles.rotulo}>{rotulo}</Text>
+      <Animated.View
+        style={[styles.rotuloContainer, { opacity: opacidadeRotulo }]}
+        pointerEvents="none"
+      >
+        <Text style={[styles.rotulo, { color: corTexto }]} numberOfLines={2}>
+          {rotulo}
+        </Text>
       </Animated.View>
 
       <Animated.View
@@ -131,7 +158,14 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
 
+  rotuloContainer: {
+    alignSelf: "stretch",
+    paddingLeft: TAMANHO_ALCA + MARGEM * 3,
+    paddingRight: MARGEM * 3,
+  },
+
   rotulo: {
+    textAlign: "center",
     color: "#FFF",
     fontSize: 17,
     fontWeight: "700",

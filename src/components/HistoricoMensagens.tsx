@@ -1,6 +1,8 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { api } from "@/Services/api";
 import {
   Animated,
   BackHandler,
@@ -20,69 +22,74 @@ interface props {
   duration?: number;
 }
 
-// Mock de dados baseado na imagem
-const NOTIFICATIONS = [
-  {
-    id: "1",
-    title: "Status perfeito!",
-    message: "Você está pronto(a). Conecte-se para ac...",
-    time: "12:02",
-  },
-  {
-    id: "2",
-    title: "Você conseguiu!",
-    message: "Aumente sua Pontos da fase,Taxa de Fin...",
-    time: "10:48",
-  },
-  {
-    id: "3",
-    title: "Status perfeito!",
-    message: "Você está pronto(a). Conecte-se para ac...",
-    time: "07:18",
-  },
-  {
-    id: "4",
-    title: "DIOGO GUIMARAES DE SOUZA, qu...",
-    message: "Fala Motora! queremos saber a sua opini...",
-    time: "Ontem 19:00",
-  },
-  {
-    id: "5",
-    title: "Status perfeito!",
-    message: "Você está pronto(a). Conecte-se para ac...",
-    time: "Ontem 18:44",
-  },
-  {
-    id: "6",
-    title: "Status perfeito!",
-    message: "Você está pronto(a). Conecte-se para ac...",
-    time: "Ontem 18:40",
-  },
-  {
-    id: "8",
-    title: "Novas áreas de alta demanda",
-    message: "Preço dinâmico de x2 a apenas 4.616 m ...",
-    time: "Ontem 18:38",
-  },
-  {
-    id: "9",
-    title: "Novas áreas de alta demanda",
-    message: "Preço dinâmico de x2 a apenas 4.616 m ...",
-    time: "Ontem 18:38",
-  },
-];
+interface Notificacao {
+  id: number;
+  titulo: string;
+  mensagem: string;
+  lida_em: string | null;
+  created_at: string;
+}
 
-const FILTERS = ["Todos", "Ganhos", "Messages", "Car"];
+const formatarQuando = (iso: string) => {
+  const data = new Date(iso);
+  const hoje = new Date();
+  const mesmoDia = data.toDateString() === hoje.toDateString();
+  return mesmoDia
+    ? data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+    : data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+};
 
 export default function HistoricoMensagens({
   visible,
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
-  const [activeFilter, setActiveFilter] = useState("Todos");
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const [naoLidas, setNaoLidas] = useState(0);
+  const [carregando, setCarregando] = useState(false);
+
+  useEffect(() => {
+    if (!visible) return;
+    let ativo = true;
+    setCarregando(true);
+    api
+      .get<{ data: Notificacao[]; nao_lidas: number }>("/notificacoes", {
+        // a mesma conta pode ser passageiro e motorista
+        params: { perfil: "motorista" },
+      })
+      .then(({ data }) => {
+        if (!ativo) return;
+        setNotificacoes(data.data);
+        setNaoLidas(data.nao_lidas);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (ativo) setCarregando(false);
+      });
+    return () => {
+      ativo = false;
+    };
+  }, [visible]);
+
+  const marcarTodasLidas = () => {
+    if (naoLidas === 0) return;
+    api
+      .post("/notificacoes/lidas", null, { params: { perfil: "motorista" } })
+      .then(() => {
+        setNaoLidas(0);
+        setNotificacoes((atuais) =>
+          atuais.map((item) => ({
+            ...item,
+            lida_em: item.lida_em ?? new Date().toISOString(),
+          })),
+        );
+      })
+      .catch(() => {});
+  };
 
   useEffect(() => {
     const onBackPress = () => {
@@ -101,7 +108,7 @@ export default function HistoricoMensagens({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -132,30 +139,25 @@ export default function HistoricoMensagens({
 
   if (!isMounted) return null;
 
-  const renderNotification = ({
-    item,
-  }: {
-    item: (typeof NOTIFICATIONS)[0];
-  }) => (
-    <TouchableOpacity style={styles.notificationItem}>
+  const renderNotification = ({ item }: { item: Notificacao }) => (
+    <View style={styles.notificationItem}>
       <View style={styles.iconContainer}>
-        <MaterialCommunityIcons
-          name="numeric-9-plus-circle"
-          size={32}
-          color="#666"
+        <Ionicons
+          name={item.lida_em ? "notifications-outline" : "notifications"}
+          size={24}
+          color={item.lida_em ? "#666" : "#2F6BFF"}
         />
       </View>
       <View style={styles.textContent}>
         <Text style={styles.notifTitle} numberOfLines={1}>
-          {item.title}
+          {item.titulo}
         </Text>
-        <Text style={styles.notifMessage} numberOfLines={1}>
-          {item.message}
+        <Text style={styles.notifMessage} numberOfLines={2}>
+          {item.mensagem}
         </Text>
-        <Text style={styles.notifTime}>{item.time}</Text>
+        <Text style={styles.notifTime}>{formatarQuando(item.created_at)}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={18} color="#CCC" />
-    </TouchableOpacity>
+    </View>
   );
 
   return (
@@ -171,7 +173,9 @@ export default function HistoricoMensagens({
 
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER PRINCIPAL */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="chevron-back" size={28} color="#111" />
@@ -184,50 +188,40 @@ export default function HistoricoMensagens({
         {/* SUB-HEADER COM MENSAGENS E FILTROS */}
         <View style={styles.subHeader}>
           <View style={styles.messageSummary}>
-            <Text style={styles.summaryText}>Mensagens (420 não lidas)</Text>
-            <View style={styles.summaryActions}>
+            <Text style={styles.summaryText}>
+              {naoLidas > 0
+                ? `Mensagens (${naoLidas} não ${naoLidas === 1 ? "lida" : "lidas"})`
+                : "Mensagens"}
+            </Text>
+            <TouchableOpacity
+              onPress={marcarTodasLidas}
+              accessibilityRole="button"
+              accessibilityLabel="Marcar todas como lidas"
+              disabled={naoLidas === 0}
+            >
               <Ionicons
                 name="checkmark-done-outline"
                 size={20}
-                color="#666"
-                style={{ marginRight: 15 }}
+                color={naoLidas === 0 ? "#CCC" : "#666"}
               />
-              <Ionicons name="options-outline" size={20} color="#666" />
-            </View>
+            </TouchableOpacity>
           </View>
-
-          <FlatList
-            data={FILTERS}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filterList}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                onPress={() => setActiveFilter(item)}
-                style={[
-                  styles.filterTab,
-                  activeFilter === item && styles.filterTabActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.filterText,
-                    activeFilter === item && styles.filterTextActive,
-                  ]}
-                >
-                  {item}
-                </Text>
-              </TouchableOpacity>
-            )}
-            keyExtractor={(item) => item}
-          />
         </View>
 
         {/* LISTA DE NOTIFICAÇÕES */}
         <FlatList
-          data={NOTIFICATIONS}
+          data={notificacoes}
           renderItem={renderNotification}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => String(item.id)}
+          ListEmptyComponent={
+            <View style={styles.vazio}>
+              <Text style={styles.vazioTexto}>
+                {carregando
+                  ? "Carregando..."
+                  : "Você ainda não tem notificações. Elas aparecem aqui quando uma corrida termina ou um pagamento é recebido."}
+              </Text>
+            </View>
+          }
           style={styles.body}
           contentContainerStyle={{ paddingBottom: 20 }}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -238,6 +232,13 @@ export default function HistoricoMensagens({
 }
 
 const styles = StyleSheet.create({
+  vazio: { padding: 24, alignItems: "center" },
+  vazioTexto: {
+    color: "#666",
+    fontSize: 14,
+    textAlign: "center",
+    lineHeight: 20,
+  },
   drawer: {
     position: "absolute",
     right: 0,

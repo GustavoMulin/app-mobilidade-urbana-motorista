@@ -1,417 +1,565 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import ConversaAjuda from "@/components/central-de-ajuda/ConversaAjuda";
 import { Text, TextInput } from "@/components/common/Texto";
+import { api, ehErroDeRede } from "@/Services/api";
 import {
-  Animated,
-  BackHandler,
-  Dimensions,
-  Image,
-  Pressable,
+  Motivo,
+  PedidoDeAjuda,
+  ROTULO_MOTIVO,
+  situacaoDoPedido,
+} from "@/domain/ajuda";
+import { useAuth } from "@/context/AuthProvider";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Linking,
+  Modal,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import ListaRevisarMinhaTarifa from "./ListaRevisarMinhaTarifa";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const { width } = Dimensions.get("window");
-
-interface props {
+interface Props {
   visible: boolean;
   onClose: () => void;
+  // o menu lateral ainda passa a duração da animação antiga
   duration?: number;
 }
 
-export default function CentralAjuda({
-  visible,
-  onClose,
-  duration = 200,
-}: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
-  const [isMounted, setIsMounted] = useState(visible);
-  const [activeTab, setActiveTab] = useState("Corridas");
+const TOPICOS: { motivo: Motivo; icone: keyof typeof Ionicons.glyphMap }[] = [
+  { motivo: "corrida_com_problema", icone: "car-outline" },
+  { motivo: "tarifa_incorreta", icone: "cash-outline" },
+  { motivo: "objeto_esquecido", icone: "bag-handle-outline" },
+  { motivo: "motorista_ou_passageiro", icone: "person-outline" },
+  { motivo: "outro", icone: "help-circle-outline" },
+];
 
-  const tabs = ["Corridas", "Entrega", "Food", "Energia"];
+interface CorridaResumo {
+  id: number;
+  motorista?: { user_id?: number | null } | null;
+  codigo_corrida: string;
+  status_corrida: string;
+  tempo_solicitacao: string;
+  corrida_destinos?: { tipo: string; endereco: string | null }[];
+}
 
-  const [visibleListaRevisarMinhaTarifa, setVisibleListaRevisarMinhaTarifa] =
-    useState(false);
+const formatarData = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
 
-  const mostrarListaRevisarMinhaTarifa = () => {
-    setVisibleListaRevisarMinhaTarifa(true);
-  };
+const formatarHora = (iso: string) =>
+  new Date(iso).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
-  useEffect(() => {
-    const onBackPress = () => {
-      if (visible) {
-        onClose();
-        return true;
-      }
-      return false;
-    };
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      onBackPress,
+// até quando o passageiro já leu cada pedido (para o selo "Nova resposta")
+const CHAVE_PEDIDOS_VISTOS = "@ajuda_pedidos_vistos";
+
+const lerVistos = async (): Promise<Record<string, string>> => {
+  try {
+    return JSON.parse(
+      (await AsyncStorage.getItem(CHAVE_PEDIDOS_VISTOS)) ?? "{}",
     );
-    return () => subscription.remove();
-  }, [visible, onClose]);
+  } catch {
+    return {};
+  }
+};
 
-  useEffect(() => {
-    if (visible) {
-      setIsMounted(true);
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: 0,
-          duration,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 1,
-          duration: duration * 0.8,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(translateX, {
-          toValue: width,
-          duration,
-          useNativeDriver: true,
-        }),
-        Animated.timing(overlayOpacity, {
-          toValue: 0,
-          duration: duration * 0.8,
-          useNativeDriver: true,
-        }),
-      ]).start(({ finished }) => finished && setIsMounted(false));
-    }
-  }, [visible, duration]);
+const SITUACAO_DA_CORRIDA: Record<string, string> = {
+  finalizada: "Concluída",
+  cancelada: "Cancelada",
+  em_andamento: "Em andamento",
+  aceita: "Motorista a caminho",
+  motorista_chegou: "Motorista no local",
+  solicitada: "Procurando motorista",
+};
 
-  if (!isMounted) return null;
+// o passageiro reconhece a corrida pelo destino, não pelo código
+const destinoDaCorrida = (corrida: CorridaResumo) => {
+  const endereco = corrida.corrida_destinos?.find(
+    (ponto) => ponto.tipo === "destino",
+  )?.endereco;
 
-  // ✅ AGORA ACEITA onPress
-  const renderTopic = (icon: any, title: string, onPress?: () => void) => (
-    <TouchableOpacity style={styles.topicItem} onPress={onPress}>
-      <View style={styles.topicIconRow}>
-        <Ionicons name={icon} size={22} color="#333" />
-        <Text style={styles.topicText}>{title}</Text>
-      </View>
-      <Ionicons name="chevron-forward" size={18} color="#ccc" />
-    </TouchableOpacity>
+  return endereco
+    ? endereco.split(" - ")[0]
+    : `Corrida ${corrida.codigo_corrida}`;
+};
+
+// só repassa o texto do servidor em erros esperados (validação, regra de
+// negócio); em erro interno a mensagem crua poderia expor detalhes do backend
+const STATUS_COM_MENSAGEM = [404, 409, 422];
+
+const mensagemDeErro = (falha: unknown) => {
+  if (ehErroDeRede(falha)) {
+    return "Sem conexão. Tente de novo quando a internet voltar.";
+  }
+  const resposta = (
+    falha as { response?: { status?: number; data?: { message?: string } } }
+  )?.response;
+  if (
+    resposta?.status !== undefined &&
+    STATUS_COM_MENSAGEM.includes(resposta.status) &&
+    typeof resposta.data?.message === "string"
+  ) {
+    return resposta.data.message;
+  }
+  return "Não foi possível enviar agora. Tente de novo.";
+};
+
+// Central de Ajuda do motorista: os tópicos abrem um pedido de verdade (salvo
+// no servidor, como motorista) e cada pedido tem a sua conversa com o
+// atendimento. Mesma tela do app do passageiro.
+export default function CentralAjuda({ visible, onClose }: Props) {
+  const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const [motivo, setMotivo] = useState<Motivo | null>(null);
+  const [descricao, setDescricao] = useState("");
+  const [corridas, setCorridas] = useState<CorridaResumo[]>([]);
+  const [corridaEscolhida, setCorridaEscolhida] = useState<number | null>(null);
+  const [chamados, setChamados] = useState<PedidoDeAjuda[]>([]);
+  const [carregandoChamados, setCarregandoChamados] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+  const [conversa, setConversa] = useState<number | null>(null);
+  const [vistos, setVistos] = useState<Record<string, string>>({});
+
+  const marcarVisto = useCallback(
+    async (pedidoId: number, ultimaMensagemEm: string | null) => {
+      const atuais = await lerVistos();
+      atuais[pedidoId] = ultimaMensagemEm ?? new Date().toISOString();
+      setVistos({ ...atuais });
+      await AsyncStorage.setItem(
+        CHAVE_PEDIDOS_VISTOS,
+        JSON.stringify(atuais),
+      ).catch(() => {});
+    },
+    [],
   );
 
-  return (
-    <>
-      <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
-          <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: "rgba(0,0,0,0.3)", opacity: overlayOpacity },
-            ]}
-          />
-        </Pressable>
+  const carregarPedidos = useCallback(async () => {
+    try {
+      const { data } = await api.get<{ data: PedidoDeAjuda[] }>(
+        "/ajuda/tickets",
+        { params: { per_page: 20, solicitante_tipo: "motorista" } },
+      );
+      setChamados(data.data);
+    } catch {
+      // mantém o que já estava na tela
+    }
+  }, []);
 
-        <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
-          {/* HEADER FIXO */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={28} color="#333" />
+  useEffect(() => {
+    if (!visible) return;
+    setMotivo(null);
+    setDescricao("");
+    setCorridaEscolhida(null);
+    setErro(null);
+    setConversa(null);
+    void lerVistos().then(setVistos);
+    // limpa o que estava na tela: sem isso, pedidos e corridas de uma sessão
+    // anterior (outra conta, por exemplo) ficavam visíveis se a carga falhasse
+    setChamados([]);
+    setCorridas([]);
+
+    let ativo = true;
+    setCarregandoChamados(true);
+    api
+      .get<{ data: PedidoDeAjuda[] }>("/ajuda/tickets", {
+        params: { per_page: 20, solicitante_tipo: "motorista" },
+      })
+      .then(({ data }) => {
+        if (ativo) setChamados(data.data);
+      })
+      .catch(() => {
+        if (ativo) setChamados([]);
+      })
+      .finally(() => {
+        if (ativo) setCarregandoChamados(false);
+      });
+    api
+      .get<{ data: CorridaResumo[] }>("/corridas", { params: { per_page: 20 } })
+      .then(({ data }) => {
+        // a mesma conta pode ser passageira: só as corridas em que dirigiu
+        if (ativo)
+          setCorridas(
+            data.data
+              .filter(
+                (corrida) =>
+                  String(corrida.motorista?.user_id ?? "") === String(user?.id),
+              )
+              .slice(0, 10),
+          );
+      })
+      .catch(() => {
+        if (ativo) setCorridas([]);
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [visible, user?.id]);
+
+  const enviar = async () => {
+    if (!motivo || descricao.trim().length < 10) {
+      setErro("Descreva o problema com pelo menos 10 letras.");
+      return;
+    }
+    setEnviando(true);
+    setErro(null);
+    try {
+      const { data } = await api.post<{ data: PedidoDeAjuda }>(
+        "/ajuda/tickets",
+        {
+          solicitante_tipo: "motorista",
+          motivo,
+          descricao: descricao.trim(),
+          ...(corridaEscolhida !== null
+            ? { corrida_id: corridaEscolhida }
+            : {}),
+        },
+      );
+      setChamados((atuais) => [data.data, ...atuais]);
+      await marcarVisto(data.data.id, data.data.ultima_mensagem_em);
+      // o pedido já abre a conversa, onde chega a resposta do atendimento
+      setMotivo(null);
+      setDescricao("");
+      setCorridaEscolhida(null);
+      setConversa(data.data.id);
+    } catch (falha) {
+      setErro(mensagemDeErro(falha));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const fecharConversa = (ultimaMensagemEm: string | null) => {
+    if (conversa !== null) void marcarVisto(conversa, ultimaMensagemEm);
+    setConversa(null);
+    void carregarPedidos();
+  };
+
+  const voltar = () => {
+    if (conversa !== null) {
+      fecharConversa(null);
+      return;
+    }
+    if (motivo !== null) {
+      setMotivo(null);
+      setErro(null);
+      return;
+    }
+    onClose();
+  };
+
+  const formulario = motivo !== null;
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      onRequestClose={voltar}
+      statusBarTranslucent
+    >
+      {conversa !== null ? (
+        <ConversaAjuda pedidoId={conversa} onVoltar={fecharConversa} />
+      ) : (
+        <View style={[styles.tela, { paddingTop: insets.top + 8 }]}>
+          <View style={styles.cabecalho}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Voltar"
+              style={styles.voltar}
+              onPress={voltar}
+            >
+              <Ionicons name="chevron-back" size={26} color="#111" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Central de Ajuda</Text>
+            <Text style={styles.titulo}>
+              {formulario ? ROTULO_MOTIVO[motivo] : "Central de Ajuda"}
+            </Text>
           </View>
 
-          <ScrollView
-            style={styles.scrollContainer}
-            showsVerticalScrollIndicator={false}
-            stickyHeaderIndices={[1]}
-          >
-            {/* BANNER SUPERIOR */}
-            <View style={styles.bannerContainer}>
-              <Text style={styles.bannerText}>Como podemos ajudar?</Text>
-              <Image
-                source={{
-                  uri: "https://cdn-icons-png.flaticon.com/512/4334/4334338.png",
-                }}
-                style={styles.bannerImage}
-              />
-            </View>
-
-            {/* ABAS (TABS) */}
-            <View style={styles.tabsWrapper}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.tabsScroll}
-              >
-                {tabs.map((tab) => (
-                  <TouchableOpacity
-                    key={tab}
-                    onPress={() => setActiveTab(tab)}
-                    style={[
-                      styles.tabItem,
-                      activeTab === tab && styles.tabItemActive,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.tabText,
-                        activeTab === tab && styles.tabTextActive,
-                      ]}
-                    >
-                      {tab}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View style={styles.contentPadding}>
-              {/* SEÇÃO ANDAMENTO */}
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Andamento</Text>
-                <Ionicons name="chevron-forward" size={16} color="#bbb" />
-              </View>
-
-              <View style={styles.cardAndamento}>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardItemTitle}>
-                    Solicitar valor não pago
-                  </Text>
-                  <Text style={styles.cardDate}>26/11/2025</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#ccc" />
-                </View>
-                <Text style={styles.cardSubtitle}>
-                  Compensação de R$23,08 recebida
-                </Text>
-              </View>
-
-              <View style={styles.cardAndamento}>
-                <View style={styles.cardRow}>
-                  <Text style={styles.cardItemTitle}>
-                    Solicitar valor não pago
-                  </Text>
-                  <Text style={styles.cardDate}>25/11/2025</Text>
-                  <Ionicons name="chevron-forward" size={14} color="#ccc" />
-                </View>
-                <Text style={styles.cardSubtitle}>
-                  Esperando o passageiro responder
-                </Text>
-              </View>
-
-              {/* SEÇÃO CONCLUÍDA */}
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Concluída</Text>
-                <TouchableOpacity style={styles.selectTripRow}>
-                  <Text style={styles.selectTripText}>Selecione a corrida</Text>
-                  <Ionicons name="chevron-forward" size={16} color="#bbb" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.cardConcluida}>
-                <View style={styles.tripHeader}>
-                  <Text style={styles.tripType}>
-                    Pop <Text style={styles.tripTime}>20 de fev 13:23</Text>
-                  </Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <View style={[styles.dot, { backgroundColor: "#26d396" }]} />
-                  <Text style={styles.addressText} numberOfLines={1}>
-                    Avenida Vidabella, Planalto, Porto Velho - RO
-                  </Text>
-                </View>
-                <View style={styles.addressRow}>
-                  <View style={[styles.dot, { backgroundColor: "#ff7a45" }]} />
-                  <Text style={styles.addressText} numberOfLines={1}>
-                    Avenida Rio Madeira, Flodoaldo Pontes Pinto, P...
-                  </Text>
-                </View>
-                <View style={styles.lostItemRow}>
-                  <View style={styles.lostIconBG}>
-                    <MaterialCommunityIcons
-                      name="bag-checked"
-                      size={18}
-                      color="#26d396"
-                    />
+          {!formulario && (
+            <ScrollView contentContainerStyle={styles.conteudo}>
+              <Text style={styles.secao}>Como podemos ajudar?</Text>
+              {TOPICOS.map((topico) => (
+                <TouchableOpacity
+                  key={topico.motivo}
+                  style={styles.linha}
+                  accessibilityRole="button"
+                  onPress={() => setMotivo(topico.motivo)}
+                >
+                  <View style={styles.icone}>
+                    <Ionicons name={topico.icone} size={18} color="#111" />
                   </View>
-                  <Text style={styles.lostText}>Passageiro perdeu um item</Text>
-                </View>
-              </View>
+                  <Text style={styles.linhaTexto}>
+                    {ROTULO_MOTIVO[topico.motivo]}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={18} color="#BBB" />
+                </TouchableOpacity>
+              ))}
 
-              {/* TODOS OS TÓPICOS */}
-              <Text
-                style={[
-                  styles.sectionTitle,
-                  { marginTop: 25, marginBottom: 15 },
-                ]}
+              <TouchableOpacity
+                style={styles.emergencia}
+                accessibilityRole="button"
+                onPress={() => void Linking.openURL("tel:190")}
               >
-                Todos os tópicos
-              </Text>
+                <Ionicons name="shield-checkmark" size={20} color="#B42318" />
+                <Text style={styles.emergenciaTexto}>
+                  Emergência: ligar 190 (Polícia)
+                </Text>
+              </TouchableOpacity>
 
-              <View style={styles.searchBar}>
-                <Ionicons name="search" size={20} color="#bbb" />
-                <TextInput
-                  placeholder="Pesquisar artigos de ajuda"
-                  style={styles.searchInput}
-                  placeholderTextColor="#bbb"
-                />
-              </View>
+              <Text style={styles.secao}>Meus pedidos</Text>
+              {carregandoChamados && <ActivityIndicator color="#111" />}
+              {!carregandoChamados && chamados.length === 0 && (
+                <Text style={styles.vazio}>
+                  Você ainda não abriu nenhum pedido de ajuda.
+                </Text>
+              )}
+              {chamados.map((chamado) => {
+                const situacao = situacaoDoPedido(chamado.status);
+                const visto = vistos[chamado.id];
+                const novaResposta =
+                  !!chamado.ultima_mensagem_em &&
+                  (!visto ||
+                    new Date(chamado.ultima_mensagem_em) > new Date(visto));
 
-              <View style={styles.topicsList}>
-                {renderTopic(
-                  "cash-outline",
-                  "Revisar minha tarifa de pagamento",
-                  mostrarListaRevisarMinhaTarifa, // ✅ agora você define direto aqui
-                )}
-                {renderTopic(
-                  "location-outline",
-                  "Suporte com minhas corridas",
-                  () => console.log("Suporte corridas"),
-                )}
-                {renderTopic("grid-outline", "Registro")}
-                {renderTopic(
-                  "information-circle-outline",
-                  "Informações sobre regras e tarifas",
-                )}
-                {renderTopic("person-outline", "Minha conta")}
-                {renderTopic("heart-outline", "Segurança e Emergências")}
-              </View>
-            </View>
-          </ScrollView>
-        </Animated.View>
-      </View>
+                return (
+                  <TouchableOpacity
+                    key={chamado.id}
+                    style={styles.pedido}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${ROTULO_MOTIVO[chamado.motivo] ?? "Pedido"}, ${situacao.texto}${novaResposta ? ", nova resposta" : ""}. Abrir conversa`}
+                    onPress={() => {
+                      void marcarVisto(chamado.id, chamado.ultima_mensagem_em);
+                      setConversa(chamado.id);
+                    }}
+                  >
+                    <View style={styles.pedidoTopo}>
+                      <Text style={styles.pedidoTitulo}>
+                        {ROTULO_MOTIVO[chamado.motivo] ?? chamado.motivo}
+                      </Text>
+                      <Text style={styles.pedidoData}>
+                        {formatarData(chamado.created_at)}
+                      </Text>
+                    </View>
+                    <Text numberOfLines={2} style={styles.pedidoTexto}>
+                      {chamado.descricao}
+                    </Text>
+                    <View style={styles.pedidoRodape}>
+                      <Text
+                        style={[styles.pedidoStatus, { color: situacao.cor }]}
+                      >
+                        {situacao.texto}
+                      </Text>
+                      {novaResposta ? (
+                        <View style={styles.novaResposta}>
+                          <Text style={styles.novaRespostaTexto}>
+                            Nova resposta
+                          </Text>
+                        </View>
+                      ) : (
+                        <Ionicons
+                          name="chatbubble-ellipses-outline"
+                          size={18}
+                          color="#6B7280"
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
 
-      <ListaRevisarMinhaTarifa
-        visible={visibleListaRevisarMinhaTarifa}
-        onClose={() => setVisibleListaRevisarMinhaTarifa(false)}
-      />
-    </>
+          {formulario && (
+            <ScrollView contentContainerStyle={styles.conteudo}>
+              <Text style={styles.secao}>Corrida relacionada (opcional)</Text>
+              {corridas.length === 0 && (
+                <Text style={styles.vazio}>Você ainda não tem corridas.</Text>
+              )}
+              {corridas.map((corrida) => {
+                const escolhida = corridaEscolhida === corrida.id;
+                return (
+                  <TouchableOpacity
+                    key={corrida.id}
+                    style={[
+                      styles.linha,
+                      styles.linhaCorrida,
+                      escolhida && styles.linhaEscolhida,
+                    ]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: escolhida }}
+                    onPress={() =>
+                      setCorridaEscolhida(escolhida ? null : corrida.id)
+                    }
+                  >
+                    <View style={styles.textos}>
+                      <Text style={styles.corridaCodigo} numberOfLines={1}>
+                        {destinoDaCorrida(corrida)}
+                      </Text>
+                      <Text style={styles.pedidoData}>
+                        {formatarData(corrida.tempo_solicitacao)} às{" "}
+                        {formatarHora(corrida.tempo_solicitacao)} ·{" "}
+                        {SITUACAO_DA_CORRIDA[corrida.status_corrida] ??
+                          corrida.status_corrida}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name={escolhida ? "radio-button-on" : "radio-button-off"}
+                      size={20}
+                      color={escolhida ? "#111" : "#BBB"}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+
+              <Text style={styles.secao}>Conte o que aconteceu</Text>
+              <TextInput
+                style={styles.campo}
+                placeholder="Descreva o problema (mínimo de 10 letras)"
+                placeholderTextColor="#999"
+                multiline
+                maxLength={1000}
+                value={descricao}
+                onChangeText={setDescricao}
+              />
+              {!!erro && (
+                <Text style={styles.erro} accessibilityRole="alert">
+                  {erro}
+                </Text>
+              )}
+              <TouchableOpacity
+                style={[styles.botao, enviando && styles.botaoInativo]}
+                disabled={enviando}
+                accessibilityRole="button"
+                onPress={enviar}
+              >
+                {enviando ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <Text style={styles.botaoTexto}>Enviar pedido</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </View>
+      )}
+    </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  drawer: { flex: 1, backgroundColor: "#f6f6f6" },
-  scrollContainer: { flex: 1 },
-  header: {
+  tela: { flex: 1, backgroundColor: "#FFF" },
+  cabecalho: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 50,
-    paddingHorizontal: 16,
-    paddingBottom: 15,
-    backgroundColor: "#fff",
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
   },
-  backButton: { marginRight: 15 },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: "#333" },
-
-  bannerContainer: {
-    height: 100,
-    backgroundColor: "#fff",
+  voltar: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  titulo: { fontSize: 20, fontWeight: "800", color: "#111", flexShrink: 1 },
+  conteudo: { padding: 16, gap: 10, paddingBottom: 40 },
+  secao: { fontSize: 15, fontWeight: "800", color: "#111", marginTop: 8 },
+  linha: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
+    gap: 12,
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor: "#F7F8FA",
+    paddingHorizontal: 14,
   },
-  bannerText: { fontSize: 18, fontWeight: "600", color: "#333", width: "60%" },
-  bannerImage: { width: 80, height: 80, resizeMode: "contain" },
-
-  tabsWrapper: {
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-  },
-  tabsScroll: { paddingHorizontal: 15 },
-  tabItem: {
-    paddingVertical: 12,
-    marginRight: 25,
-    borderBottomWidth: 3,
-    borderBottomColor: "transparent",
-  },
-  tabItemActive: { borderBottomColor: "#ff7a45" },
-  tabText: { fontSize: 16, color: "#777", fontWeight: "600" },
-  tabTextActive: { color: "#111" },
-
-  contentPadding: { padding: 16, paddingBottom: 50 },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 18, fontWeight: "700", color: "#111" },
-
-  cardAndamento: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
-    elevation: 1,
-  },
-  cardRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 4,
-  },
-  cardItemTitle: { fontSize: 15, fontWeight: "700", color: "#333", flex: 1 },
-  cardDate: { fontSize: 12, color: "#999", marginRight: 5 },
-  cardSubtitle: { fontSize: 14, color: "#666" },
-
-  selectTripRow: { flexDirection: "row", alignItems: "center" },
-  selectTripText: { fontSize: 14, color: "#999", marginRight: 4 },
-
-  cardConcluida: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    elevation: 1,
-  },
-  tripHeader: { marginBottom: 15 },
-  tripType: { fontSize: 15, fontWeight: "800", color: "#111" },
-  tripTime: { fontWeight: "400", color: "#666", fontSize: 14 },
-  addressRow: { flexDirection: "row", alignItems: "center", marginBottom: 8 },
-  dot: { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
-  addressText: { fontSize: 13, color: "#444", flex: 1 },
-
-  lostItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 15,
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: "#f0f0f0",
-  },
-  lostIconBG: {
+  linhaCorrida: { paddingVertical: 12 },
+  linhaEscolhida: { backgroundColor: "#FFF4C2" },
+  corridaCodigo: { fontSize: 15, fontWeight: "600", color: "#111" },
+  icone: {
     width: 32,
     height: 32,
-    borderRadius: 8,
-    backgroundColor: "#eafff8",
-    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: "#FFF",
     alignItems: "center",
-    marginRight: 12,
+    justifyContent: "center",
   },
-  lostText: { fontSize: 14, color: "#333", fontWeight: "500" },
-
-  searchBar: {
+  linhaTexto: { flex: 1, fontSize: 15, fontWeight: "600", color: "#111" },
+  textos: { flex: 1 },
+  emergencia: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f0f0f0",
-    borderRadius: 25,
-    paddingHorizontal: 15,
-    height: 45,
-    marginBottom: 20,
+    gap: 10,
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#F3C4C0",
+    paddingHorizontal: 14,
+    marginTop: 6,
   },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: "#333" },
-
-  topicsList: { backgroundColor: "#fff", borderRadius: 20, overflow: "hidden" },
-  topicItem: {
+  emergenciaTexto: { fontSize: 15, fontWeight: "700", color: "#B42318" },
+  vazio: { color: "#6B7280", fontSize: 14, lineHeight: 20 },
+  pedido: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#EEF0F3",
+    padding: 14,
+    gap: 4,
+  },
+  pedidoTopo: { flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  pedidoTitulo: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#111",
+    flexShrink: 1,
+  },
+  pedidoData: { fontSize: 12, color: "#6B7280" },
+  pedidoTexto: { fontSize: 13, color: "#374151", lineHeight: 18 },
+  pedidoStatus: { fontSize: 12, fontWeight: "700", color: "#8A5A00" },
+  pedidoRodape: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 18,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
+    gap: 8,
+    marginTop: 2,
   },
-  topicIconRow: { flexDirection: "row", alignItems: "center" },
-  topicText: { fontSize: 15, color: "#333", fontWeight: "600", marginLeft: 15 },
+  novaResposta: {
+    borderRadius: 999,
+    backgroundColor: "#1C6FD1",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  novaRespostaTexto: { fontSize: 12, fontWeight: "800", color: "#FFF" },
+  campo: {
+    minHeight: 120,
+    borderRadius: 14,
+    backgroundColor: "#F5F5F5",
+    padding: 14,
+    fontSize: 15,
+    color: "#111",
+    textAlignVertical: "top",
+  },
+  erro: { color: "#B42318", fontSize: 14 },
+  botao: {
+    minHeight: 54,
+    borderRadius: 14,
+    backgroundColor: "#FFD600",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    marginTop: 6,
+  },
+  botaoInativo: { opacity: 0.6 },
+  botaoTexto: { fontSize: 16, fontWeight: "700", color: "#111" },
 });

@@ -1,31 +1,19 @@
 import { api } from "@/Services/api";
+import { alvoDaCorrida, type Coordenada } from "@/domain/rotaDaCorrida";
 import type { CorridaEmCurso } from "@/hooks/useDespachoMotorista";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-export interface Coordenada {
-  latitude: number;
-  longitude: number;
+export type { Coordenada } from "@/domain/rotaDaCorrida";
+
+interface RotaCalculada {
+  chave: string;
+  coordinates: Coordenada[];
+  origem: Coordenada;
 }
-
-// enquanto o motorista vai buscar, o alvo é a origem; depois do embarque,
-// o destino — mesma regra que o backend usa pra estimar a chegada
-const TIPO_ALVO: Record<string, "origem" | "destino"> = {
-  aceita: "origem",
-  motorista_chegou: "origem",
-  em_andamento: "destino",
-};
 
 // só refaz o traçado se o motorista andou o bastante pra mudar o desenho.
 // sem isso cada envio de posição (8s) viraria uma chamada de Directions
 const DISTANCIA_PARA_REFAZER_KM = 0.25;
-
-const numero = (valor: number | string | null | undefined) => {
-  const convertido = typeof valor === "string" ? Number(valor) : valor;
-
-  return typeof convertido === "number" && Number.isFinite(convertido)
-    ? convertido
-    : null;
-};
 
 const distanciaKm = (a: Coordenada, b: Coordenada) => {
   const raio = 6371;
@@ -42,36 +30,34 @@ const distanciaKm = (a: Coordenada, b: Coordenada) => {
   return 2 * raio * Math.asin(Math.min(1, Math.sqrt(h)));
 };
 
-export function alvoDaCorrida(
-  corrida: CorridaEmCurso | null,
-): Coordenada | null {
-  if (corrida === null) return null;
-
-  const tipo = TIPO_ALVO[corrida.status_corrida];
-
-  if (!tipo) return null;
-
-  const destino = corrida.corrida_destinos?.find((item) => item.tipo === tipo);
-
-  const latitude = numero(destino?.latitude);
-  const longitude = numero(destino?.longitude);
-
-  if (latitude === null || longitude === null) return null;
-
-  return { latitude, longitude };
-}
-
 export function useRotaDaCorrida(
   corrida: CorridaEmCurso | null,
   posicao: Coordenada | null,
 ) {
-  const [rota, setRota] = useState<Coordenada[]>([]);
-  const [origemDoTracado, setOrigemDoTracado] = useState<Coordenada | null>(
+  const [rotaCalculada, setRotaCalculada] = useState<RotaCalculada | null>(
     null,
   );
 
   const alvo = alvoDaCorrida(corrida);
-  const chaveAlvo = alvo ? `${alvo.latitude},${alvo.longitude}` : "";
+  const chaveAlvo = alvo
+    ? `${corrida?.status_corrida}:${alvo.latitude},${alvo.longitude}`
+    : "";
+  const rota =
+    rotaCalculada?.chave === chaveAlvo ? rotaCalculada.coordinates : [];
+  const origemDoTracado =
+    rotaCalculada?.chave === chaveAlvo ? rotaCalculada.origem : null;
+  const alvoAtual = useRef(chaveAlvo);
+  const requisicaoAtual = useRef<string | null>(null);
+  const ativo = useRef(true);
+  useEffect(() => {
+    alvoAtual.current = chaveAlvo;
+  }, [chaveAlvo]);
+  useEffect(() => {
+    ativo.current = true;
+    return () => {
+      ativo.current = false;
+    };
+  }, []);
 
   // o traçado é refeito quando muda o alvo ou quando o motorista se afastou
   const precisaRefazer =
@@ -80,41 +66,43 @@ export function useRotaDaCorrida(
       distanciaKm(origemDoTracado, posicao) > DISTANCIA_PARA_REFAZER_KM);
 
   useEffect(() => {
-    if (chaveAlvo === "") {
-      setRota([]);
-      setOrigemDoTracado(null);
-      return;
-    }
+    if (chaveAlvo === "" || posicao === null || !precisaRefazer) return;
 
-    if (posicao === null || !precisaRefazer) return;
-
-    let cancelado = false;
+    if (requisicaoAtual.current === chaveAlvo) return;
+    requisicaoAtual.current = chaveAlvo;
     const partida = posicao;
 
     api
-      .post<{ coordinates: Coordenada[] }>("/tracado-rota", {
-        pontos: [
-          partida,
-          { latitude: alvo!.latitude, longitude: alvo!.longitude },
-        ],
-      })
+      .post<{ coordinates: Coordenada[] }>(
+        "/tracado-rota",
+        {
+          pontos: [
+            partida,
+            { latitude: alvo!.latitude, longitude: alvo!.longitude },
+          ],
+        },
+        { timeout: 10000 },
+      )
       .then(({ data }) => {
-        if (cancelado) return;
+        if (!ativo.current || alvoAtual.current !== chaveAlvo) return;
 
         const coordenadas = data?.coordinates ?? [];
 
         if (coordenadas.length === 0) return;
 
-        setRota(coordenadas);
-        setOrigemDoTracado(partida);
+        setRotaCalculada({
+          chave: chaveAlvo,
+          coordinates: coordenadas,
+          origem: partida,
+        });
       })
       .catch(() => {
         // sem traçado o mapa continua útil: some a linha, não a corrida
+      })
+      .finally(() => {
+        if (requisicaoAtual.current === chaveAlvo)
+          requisicaoAtual.current = null;
       });
-
-    return () => {
-      cancelado = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chaveAlvo, posicao, precisaRefazer]);
 

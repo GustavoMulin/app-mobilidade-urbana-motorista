@@ -1,7 +1,9 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
 import {
+  ActivityIndicator,
   Animated,
   BackHandler,
   Dimensions,
@@ -11,6 +13,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import {
+  BANCOS,
+  mensagemDeErro,
+  MetodoResgate,
+  pedirCodigoDaConta,
+  salvarMetodoResgate,
+  somenteDigitos,
+} from "@/domain/carteira";
 
 const { width } = Dimensions.get("window");
 
@@ -18,40 +28,117 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
+  existente?: MetodoResgate | null;
+  onSalvo?: () => void;
 }
+
+const separarNome = (completo: string | null | undefined) => {
+  const partes = (completo ?? "").trim().split(/\s+/).filter(Boolean);
+  return partes.length > 1
+    ? {
+        nome: partes.slice(0, -1).join(" "),
+        sobrenome: partes[partes.length - 1],
+      }
+    : { nome: partes[0] ?? "", sobrenome: "" };
+};
 
 export default function AdicionarMetodoResgateConta({
   visible,
   onClose,
   duration = 200,
+  existente = null,
+  onSalvo,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
-  // Estados do Formulário
-  const [nome, setNome] = useState("Diogo Guimarães");
-  const [sobrenome, setSobrenome] = useState("De Souza");
-  const [cpf, setCpf] = useState("011.498.972-95");
-  const [agencia, setAgencia] = useState("3430");
-  const [agenciaDigito, setAgenciaDigito] = useState("0");
-  const [conta, setConta] = useState("1646");
-  const [contaDigito, setContaDigito] = useState("0");
+  // começa com a conta já salva, quando é edição
+  const [nome, setNome] = useState(
+    () => separarNome(existente?.titular_nome).nome,
+  );
+  const [sobrenome, setSobrenome] = useState(
+    () => separarNome(existente?.titular_nome).sobrenome,
+  );
+  const [cpf, setCpf] = useState(existente?.documento ?? "");
+  const [banco, setBanco] = useState<{ codigo: string; nome: string } | null>(
+    existente?.banco_codigo && existente.banco_nome
+      ? { codigo: existente.banco_codigo, nome: existente.banco_nome }
+      : null,
+  );
+  const [escolhendoBanco, setEscolhendoBanco] = useState(false);
+  const [agencia, setAgencia] = useState(existente?.agencia ?? "");
+  const [agenciaDigito, setAgenciaDigito] = useState(
+    existente?.agencia_digito ?? "",
+  );
+  const [conta, setConta] = useState(existente?.conta ?? "");
+  const [contaDigito, setContaDigito] = useState(existente?.conta_digito ?? "");
   const [tipoConta, setTipoConta] = useState<"corrente" | "poupanca">(
-    "poupanca",
+    existente?.conta_tipo ?? "corrente",
   );
   const [smsCode, setSmsCode] = useState("");
+  const [avisoCodigo, setAvisoCodigo] = useState("");
+  const [enviandoCodigo, setEnviandoCodigo] = useState(false);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
 
-  // Lógica de Validação: Verifica se todos os campos obrigatórios estão preenchidos
+  const documento = somenteDigitos(cpf);
   const isFormValid =
     nome.trim().length > 0 &&
     sobrenome.trim().length > 0 &&
-    cpf.trim().length >= 11 &&
+    (documento.length === 11 || documento.length === 14) &&
+    banco !== null &&
     agencia.trim().length > 0 &&
-    agenciaDigito.trim().length > 0 &&
     conta.trim().length > 0 &&
     contaDigito.trim().length > 0 &&
-    smsCode.trim().length > 0;
+    /^\d{6}$/.test(smsCode);
+
+  const enviarCodigo = async () => {
+    if (enviandoCodigo) return;
+    setEnviandoCodigo(true);
+    setErro("");
+    try {
+      const resposta = await pedirCodigoDaConta();
+      setAvisoCodigo(
+        resposta.codigo_teste
+          ? `Ambiente de teste: o código é ${resposta.codigo_teste}`
+          : "Enviamos um código por SMS.",
+      );
+    } catch (falha) {
+      setErro(mensagemDeErro(falha, "Não foi possível enviar o código."));
+    } finally {
+      setEnviandoCodigo(false);
+    }
+  };
+
+  const salvar = async () => {
+    if (!isFormValid || banco === null || salvando) return;
+    setSalvando(true);
+    setErro("");
+    try {
+      await salvarMetodoResgate({
+        tipo: "conta",
+        titular_nome: `${nome.trim()} ${sobrenome.trim()}`,
+        documento,
+        banco_codigo: banco.codigo,
+        banco_nome: banco.nome,
+        agencia,
+        agencia_digito: agenciaDigito || null,
+        conta,
+        conta_digito: contaDigito,
+        conta_tipo: tipoConta,
+        codigo: smsCode,
+      });
+      setSmsCode("");
+      setAvisoCodigo("");
+      onSalvo?.();
+    } catch (falha) {
+      setErro(mensagemDeErro(falha, "Não foi possível salvar a conta agora."));
+    } finally {
+      setSalvando(false);
+    }
+  };
 
   useEffect(() => {
     const onBackPress = () => {
@@ -70,7 +157,7 @@ export default function AdicionarMetodoResgateConta({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -97,7 +184,7 @@ export default function AdicionarMetodoResgateConta({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
@@ -114,7 +201,9 @@ export default function AdicionarMetodoResgateConta({
 
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="chevron-back" size={26} color="#111" />
@@ -146,6 +235,7 @@ export default function AdicionarMetodoResgateConta({
               value={nome}
               onChangeText={setNome}
               placeholder="Nome"
+              autoCapitalize="words"
             />
             <View style={styles.line} />
           </View>
@@ -157,6 +247,7 @@ export default function AdicionarMetodoResgateConta({
               value={sobrenome}
               onChangeText={setSobrenome}
               placeholder="Sobrenome"
+              autoCapitalize="words"
             />
             <View style={styles.line} />
           </View>
@@ -173,14 +264,51 @@ export default function AdicionarMetodoResgateConta({
             <View style={styles.line} />
           </View>
 
-          <TouchableOpacity style={styles.inputGroup}>
+          <TouchableOpacity
+            style={styles.inputGroup}
+            accessibilityRole="button"
+            accessibilityLabel="Escolher banco"
+            onPress={() => setEscolhendoBanco((atual) => !atual)}
+          >
             <Text style={styles.label}>Banco</Text>
             <View style={styles.rowBetween}>
-              <Text style={styles.bankValue}>104 - CAIXA ECONÔMICA</Text>
-              <Ionicons name="caret-forward" size={14} color="#111" />
+              <Text style={[styles.bankValue, !banco && styles.placeholder]}>
+                {banco ? `${banco.codigo} - ${banco.nome}` : "Escolha o banco"}
+              </Text>
+              <Ionicons
+                name={escolhendoBanco ? "caret-down" : "caret-forward"}
+                size={14}
+                color="#111"
+              />
             </View>
             <View style={styles.line} />
           </TouchableOpacity>
+
+          {escolhendoBanco && (
+            <View style={styles.listaBancos}>
+              {BANCOS.map((item) => (
+                <TouchableOpacity
+                  key={item.codigo}
+                  style={styles.bancoItem}
+                  accessibilityRole="radio"
+                  accessibilityState={{
+                    checked: banco?.codigo === item.codigo,
+                  }}
+                  onPress={() => {
+                    setBanco(item);
+                    setEscolhendoBanco(false);
+                  }}
+                >
+                  <Text style={styles.bancoTexto}>
+                    {item.codigo} - {item.nome}
+                  </Text>
+                  {banco?.codigo === item.codigo && (
+                    <Ionicons name="checkmark" size={18} color="#111" />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
 
           <Text style={styles.subNote}>
             Não esqueça de preencher o dígito, se tiver.
@@ -205,7 +333,8 @@ export default function AdicionarMetodoResgateConta({
                 style={styles.inputBold}
                 value={agenciaDigito}
                 onChangeText={setAgenciaDigito}
-                maxLength={2}
+                maxLength={1}
+                autoCapitalize="characters"
               />
               <View style={styles.line} />
             </View>
@@ -219,7 +348,7 @@ export default function AdicionarMetodoResgateConta({
                 value={conta}
                 onChangeText={setConta}
                 keyboardType="numeric"
-                maxLength={12}
+                maxLength={13}
               />
               <View style={styles.line} />
             </View>
@@ -229,7 +358,8 @@ export default function AdicionarMetodoResgateConta({
                 style={styles.inputBold}
                 value={contaDigito}
                 onChangeText={setContaDigito}
-                maxLength={2}
+                maxLength={1}
+                autoCapitalize="characters"
               />
               <View style={styles.line} />
             </View>
@@ -251,8 +381,6 @@ export default function AdicionarMetodoResgateConta({
             />
             <View style={styles.radioLabelContainer}>
               <Text style={styles.radioTitle}>Conta corrente</Text>
-              <Text style={styles.radioSub}>Conta Corrente PF - 001</Text>
-              <Text style={styles.radioSub}>Conta Caixa Fácil - 023</Text>
             </View>
           </TouchableOpacity>
 
@@ -271,7 +399,6 @@ export default function AdicionarMetodoResgateConta({
             />
             <View style={styles.radioLabelContainer}>
               <Text style={styles.radioTitle}>Conta poupança</Text>
-              <Text style={styles.radioSub}>Poupança PJ/PF - 013</Text>
             </View>
           </TouchableOpacity>
 
@@ -287,27 +414,51 @@ export default function AdicionarMetodoResgateConta({
                 onChangeText={setSmsCode}
                 maxLength={6}
               />
-              <TouchableOpacity>
-                <Text style={styles.sendText}>Enviar</Text>
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={enviandoCodigo}
+                onPress={() => void enviarCodigo()}
+              >
+                {enviandoCodigo ? (
+                  <ActivityIndicator color="#111" />
+                ) : (
+                  <Text style={styles.sendText}>
+                    {avisoCodigo ? "Reenviar" : "Enviar"}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
             <View style={styles.line} />
+            {!!avisoCodigo && (
+              <Text style={styles.avisoCodigo}>{avisoCodigo}</Text>
+            )}
           </View>
+
+          {!!erro && (
+            <Text style={styles.erroTexto} accessibilityRole="alert">
+              {erro}
+            </Text>
+          )}
 
           {/* BOTÃO ADICIONAR (Habilitado apenas se isFormValid for true) */}
           <TouchableOpacity
             style={[styles.btnAdd, isFormValid && styles.btnAddActive]}
-            disabled={!isFormValid}
-            onPress={() => console.log("Conta Adicionada")}
+            disabled={!isFormValid || salvando}
+            accessibilityRole="button"
+            onPress={() => void salvar()}
           >
-            <Text
-              style={[
-                styles.btnAddText,
-                isFormValid && styles.btnAddTextActive,
-              ]}
-            >
-              Adicionar conta
-            </Text>
+            {salvando ? (
+              <ActivityIndicator color="#111" />
+            ) : (
+              <Text
+                style={[
+                  styles.btnAddText,
+                  isFormValid && styles.btnAddTextActive,
+                ]}
+              >
+                {existente ? "Salvar conta" : "Adicionar conta"}
+              </Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </Animated.View>
@@ -316,6 +467,26 @@ export default function AdicionarMetodoResgateConta({
 }
 
 const styles = StyleSheet.create({
+  placeholder: { color: "#999" },
+  listaBancos: {
+    borderWidth: 1,
+    borderColor: "#EEE",
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  bancoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F3F3F3",
+  },
+  bancoTexto: { fontSize: 15, color: "#111" },
+  avisoCodigo: { fontSize: 13, color: "#2DB089", marginTop: 8 },
+  erroTexto: { fontSize: 13, color: "#C62828", marginBottom: 12 },
   drawer: {
     position: "absolute",
     right: 0,

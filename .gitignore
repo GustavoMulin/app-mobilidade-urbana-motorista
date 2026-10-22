@@ -43,3 +43,9 @@ app-example
 /ios
 /android
 .env
+
+# notas de contexto (nao versionado)
+docs/docs-*/
+
+# Firebase (push): cada um baixa o seu no console
+google-services.json

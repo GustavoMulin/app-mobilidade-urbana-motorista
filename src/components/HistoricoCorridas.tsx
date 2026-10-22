@@ -1,8 +1,12 @@
-import { useHistoricoCorridas } from "@/hooks/useHistoricoCorridas";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
+  ItemHistorico,
+  useHistoricoCorridas,
+} from "@/hooks/useHistoricoCorridas";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
   Animated,
   BackHandler,
   Dimensions,
@@ -14,45 +18,43 @@ import {
 } from "react-native";
 import HistoricoCorridasDetalhes from "./HistoricoCorridasDetalhes";
 
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+
 const { width } = Dimensions.get("window");
 
-interface RideHistory {
-  id: string;
-  date: string;
-  time: string;
-  type: string;
-  paymentMethod: "cash" | "app";
-  origin: string;
-  destination: string;
-  value: string;
-  status: string;
-  isTip?: boolean;
-}
-
-interface props {
+interface Props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
 }
 
+const visualDoStatus = (status: string) => {
+  if (status === "cancelada") {
+    return { icon: "close-circle" as const, color: "#D32F2F" };
+  }
+  if (status === "finalizada") {
+    return { icon: "checkmark-circle" as const, color: "#2E7D32" };
+  }
+  return { icon: "time" as const, color: "#1565C0" };
+};
+
 export default function HistoricoCorridas({
   visible,
   onClose,
   duration = 200,
-}: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+}: Props) {
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
-  const { itens, carregando, erro } = useHistoricoCorridas(visible);
-  const [historicoCorridasDetalhes, setHistoricoCorridasDetalhes] =
-    useState(false);
-
-  const mostrarHistoricoCorridasDetalhes = () => {
-    setHistoricoCorridasDetalhes(true);
-  };
+  const [selecionada, setSelecionada] = useState<ItemHistorico | null>(null);
+  const [detalhesVisiveis, setDetalhesVisiveis] = useState(false);
+  const { itens, carregando, carregandoMais, erro, recarregar, carregarMais } =
+    useHistoricoCorridas(visible);
 
   useEffect(() => {
     const onBackPress = () => {
+      if (detalhesVisiveis) return false;
       if (visible) {
         onClose();
         return true;
@@ -64,11 +66,11 @@ export default function HistoricoCorridas({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible, onClose]);
+  }, [visible, onClose, detalhesVisiveis]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      const mountTimer = setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -81,6 +83,7 @@ export default function HistoricoCorridas({
           useNativeDriver: true,
         }),
       ]).start();
+      return () => clearTimeout(mountTimer);
     } else {
       Animated.parallel([
         Animated.timing(translateX, {
@@ -93,123 +96,131 @@ export default function HistoricoCorridas({
           duration: duration * 0.8,
           useNativeDriver: true,
         }),
-      ]).start(({ finished }) => finished && setIsMounted(false));
+      ]).start(({ finished }) => {
+        if (finished) {
+          setIsMounted(false);
+          setDetalhesVisiveis(false);
+        }
+      });
     }
   }, [visible, translateX, overlayOpacity, duration]);
 
-  const renderItem = ({ item }: { item: RideHistory }) => (
-    <TouchableOpacity
-      onPress={mostrarHistoricoCorridasDetalhes}
-      style={styles.card}
-    >
-      <View style={styles.cardHeader}>
-        <Text style={styles.dateTimeText}>
-          {item.date} {item.time}
-        </Text>
-      </View>
+  const renderItem = ({ item }: { item: ItemHistorico }) => {
+    const visual = visualDoStatus(item.statusCode);
 
-      <View style={styles.paymentInfo}>
-        <Ionicons
-          name={
-            item.paymentMethod === "cash"
-              ? "cash-outline"
-              : "phone-portrait-outline"
-          }
-          size={16}
-          color={item.paymentMethod === "cash" ? "#2196F3" : "#4CAF50"}
-        />
-        <Text style={styles.paymentText}>
-          {item.paymentMethod === "cash"
-            ? "Ganhos pagos em dinheiro"
-            : "Ganhos pagos no app"}
-        </Text>
-      </View>
+    return (
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir detalhes da corrida ${item.code}`}
+        onPress={() => {
+          setSelecionada(item);
+          setDetalhesVisiveis(true);
+        }}
+        style={styles.card}
+      >
+        <View style={styles.cardHeader}>
+          <Text style={styles.dateTimeText}>
+            {item.date} {item.time} · {item.code}
+          </Text>
+        </View>
 
-      <View style={styles.mainRow}>
-        <View style={styles.typeContainer}>
-          <View style={styles.iconCircle}>
-            <MaterialCommunityIcons
-              name={item.isTip ? "gift-outline" : "car-side"}
-              size={20}
-              color="#666"
-            />
+        <View style={styles.paymentInfo}>
+          <Ionicons
+            name={
+              item.paymentMethod === "cash"
+                ? "cash-outline"
+                : "phone-portrait-outline"
+            }
+            size={16}
+            color={item.paymentMethod === "cash" ? "#2196F3" : "#4CAF50"}
+          />
+          <Text style={styles.paymentText}>{item.paymentSummary}</Text>
+        </View>
+
+        <View style={styles.mainRow}>
+          <View style={styles.typeContainer}>
+            <View style={styles.iconCircle}>
+              <MaterialCommunityIcons name="car-side" size={20} color="#666" />
+            </View>
+            <Text style={styles.typeText}>{item.type}</Text>
           </View>
-          <Text style={styles.typeText}>{item.type}</Text>
+          <View style={styles.valueContainer}>
+            {/* cancelada sem taxa: o motorista não ganhou esse valor */}
+            <Text
+              style={[
+                styles.valueText,
+                item.isCancelled && !item.isNoShow && styles.valorCancelado,
+              ]}
+            >
+              {item.value}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color="#aaa" />
+          </View>
         </View>
-        <View style={styles.valueContainer}>
-          <Text style={styles.valueText}>{item.value}</Text>
-          <Ionicons name="chevron-forward" size={18} color="#ccc" />
-        </View>
-      </View>
 
-      {!item.isTip && (
         <View style={styles.addressSection}>
           <View style={styles.timeline}>
-            <View style={[styles.dot, { backgroundColor: "#999" }]} />
+            <View style={[styles.dot, { backgroundColor: "#2E7D32" }]} />
             <View style={styles.line} />
-            <View style={[styles.dot, { backgroundColor: "#666" }]} />
+            <View style={[styles.dot, { backgroundColor: "#FF6D00" }]} />
           </View>
           <View style={styles.addresses}>
             <Text style={styles.addressText} numberOfLines={1}>
               {item.origin}
             </Text>
             <Text
-              style={[styles.addressText, { marginTop: 12 }]}
+              style={[styles.addressText, styles.destinationText]}
               numberOfLines={1}
             >
               {item.destination}
             </Text>
           </View>
         </View>
-      )}
 
-      {item.status ? (
         <View style={styles.statusRow}>
-          <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
-          <Text style={styles.statusText}>{item.status}</Text>
+          <Ionicons name={visual.icon} size={16} color={visual.color} />
+          <Text style={[styles.statusText, { color: visual.color }]}>
+            {item.status}
+          </Text>
         </View>
-      ) : null}
-    </TouchableOpacity>
-  );
+      </TouchableOpacity>
+    );
+  };
 
   if (!isMounted) return null;
 
   return (
     <>
-      <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
+      <View style={[StyleSheet.absoluteFill, styles.layer]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose}>
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: "rgba(0,0,0,0.4)", opacity: overlayOpacity },
+              styles.overlay,
+              { opacity: overlayOpacity },
             ]}
           />
         </Pressable>
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
+          >
             <View style={styles.headerContent}>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={onClose} hitSlop={12}>
                 <Ionicons name="arrow-back-outline" size={26} color="#111" />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Histórico de corridas</Text>
-              <View style={{ width: 26 }} />
+              <View style={styles.headerSpacer} />
             </View>
-
-            <View style={styles.filterBar}>
-              <TouchableOpacity style={styles.filterItem}>
-                <Ionicons name="calendar-outline" size={16} color="#333" />
-                <Text style={styles.filterText}>21/1-27/1</Text>
-                <Ionicons name="chevron-down" size={14} color="#333" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.filterItem}>
-                <Text style={styles.filterText}>Taxas</Text>
-                <Ionicons name="chevron-down" size={14} color="#333" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.filterItem}>
-                <Text style={styles.filterText}>Pagamento</Text>
-                <Ionicons name="chevron-down" size={14} color="#333" />
-              </TouchableOpacity>
+            <View style={styles.scopeRow}>
+              <Ionicons name="calendar-outline" size={16} color="#555" />
+              <Text style={styles.scopeText}>
+                Todas as corridas registradas
+              </Text>
             </View>
           </View>
 
@@ -222,31 +233,54 @@ export default function HistoricoCorridas({
                     ? "Carregando..."
                     : erro.length > 0
                       ? erro
-                      : "Você ainda não tem corridas."}
+                      : "Você ainda não tem corridas registradas."}
                 </Text>
+              }
+              ListFooterComponent={
+                carregandoMais ? (
+                  <ActivityIndicator
+                    color="#1565C0"
+                    style={styles.loadingMore}
+                  />
+                ) : null
               }
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
-              contentContainerStyle={{ paddingBottom: 20 }}
+              contentContainerStyle={styles.listContent}
               showsVerticalScrollIndicator={false}
+              refreshing={carregando && itens.length > 0}
+              onRefresh={() => void recarregar()}
+              onEndReached={carregarMais}
+              onEndReachedThreshold={0.4}
             />
           </View>
         </Animated.View>
       </View>
+
       <HistoricoCorridasDetalhes
-        visible={historicoCorridasDetalhes}
-        onClose={() => setHistoricoCorridasDetalhes(false)}
+        corrida={selecionada}
+        visible={detalhesVisiveis}
+        onClose={() => setDetalhesVisiveis(false)}
       />
     </>
   );
 }
 
 const styles = StyleSheet.create({
+  layer: {
+    zIndex: 30,
+  },
+  overlay: {
+    backgroundColor: "rgba(0,0,0,0.4)",
+  },
   listaVazia: {
     textAlign: "center",
-    color: "#888",
+    color: "#777",
     fontSize: 14,
     paddingVertical: 40,
+  },
+  loadingMore: {
+    paddingVertical: 16,
   },
   drawer: {
     position: "absolute",
@@ -260,6 +294,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: 45,
     paddingHorizontal: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: "#eee",
     elevation: 4,
@@ -268,30 +303,31 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 15,
+    marginBottom: 12,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#111",
   },
-  filterBar: {
-    flexDirection: "row",
-    paddingBottom: 10,
-    gap: 15,
+  headerSpacer: {
+    width: 26,
   },
-  filterItem: {
+  scopeRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 6,
   },
-  filterText: {
-    fontSize: 14,
-    color: "#333",
+  scopeText: {
+    fontSize: 13,
+    color: "#555",
   },
   body: {
     flex: 1,
     padding: 12,
+  },
+  listContent: {
+    paddingBottom: 20,
   },
   card: {
     backgroundColor: "#FFF",
@@ -309,7 +345,7 @@ const styles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: 12,
-    color: "#888",
+    color: "#777",
   },
   paymentInfo: {
     flexDirection: "row",
@@ -332,6 +368,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    flexShrink: 1,
   },
   iconCircle: {
     width: 36,
@@ -345,14 +382,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "600",
     color: "#333",
+    flexShrink: 1,
   },
   valueContainer: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    marginLeft: 8,
   },
   valueText: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700",
     color: "#333",
   },
@@ -374,6 +413,7 @@ const styles = StyleSheet.create({
   line: {
     width: 1,
     flex: 1,
+    minHeight: 14,
     backgroundColor: "#DDD",
     marginVertical: 4,
   },
@@ -385,6 +425,14 @@ const styles = StyleSheet.create({
     color: "#666",
     lineHeight: 18,
   },
+  destinationText: {
+    marginTop: 12,
+  },
+  valorCancelado: {
+    color: "#9CA3AF",
+    fontWeight: "600",
+    textDecorationLine: "line-through",
+  },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -395,7 +443,6 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 13,
-    color: "#4CAF50",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 });

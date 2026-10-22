@@ -17,5 +17,11 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "nativewind-env.d.ts"
+  ],
+  // CODEX: 6 linhas alteradas neste arquivo; ignora o template Expo antigo fora da aplicação em src.
+  "exclude": [
+    "node_modules",
+    "components/**/*.ts",
+    "components/**/*.tsx"
   ]
 }

@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -26,8 +27,9 @@ export default function RevisarTarifa({
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
   const [showDescricaoProblema, setShowDescricaoProblema] = useState(false);
 
@@ -48,7 +50,7 @@ export default function RevisarTarifa({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -75,7 +77,7 @@ export default function RevisarTarifa({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
@@ -108,7 +110,9 @@ export default function RevisarTarifa({
 
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 50) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose} style={styles.backButton}>
               <Ionicons name="chevron-back" size={28} color="#111" />

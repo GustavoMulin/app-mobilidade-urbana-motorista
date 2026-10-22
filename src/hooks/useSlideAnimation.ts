@@ -1,5 +1,5 @@
 // hooks/useSlideAnimation.ts
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Animated } from "react-native";
 
 export interface AnimationConfig {
@@ -21,8 +21,8 @@ export function useSlideAnimation(
     overlayDuration = 300,
   } = config;
 
-  const translateX = useRef(new Animated.Value(-drawerWidth)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(-drawerWidth));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     if (visible) {
@@ -49,20 +49,23 @@ export function useSlideAnimation(
     translateX,
   ]);
 
-  const closeAnimation = (onClose: () => void) => {
-    Animated.parallel([
-      Animated.timing(translateX, {
-        toValue: -drawerWidth,
-        duration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: overlayDuration - 100,
-        useNativeDriver: true,
-      }),
-    ]).start(onClose);
-  };
+  const closeAnimation = useCallback(
+    (onClose: () => void) => {
+      Animated.parallel([
+        Animated.timing(translateX, {
+          toValue: -drawerWidth,
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: overlayDuration - 100,
+          useNativeDriver: true,
+        }),
+      ]).start(onClose);
+    },
+    [drawerWidth, duration, overlayDuration, overlayOpacity, translateX],
+  );
 
   return {
     translateX,

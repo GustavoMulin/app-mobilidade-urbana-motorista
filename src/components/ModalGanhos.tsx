@@ -3,7 +3,7 @@ import {
   ModalAnimationConfig,
   useModalAnimation,
 } from "@/hooks/useModalAnimation";
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Animated,
   PanResponder,
@@ -30,48 +30,51 @@ export default function ModalGanhos({
     config,
   );
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     closeAnimation(() => {
       onClose?.(); // Fecha no final da animação
     });
-  };
+  }, [closeAnimation, onClose]);
 
-  const pan = useRef(new Animated.Value(0)).current;
+  const [pan] = useState(() => new Animated.Value(0));
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // Ativa o gesto se o movimento for predominantemente para baixo
-        return Math.abs(gestureState.dy) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy < 0) {
-          pan.setValue(gestureState.dy); // Atualiza posição do modal durante o arraste
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dy < -120) {
-          // Se arrastar mais de 120px → fecha com animação
-          Animated.timing(pan, {
-            toValue: -400,
-            duration: 200,
-            useNativeDriver: true,
-          }).start(handleClose);
-        } else {
-          // Volta à posição inicial se o gesto for curto
-          Animated.spring(pan, {
-            toValue: 0,
-            useNativeDriver: true,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          // Ativa o gesto se o movimento for predominantemente para baixo
+          return Math.abs(gestureState.dy) > 10;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dy < 0) {
+            pan.setValue(gestureState.dy); // Atualiza posição do modal durante o arraste
+          }
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dy < -120) {
+            // Se arrastar mais de 120px → fecha com animação
+            Animated.timing(pan, {
+              toValue: -400,
+              duration: 200,
+              useNativeDriver: true,
+            }).start(handleClose);
+          } else {
+            // Volta à posição inicial se o gesto for curto
+            Animated.spring(pan, {
+              toValue: 0,
+              useNativeDriver: true,
+            }).start();
+          }
+        },
+      }),
+    [handleClose, pan],
+  );
 
   const [mounted, setMounted] = React.useState(visible);
   useEffect(() => {
-    if (visible) setMounted(true);
-    else {
+    if (visible) {
+      setTimeout(() => setMounted(true), 0);
+    } else {
       // espera a duração da animação antes de desmontar
       const timer = setTimeout(() => setMounted(false), config.duration || 400);
       return () => clearTimeout(timer);

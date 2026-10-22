@@ -1,6 +1,6 @@
-import { Ionicons } from "@expo/vector-icons";
-import React, { useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Buscando from "./Buscando";
@@ -13,6 +13,7 @@ interface props {
   emCorrida: boolean;
   ocupado: boolean;
   onAlternarDisponibilidade: (proximoEstado: boolean) => void;
+  onAlturaChange?: (altura: number) => void;
 }
 
 export default function MenuInferiorMotorista({
@@ -21,6 +22,7 @@ export default function MenuInferiorMotorista({
   emCorrida,
   ocupado,
   onAlternarDisponibilidade,
+  onAlturaChange,
 }: props) {
   const [dialogPreferenciasVisible, setDialogPreferenciasVisibleLocal] =
     useState(false);
@@ -31,7 +33,14 @@ export default function MenuInferiorMotorista({
   const alternar = () => {
     if (bloqueado) return;
 
-    onAlternarDisponibilidade(!disponivel);
+    // online, um toque sem querer no "Buscando" tirava o motorista do ar:
+    // como no 99, desconectar fica em Preferências › Desconectar
+    if (disponivel) {
+      setDialogPreferenciasVisibleLocal(true);
+      return;
+    }
+
+    onAlternarDisponibilidade(true);
   };
 
   const desconectar = () => {
@@ -66,7 +75,13 @@ export default function MenuInferiorMotorista({
         buscandoCorrida={disponivel}
       />
 
-      <SafeAreaView style={styles.bottomMenuWrapper}>
+      <SafeAreaView
+        edges={["bottom"]}
+        style={styles.bottomMenuWrapper}
+        onLayout={({ nativeEvent }) =>
+          onAlturaChange?.(Math.ceil(nativeEvent.layout.height))
+        }
+      >
         <View style={styles.bottomMenu}>
           {/* 🔹 Ícone lateral esquerdo (Config/Desconectar) */}
           <TouchableOpacity
@@ -74,7 +89,7 @@ export default function MenuInferiorMotorista({
             onPress={MostrarPreferencias}
             activeOpacity={0.8}
           >
-            <Ionicons name="options-outline" size={40} color="#000" />
+            <Ionicons name="options-outline" size={32} color="#000" />
             {/* 🔴 Pontinho vermelho de status */}
             <View
               style={[
@@ -106,7 +121,7 @@ export default function MenuInferiorMotorista({
             onPress={setSolicitacoesCorrida}
             activeOpacity={0.8}
           >
-            <Ionicons name="document-text-outline" size={40} color="#000" />
+            <Ionicons name="document-text-outline" size={32} color="#000" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -129,44 +144,46 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
   iconButton: {
     position: "relative",
-    width: 40,
-    height: 40,
+    width: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "center",
   },
   redDot: {
     position: "absolute",
-    top: 6,
+    top: 8,
     left: 8,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
     backgroundColor: "red",
   },
   connectButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    width: "70%",
+    flex: 1,
+    minWidth: 0,
+    marginHorizontal: 10,
     alignSelf: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
     shadowRadius: 3,
     elevation: 3,
-    minHeight: 56,
+    minHeight: 60,
   },
   connectTextLarge: {
     color: "black",
-    fontSize: 30,
-    fontWeight: "600",
+    fontSize: 24,
+    fontWeight: "700",
     textAlign: "center",
   },
 });

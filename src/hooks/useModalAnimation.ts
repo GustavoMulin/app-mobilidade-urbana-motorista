@@ -1,5 +1,5 @@
 // hooks/useModalAnimation.ts
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Animated, Dimensions } from "react-native";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
@@ -9,6 +9,18 @@ export interface ModalAnimationConfig {
   overlayDuration?: number;
   slideFrom?: "bottom" | "top" | "right";
 }
+
+const getInitialValue = (slideFrom: ModalAnimationConfig["slideFrom"]) => {
+  switch (slideFrom) {
+    case "top":
+      return -SCREEN_HEIGHT;
+    case "right":
+      return SCREEN_HEIGHT;
+    case "bottom":
+    default:
+      return SCREEN_HEIGHT;
+  }
+};
 
 export function useModalAnimation(
   visible: boolean,
@@ -20,20 +32,10 @@ export function useModalAnimation(
     slideFrom = "bottom",
   } = config;
 
-  const getInitialValue = () => {
-    switch (slideFrom) {
-      case "top":
-        return -SCREEN_HEIGHT;
-      case "right":
-        return SCREEN_HEIGHT;
-      case "bottom":
-      default:
-        return SCREEN_HEIGHT;
-    }
-  };
-
-  const slideAnim = useRef(new Animated.Value(getInitialValue())).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const [slideAnim] = useState(
+    () => new Animated.Value(getInitialValue(slideFrom)),
+  );
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   // 🔹 Animação de abertura
   useEffect(() => {
@@ -54,23 +56,26 @@ export function useModalAnimation(
   }, [visible, overlayOpacity, duration, overlayDuration, slideAnim]);
 
   // 🔹 Corrigido: aguarda animação terminar antes de fechar
-  const closeAnimation = (onClose: () => void) => {
-    Animated.parallel([
-      Animated.timing(slideAnim, {
-        toValue: getInitialValue(),
-        duration,
-        useNativeDriver: true,
-      }),
-      Animated.timing(overlayOpacity, {
-        toValue: 0,
-        duration: overlayDuration,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // 🔸 Só fecha após a animação terminar
-      onClose?.();
-    });
-  };
+  const closeAnimation = useCallback(
+    (onClose: () => void) => {
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: getInitialValue(slideFrom),
+          duration,
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 0,
+          duration: overlayDuration,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // 🔸 Só fecha após a animação terminar
+        onClose?.();
+      });
+    },
+    [duration, overlayDuration, overlayOpacity, slideAnim, slideFrom],
+  );
 
   return {
     slideAnim,

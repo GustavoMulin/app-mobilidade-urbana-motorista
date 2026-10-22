@@ -1,6 +1,13 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import {
+  consultarSaque,
+  formatarReais,
+  Saque,
+  StatusSaque,
+} from "@/domain/carteira";
 import {
   Animated,
   BackHandler,
@@ -17,18 +24,58 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
-  valorSaque?: string; // Prop opcional para passar o valor dinamicamente
+  saque: Saque | null;
 }
+
+const INTERVALO_CONSULTA_MS = 3000;
+
+const TEXTO_STATUS: Record<StatusSaque, string> = {
+  processando: "Processando",
+  concluido: "Concluído",
+  falhou: "Não concluído",
+};
+
+const COR_STATUS: Record<StatusSaque, string> = {
+  processando: "#FF6600",
+  concluido: "#00A86B",
+  falhou: "#C62828",
+};
+
+const formatarDataHora = (iso: string | null) => {
+  if (!iso) return "";
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return "";
+  const doisDigitos = (n: number) => String(n).padStart(2, "0");
+  return `${doisDigitos(data.getDate())}/${doisDigitos(data.getMonth() + 1)}/${data.getFullYear()} ${doisDigitos(data.getHours())}:${doisDigitos(data.getMinutes())}`;
+};
 
 export default function SaqueStatus({
   visible,
   onClose,
   duration = 200,
-  valorSaque = "0,01",
+  saque: saqueInicial,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+  const [atualizado, setAtualizado] = useState<Saque | null>(null);
+  const saque =
+    atualizado && atualizado.id === saqueInicial?.id
+      ? atualizado
+      : saqueInicial;
+
+  // enquanto processa, pergunta ao servidor até concluir ou falhar
+  useEffect(() => {
+    if (!visible || !saque || saque.status !== "processando") return;
+    const id = saque.id;
+    const relogio = setInterval(() => {
+      consultarSaque(id)
+        .then(setAtualizado)
+        .catch(() => undefined);
+    }, INTERVALO_CONSULTA_MS);
+    return () => clearInterval(relogio);
+  }, [visible, saque]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -47,7 +94,7 @@ export default function SaqueStatus({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -74,9 +121,13 @@ export default function SaqueStatus({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
-  if (!isMounted) return null;
+  if (!isMounted || !saque) return null;
+
+  const concluiu = saque.status === "concluido";
+  const falhou = saque.status === "falhou";
+  const aReceber = Math.max(0, saque.valor - saque.taxa);
 
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 100 }]}>
@@ -100,7 +151,9 @@ export default function SaqueStatus({
         ]}
       >
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
+        >
           <View style={styles.headerContent}>
             <View style={styles.leftHeader}>
               <TouchableOpacity onPress={onClose}>
@@ -120,16 +173,25 @@ export default function SaqueStatus({
           {/* Seção de Status e Valor */}
           <View style={styles.statusSection}>
             <View style={styles.statusTextContainer}>
-              <Text style={styles.processingText}>Processando</Text>
-              <Text style={styles.mainAmount}>R${valorSaque}</Text>
-              <Text style={styles.accountText}>Conta99</Text>
+              <Text
+                style={[
+                  styles.processingText,
+                  { color: COR_STATUS[saque.status] },
+                ]}
+                accessibilityLiveRegion="polite"
+              >
+                {TEXTO_STATUS[saque.status]}
+              </Text>
+              <Text style={styles.mainAmount}>
+                {formatarReais(saque.valor)}
+              </Text>
+              <Text style={styles.accountText}>{saque.destino}</Text>
             </View>
             <View style={styles.bankIconContainer}>
               <Ionicons name="business-outline" size={24} color="#333" />
             </View>
           </View>
 
-          {/* Timeline de Processamento */}
           <View style={styles.timelineContainer}>
             <View style={styles.timelineItem}>
               <View style={styles.timelineIndicator}>
@@ -138,38 +200,71 @@ export default function SaqueStatus({
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineLabel}>Resgate iniciado</Text>
-                <Text style={styles.timelineDate}>10/02/2026 10:35</Text>
+                <Text style={styles.timelineDate}>
+                  {formatarDataHora(saque.created_at)}
+                </Text>
               </View>
             </View>
 
             <View style={styles.timelineItem}>
               <View style={styles.timelineIndicator}>
                 <View style={[styles.dot, styles.dotActive]} />
-                <View style={styles.line} />
+                <View
+                  style={[
+                    styles.line,
+                    (concluiu || falhou) && styles.lineActive,
+                  ]}
+                />
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timelineLabel}>Processamento bancário</Text>
-                <Text style={styles.timelineDate}>10/02/2026 10:35</Text>
+                <Text style={styles.timelineDate}>
+                  {formatarDataHora(saque.created_at)}
+                </Text>
               </View>
             </View>
 
             <View style={styles.timelineItem}>
               <View style={styles.timelineIndicator}>
-                <View style={styles.dot} />
+                <View
+                  style={[
+                    styles.dot,
+                    concluiu && styles.dotActive,
+                    falhou && { backgroundColor: "#C62828" },
+                  ]}
+                />
               </View>
               <View style={styles.timelineContent}>
-                {/* Espaço reservado para o próximo passo */}
+                {concluiu && (
+                  <>
+                    <Text style={styles.timelineLabel}>Valor enviado</Text>
+                    <Text style={styles.timelineDate}>
+                      {formatarDataHora(saque.concluido_em)}
+                    </Text>
+                  </>
+                )}
+                {falhou && (
+                  <>
+                    <Text style={styles.timelineLabel}>
+                      Saque não concluído
+                    </Text>
+                    <Text style={styles.timelineDate}>
+                      {saque.erro ?? "O valor voltou para o seu saldo."}
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
           </View>
 
-          {/* Rodapé com Detalhamento de Valores */}
           <View style={styles.detailsContainer}>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>
                 Valor solicitado para saque
               </Text>
-              <Text style={styles.detailValue}>R${valorSaque}</Text>
+              <Text style={styles.detailValue}>
+                {formatarReais(saque.valor)}
+              </Text>
             </View>
             <View style={styles.detailRow}>
               <View style={styles.labelWithIcon}>
@@ -181,12 +276,16 @@ export default function SaqueStatus({
                   style={{ marginLeft: 4 }}
                 />
               </View>
-              <Text style={styles.detailValue}>- R$0,00</Text>
+              <Text style={styles.detailValue}>
+                - {formatarReais(saque.taxa)}
+              </Text>
             </View>
             <View style={styles.separator} />
             <View style={styles.detailRow}>
               <Text style={styles.detailLabelBold}>Valor a receber</Text>
-              <Text style={styles.detailValueBold}>R${valorSaque}</Text>
+              <Text style={styles.detailValueBold}>
+                {formatarReais(aReceber)}
+              </Text>
             </View>
           </View>
         </View>

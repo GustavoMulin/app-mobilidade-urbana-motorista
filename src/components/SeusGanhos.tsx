@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   ActivityIndicator,
@@ -24,13 +25,77 @@ interface props {
 
 type TabType = "Diários" | "Semanais" | "Mensais";
 
+interface DetailRowProps {
+  label: string;
+  value: string;
+  onPress: () => void;
+}
+
+const DetailRow = ({ label, value, onPress }: DetailRowProps) => (
+  <TouchableOpacity onPress={onPress} style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <View style={{ flexDirection: "row", alignItems: "center" }}>
+      <Text style={styles.detailValue}>{value}</Text>
+      <Ionicons name="chevron-forward" size={16} color="#CCC" />
+    </View>
+  </TouchableOpacity>
+);
+
+const StatsPanel = ({ activeTab }: { activeTab: TabType }) => {
+  const data = {
+    Diários: { km: "R$2,72", req: "R$10,37", total: "4" },
+    Semanais: { km: "R$2,47", req: "R$11,72", total: "22" },
+    Mensais: { km: "R$2,37", req: "R$12,03", total: "107" },
+  }[activeTab];
+
+  return (
+    <View style={styles.statsCard}>
+      <Text style={styles.statsTitle}>Painel de ganhos</Text>
+      <View style={styles.statsRow}>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{data.km}</Text>
+          <Text style={styles.statLabel}>Ganhos por km</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{data.req}</Text>
+          <Text style={styles.statLabel}>Ganhos por solicitação</Text>
+        </View>
+        <View style={styles.statItem}>
+          <Text style={styles.statValue}>{data.total}</Text>
+          <Text style={styles.statLabel}>Solicitações</Text>
+        </View>
+      </View>
+
+      {activeTab === "Semanais" && (
+        <TouchableOpacity style={styles.taxa99Row}>
+          <View style={styles.taxaBadge}>
+            <Text style={styles.taxaBadgeText}>No máximo</Text>
+          </View>
+          <Text style={styles.taxaValue}>0%</Text>
+          <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <Text style={styles.taxaLabel}>Taxa99</Text>
+            <Ionicons name="chevron-forward" size={12} color="#666" />
+          </View>
+        </TouchableOpacity>
+      )}
+
+      <TouchableOpacity style={styles.helpLink}>
+        <Ionicons name="help-circle" size={16} color="#999" />
+        <Text style={styles.helpLinkText}>Como os ganhos são calculados?</Text>
+        <Ionicons name="chevron-forward" size={14} color="#999" />
+      </TouchableOpacity>
+    </View>
+  );
+};
+
 export default function SeusGanhos({
   visible,
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   const [isMounted, setIsMounted] = useState(visible);
   const [activeTab, setActiveTab] = useState<TabType>("Semanais");
@@ -45,7 +110,7 @@ export default function SeusGanhos({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -72,7 +137,7 @@ export default function SeusGanhos({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible]);
+  }, [duration, overlayOpacity, translateX, visible]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -87,7 +152,7 @@ export default function SeusGanhos({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible]);
+  }, [onClose, visible]);
 
   const handleTabChange = (tab: TabType) => {
     if (tab === activeTab) return;
@@ -99,69 +164,6 @@ export default function SeusGanhos({
   };
 
   if (!isMounted) return null;
-
-  const DetailRow = ({ label, value }: { label: string; value: string }) => (
-    <TouchableOpacity
-      onPress={mostrarHistoricoCorrida}
-      style={styles.detailRow}
-    >
-      <Text style={styles.detailLabel}>{label}</Text>
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-        <Text style={styles.detailValue}>{value}</Text>
-        <Ionicons name="chevron-forward" size={16} color="#CCC" />
-      </View>
-    </TouchableOpacity>
-  );
-
-  // NOVO COMPONENTE: Painel de Ganhos (Cards Anexo 1, 2 e 3)
-  const StatsPanel = () => {
-    const data = {
-      Diários: { km: "R$2,72", req: "R$10,37", total: "4" },
-      Semanais: { km: "R$2,47", req: "R$11,72", total: "22" },
-      Mensais: { km: "R$2,37", req: "R$12,03", total: "107" },
-    }[activeTab];
-
-    return (
-      <View style={styles.statsCard}>
-        <Text style={styles.statsTitle}>Painel de ganhos</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{data.km}</Text>
-            <Text style={styles.statLabel}>Ganhos por km</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{data.req}</Text>
-            <Text style={styles.statLabel}>Ganhos por solicitação</Text>
-          </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statValue}>{data.total}</Text>
-            <Text style={styles.statLabel}>Solicitações</Text>
-          </View>
-        </View>
-
-        {activeTab === "Semanais" && (
-          <TouchableOpacity style={styles.taxa99Row}>
-            <View style={styles.taxaBadge}>
-              <Text style={styles.taxaBadgeText}>No máximo</Text>
-            </View>
-            <Text style={styles.taxaValue}>0%</Text>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <Text style={styles.taxaLabel}>Taxa99</Text>
-              <Ionicons name="chevron-forward" size={12} color="#666" />
-            </View>
-          </TouchableOpacity>
-        )}
-
-        <TouchableOpacity style={styles.helpLink}>
-          <Ionicons name="help-circle" size={16} color="#999" />
-          <Text style={styles.helpLinkText}>
-            Como os ganhos são calculados?
-          </Text>
-          <Ionicons name="chevron-forward" size={14} color="#999" />
-        </TouchableOpacity>
-      </View>
-    );
-  };
 
   return (
     <>
@@ -182,7 +184,12 @@ export default function SeusGanhos({
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
           {/* HEADER */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 45) },
+            ]}
+          >
             <View style={styles.headerContent}>
               <TouchableOpacity onPress={onClose}>
                 <Ionicons name="arrow-back-outline" size={26} color="#111" />
@@ -325,6 +332,7 @@ export default function SeusGanhos({
                 <Text style={styles.sectionTitle}>Detalhamento de ganhos</Text>
                 <DetailRow
                   label="Valor da solicitação"
+                  onPress={mostrarHistoricoCorrida}
                   value={
                     activeTab === "Diários"
                       ? "R$41,49"
@@ -333,16 +341,26 @@ export default function SeusGanhos({
                         : "R$214,38"
                   }
                 />
-                <DetailRow label="Recompensa" value="R$0,00" />
+                <DetailRow
+                  label="Recompensa"
+                  value="R$0,00"
+                  onPress={mostrarHistoricoCorrida}
+                />
                 <DetailRow
                   label="Gorjeta"
+                  onPress={mostrarHistoricoCorrida}
                   value={activeTab === "Mensais" ? "R$2,00" : "R$0,00"}
                 />
                 <DetailRow
                   label="Compensação"
+                  onPress={mostrarHistoricoCorrida}
                   value={activeTab === "Mensais" ? "R$9,90" : "R$0,00"}
                 />
-                <DetailRow label="Outro" value="R$0,00" />
+                <DetailRow
+                  label="Outro"
+                  value="R$0,00"
+                  onPress={mostrarHistoricoCorrida}
+                />
                 <TouchableOpacity
                   onPress={mostrarHistoricoCorrida}
                   style={styles.historyButton}
@@ -354,7 +372,7 @@ export default function SeusGanhos({
               </View>
 
               {/* PAINEL DE GANHOS (Cards Anexos 1, 2 e 3) */}
-              <StatsPanel />
+              <StatsPanel activeTab={activeTab} />
               <View style={{ height: 40 }} />
             </ScrollView>
           </View>

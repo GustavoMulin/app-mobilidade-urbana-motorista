@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 
 const { width } = Dimensions.get("window");
+const DURACAO_CONTADOR_MS = 16 * 24 * 60 * 60 * 1000;
 
 interface props {
   visible: boolean;
@@ -25,22 +27,19 @@ export default function ConvidarMotorista({
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   // 👇 controle do scroll
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const [scrollY] = useState(() => new Animated.Value(0));
 
   const [isMounted, setIsMounted] = useState(visible);
 
-  // 🔥 CONTADOR REAL (16 dias)
-  const targetDate = useRef(
-    new Date().getTime() + 16 * 24 * 60 * 60 * 1000,
-  ).current;
-
-  const [timeLeft, setTimeLeft] = useState(targetDate - Date.now());
+  const [timeLeft, setTimeLeft] = useState(DURACAO_CONTADOR_MS);
 
   useEffect(() => {
+    const targetDate = Date.now() + DURACAO_CONTADOR_MS;
     const interval = setInterval(() => {
       const diff = targetDate - Date.now();
       setTimeLeft(diff > 0 ? diff : 0);
@@ -73,7 +72,7 @@ export default function ConvidarMotorista({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -100,7 +99,7 @@ export default function ConvidarMotorista({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
@@ -138,7 +137,13 @@ export default function ConvidarMotorista({
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER COM TRANSIÇÃO */}
         <Animated.View
-          style={[styles.customHeader, { backgroundColor: headerBackground }]}
+          style={[
+            styles.customHeader,
+            {
+              backgroundColor: headerBackground,
+              paddingTop: Math.max(insets.top + 12, 50),
+            },
+          ]}
         >
           <TouchableOpacity onPress={onClose} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color="#333" />

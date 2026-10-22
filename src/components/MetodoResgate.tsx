@@ -1,6 +1,7 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AdicionarMetodoResgatePix from "@/components/AdicionarMetodoResgatePix";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -12,6 +13,8 @@ import {
   View,
 } from "react-native";
 import InformacoesMetodoResgateConta from "./InformacoesMetodoResgateConta";
+import RegistroMetodoResgateConta from "./RegistroMetodoResgateConta";
+import { carregarMetodosResgate, MetodoResgate } from "@/domain/carteira";
 const { width } = Dimensions.get("window");
 
 interface props {
@@ -25,8 +28,9 @@ export default function MetodosResgate({
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
   const [visibleMetodoResgatePix, setVisibleAdicionarMetodoResgatePix] =
@@ -36,12 +40,29 @@ export default function MetodosResgate({
     setVisibleInformaceosMetodoResgateConta,
   ] = useState(false);
 
+  const [registrandoConta, setRegistrandoConta] = useState(false);
+  const [metodos, setMetodos] = useState<MetodoResgate[]>([]);
+
+  const recarregar = useCallback(() => {
+    carregarMetodosResgate()
+      .then(setMetodos)
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    if (visible) recarregar();
+  }, [visible, recarregar]);
+
+  const pix = metodos.find((metodo) => metodo.tipo === "pix") ?? null;
+  const conta = metodos.find((metodo) => metodo.tipo === "conta") ?? null;
+
   const mostrarAdicionarMetodoResgatePix = () => {
     setVisibleAdicionarMetodoResgatePix(true);
   };
 
   const mostrarAdicionarMetodoResgateConta = () => {
-    setVisibleInformaceosMetodoResgateConta(true);
+    if (conta) setVisibleInformaceosMetodoResgateConta(true);
+    else setRegistrandoConta(true);
   };
 
   useEffect(() => {
@@ -61,7 +82,7 @@ export default function MetodosResgate({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -88,7 +109,7 @@ export default function MetodosResgate({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
@@ -115,7 +136,12 @@ export default function MetodosResgate({
           ]}
         >
           {/* HEADER */}
-          <View style={styles.header}>
+          <View
+            style={[
+              styles.header,
+              { paddingTop: Math.max(insets.top + 12, 50) },
+            ]}
+          >
             <TouchableOpacity onPress={onClose} style={styles.backBtn}>
               <Ionicons name="chevron-back" size={28} color="#333" />
             </TouchableOpacity>
@@ -141,10 +167,20 @@ export default function MetodosResgate({
                     color="#FFF"
                   />
                 </View>
-                <Text style={styles.methodLabel}>Chave Pix</Text>
+                <View style={styles.methodTextos}>
+                  <Text style={styles.methodLabel}>Chave Pix</Text>
+                  {pix && (
+                    <Text style={styles.methodDetalhe} numberOfLines={1}>
+                      {pix.descricao.replace(/^Pix · /, "")}
+                      {pix.principal ? " · principal" : ""}
+                    </Text>
+                  )}
+                </View>
               </View>
               <View style={styles.rightContent}>
-                <Text style={styles.actionText}>Adicionar</Text>
+                <Text style={styles.actionText}>
+                  {pix ? "Editar" : "Adicionar"}
+                </Text>
                 <Ionicons name="chevron-forward" size={18} color="#999" />
               </View>
             </TouchableOpacity>
@@ -160,10 +196,20 @@ export default function MetodosResgate({
                 >
                   <Ionicons name="home" size={20} color="#FFF" />
                 </View>
-                <Text style={styles.methodLabel}>Conta bancária</Text>
+                <View style={styles.methodTextos}>
+                  <Text style={styles.methodLabel}>Conta bancária</Text>
+                  {conta && (
+                    <Text style={styles.methodDetalhe} numberOfLines={1}>
+                      {conta.descricao}
+                      {conta.principal ? " · principal" : ""}
+                    </Text>
+                  )}
+                </View>
               </View>
               <View style={styles.rightContent}>
-                <Text style={styles.actionText}>Ver</Text>
+                <Text style={styles.actionText}>
+                  {conta ? "Ver" : "Adicionar"}
+                </Text>
                 <Ionicons name="chevron-forward" size={18} color="#999" />
               </View>
             </TouchableOpacity>
@@ -172,11 +218,27 @@ export default function MetodosResgate({
       </View>
       <AdicionarMetodoResgatePix
         visible={visibleMetodoResgatePix}
-        onClose={() => setVisibleAdicionarMetodoResgatePix(false)}
+        existente={pix}
+        onSalvo={recarregar}
+        onClose={() => {
+          setVisibleAdicionarMetodoResgatePix(false);
+          recarregar();
+        }}
       />
       <InformacoesMetodoResgateConta
         visible={visibleInformacoesMetodoResgateConta}
+        conta={conta}
+        onSalvo={recarregar}
         onClose={() => setVisibleInformaceosMetodoResgateConta(false)}
+      />
+      <RegistroMetodoResgateConta
+        visible={registrandoConta}
+        existente={null}
+        onSalvo={() => {
+          setRegistrandoConta(false);
+          recarregar();
+        }}
+        onClose={() => setRegistrandoConta(false)}
       />
     </>
   );
@@ -226,8 +288,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0, // A imagem não mostra bordas visíveis, apenas espaçamento
   },
   leftContent: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    marginRight: 8,
+  },
+  methodTextos: {
+    flexShrink: 1,
+  },
+  methodDetalhe: {
+    fontSize: 13,
+    color: "#777",
+    marginTop: 2,
   },
   iconCircle: {
     width: 42,

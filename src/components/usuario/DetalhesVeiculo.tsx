@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -37,16 +38,32 @@ export default function DetalhesVeiculo({
   duration = 200,
   data,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
 
   const [isMounted, setIsMounted] = useState(visible);
   const [showDialog, setShowDialog] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
 
   // animação dialog
-  const dialogScale = useRef(new Animated.Value(0.9)).current;
-  const dialogOpacity = useRef(new Animated.Value(0)).current;
+  const [dialogScale] = useState(() => new Animated.Value(0.9));
+  const [dialogOpacity] = useState(() => new Animated.Value(0));
+
+  const closeDialog = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(dialogScale, {
+        toValue: 0.9,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+      Animated.timing(dialogOpacity, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => setShowDialog(false));
+  }, [dialogOpacity, dialogScale]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -67,11 +84,11 @@ export default function DetalhesVeiculo({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible, showDialog]);
+  }, [visible, showDialog, closeDialog, onClose]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -98,7 +115,7 @@ export default function DetalhesVeiculo({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible]);
+  }, [duration, overlayOpacity, translateX, visible]);
 
   const openDialog = () => {
     setShowDialog(true);
@@ -113,21 +130,6 @@ export default function DetalhesVeiculo({
         useNativeDriver: true,
       }),
     ]).start();
-  };
-
-  const closeDialog = () => {
-    Animated.parallel([
-      Animated.timing(dialogScale, {
-        toValue: 0.9,
-        duration: 150,
-        useNativeDriver: true,
-      }),
-      Animated.timing(dialogOpacity, {
-        toValue: 0,
-        duration: 120,
-        useNativeDriver: true,
-      }),
-    ]).start(() => setShowDialog(false));
   };
 
   if (!isMounted || !data) return null;
@@ -148,7 +150,7 @@ export default function DetalhesVeiculo({
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER */}
         <View
-          style={styles.header}
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
           onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}
         >
           <View style={styles.headerContent}>

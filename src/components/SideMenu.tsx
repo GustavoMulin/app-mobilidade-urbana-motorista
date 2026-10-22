@@ -1,7 +1,9 @@
 import { useAuth } from "@/context/AuthProvider";
+import { api } from "@/Services/api";
 import { AnimationConfig, useSlideAnimation } from "@/hooks/useSlideAnimation";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -15,7 +17,7 @@ import {
 } from "react-native";
 import CentralAjuda from "./CentralAjuda";
 import CentralGanhos from "./CentralGanhos";
-import ConvidarMotorista from "./ConvidarMotorista";
+import HistoricoCorridas from "./HistoricoCorridas";
 import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
 import HorasDirigindo from "./usuario/HorasDirigindo";
@@ -29,6 +31,9 @@ interface SideMenuProps {
   menuItems?: MenuItem[];
   showOverlay?: boolean;
   enableSwipeGesture?: boolean;
+  disponivel: boolean;
+  emCorrida: boolean;
+  onAlternarDisponibilidade: (proximoEstado: boolean) => void;
 }
 
 interface MenuItem {
@@ -36,15 +41,18 @@ interface MenuItem {
   label: string;
   onPress?: () => void;
   color?: string;
+  // ainda não existe: aparece com selo e não abre
+  emBreve?: boolean;
 }
 
 const defaultMenuItems: MenuItem[] = [
-  { icon: "time-outline", label: "Ganhos" },
-  { icon: "time-outline", label: "Indique um amigo" },
+  { icon: "time-outline", label: "Histórico de corridas" },
+  { icon: "cash-outline", label: "Ganhos" },
   { icon: "chatbubble-outline", label: "Notificações" },
   { icon: "shield-checkmark-outline", label: "Central de Ajuda" },
-  { icon: "card-outline", label: "Veículo" },
-  { icon: "card-outline", label: "Horas dirigindo" },
+  { icon: "car-outline", label: "Veículo" },
+  // o servidor ainda não conta o tempo online (a tela mostrava 11:24 fixo)
+  { icon: "time-outline", label: "Horas dirigindo", emBreve: true },
   { icon: "settings-outline", label: "Preferências" },
 ];
 
@@ -56,7 +64,11 @@ export default function SideMenu({
   menuItems = defaultMenuItems,
   showOverlay = true,
   enableSwipeGesture = true,
+  disponivel,
+  emCorrida,
+  onAlternarDisponibilidade,
 }: SideMenuProps) {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { translateX, overlayOpacity, closeAnimation } = useSlideAnimation(
     visible,
@@ -65,20 +77,63 @@ export default function SideMenu({
   );
 
   const [isMounted, setIsMounted] = useState(visible);
+  const [showHistoricoCorridas, setShowHistoricoCorridas] = useState(false);
   const [showHistoricoMensagens, setShowHistoricoMensagens] = useState(false);
   const [showCentralAjuda, setShowCentralAjuda] = useState(false);
-  const [showPefilUsuario, setShowPerfilUsuario] = useState(false);
+  const [showPerfilUsuario, setShowPerfilUsuario] = useState(false);
   const [showMeusVeiculos, setShowMeusVeiculos] = useState(false);
-  const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
   const [showHorasDirigindo, setShowHorasDirigindo] = useState(false);
-  const [showCentralGannhos, setShowCentralGannhos] = useState(false);
+  const [showCentralGanhos, setShowCentralGanhos] = useState(false);
   const [showPreferencias, setShowPreferencias] = useState(false);
 
-  const handleDisconnect = () => {};
+  const handleDisconnect = () => {
+    if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
+  };
 
   const closeMenu = useCallback(() => {
     closeAnimation(onClose);
   }, [closeAnimation, onClose]);
+
+  // veículo e números vêm da conta toda vez que o menu abre, para refletir
+  // um veículo cadastrado agora ou corridas finalizadas há pouco
+  const [veiculoPrincipal, setVeiculoPrincipal] = useState<string | null>(null);
+  const [estatisticas, setEstatisticas] = useState<{
+    taxa_aceitacao: number | null;
+    taxa_finalizacao: number | null;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    let ativo = true;
+    Promise.all([
+      api.get<{ data: { marca?: string; modelo?: string; placa?: string }[] }>(
+        "/motorista/me/veiculos",
+      ),
+      api.get<{
+        taxa_aceitacao: number | null;
+        taxa_finalizacao: number | null;
+      }>("/motorista/me/estatisticas"),
+    ])
+      .then(([veiculos, numeros]) => {
+        if (!ativo) return;
+        const primeiro = veiculos.data.data?.[0];
+        setVeiculoPrincipal(
+          primeiro
+            ? // a placa vem primeiro: se o nome do modelo for longo, ela não some
+              [primeiro.placa, primeiro.modelo].filter(Boolean).join(" · ")
+            : null,
+        );
+        setEstatisticas(numeros.data);
+      })
+      .catch(() => {
+        // sem rede o menu segue abrindo; os campos ficam como estavam
+      });
+
+    return () => {
+      ativo = false;
+    };
+  }, [visible]);
 
   useEffect(() => {
     // Se o dialog estiver aberto, fecha
@@ -87,16 +142,12 @@ export default function SideMenu({
         setShowPreferencias(false);
         return true;
       }
-      if (showCentralGannhos) {
-        setShowCentralGannhos(false);
+      if (showCentralGanhos) {
+        setShowCentralGanhos(false);
         return true;
       }
-      if (showPefilUsuario) {
+      if (showPerfilUsuario) {
         setShowPerfilUsuario(false);
-        return true;
-      }
-      if (showConvidarMotorista) {
-        setShowConvidarMotorista(false);
         return true;
       }
       if (showHorasDirigindo) {
@@ -105,6 +156,10 @@ export default function SideMenu({
       }
       if (showHistoricoMensagens) {
         setShowHistoricoMensagens(false);
+        return true;
+      }
+      if (showHistoricoCorridas) {
+        setShowHistoricoCorridas(false);
         return true;
       }
       if (showCentralAjuda) {
@@ -126,11 +181,22 @@ export default function SideMenu({
       onBackPress,
     );
     return () => subscription.remove();
-  }, [visible, closeMenu]);
+  }, [
+    visible,
+    closeMenu,
+    showPreferencias,
+    showCentralGanhos,
+    showPerfilUsuario,
+    showHorasDirigindo,
+    showHistoricoMensagens,
+    showHistoricoCorridas,
+    showCentralAjuda,
+    showMeusVeiculos,
+  ]);
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
     } else {
       const closeDelay = animationConfig?.duration ?? 300;
       const t = setTimeout(() => setIsMounted(false), closeDelay + 20);
@@ -138,38 +204,46 @@ export default function SideMenu({
     }
   }, [visible, animationConfig?.duration]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => enableSwipeGesture,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        return enableSwipeGesture && Math.abs(gestureState.dx) > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dx < 0) translateX.setValue(gestureState.dx);
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        if (gestureState.dx < -50 || gestureState.vx < -0.5) {
-          closeMenu();
-        } else {
-          Animated.spring(translateX, {
-            toValue: 0,
-            useNativeDriver: true,
-            damping: animationConfig.damping || 20,
-            stiffness: animationConfig.stiffness || 90,
-          }).start();
-        }
-      },
-    }),
-  ).current;
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => enableSwipeGesture,
+        onMoveShouldSetPanResponder: (_, gestureState) => {
+          return enableSwipeGesture && Math.abs(gestureState.dx) > 10;
+        },
+        onPanResponderMove: (_, gestureState) => {
+          if (gestureState.dx < 0) translateX.setValue(gestureState.dx);
+        },
+        onPanResponderRelease: (_, gestureState) => {
+          if (gestureState.dx < -50 || gestureState.vx < -0.5) {
+            closeMenu();
+          } else {
+            Animated.spring(translateX, {
+              toValue: 0,
+              useNativeDriver: true,
+              damping: animationConfig.damping || 20,
+              stiffness: animationConfig.stiffness || 90,
+            }).start();
+          }
+        },
+      }),
+    [
+      animationConfig.damping,
+      animationConfig.stiffness,
+      closeMenu,
+      enableSwipeGesture,
+      translateX,
+    ],
+  );
 
   const handleLogout = () => {
     closeMenu();
-    setTimeout(() => logout(), 300);
+    void logout();
   };
 
   const menuSelecionado = (item: MenuItem) => {
-    if (item.label === "Indique um amigo") {
-      setShowConvidarMotorista(true);
+    if (item.label === "Histórico de corridas") {
+      setShowHistoricoCorridas(true);
     }
     if (item.label === "Notificações") {
       setShowHistoricoMensagens(true);
@@ -184,7 +258,7 @@ export default function SideMenu({
       setShowHorasDirigindo(true);
     }
     if (item.label === "Ganhos") {
-      setShowCentralGannhos(true);
+      setShowCentralGanhos(true);
     }
     if (item.label === "Preferências") {
       setShowPreferencias(true);
@@ -195,6 +269,10 @@ export default function SideMenu({
 
   return (
     <>
+      <HistoricoCorridas
+        visible={showHistoricoCorridas}
+        onClose={() => setShowHistoricoCorridas(false)}
+      />
       <HistoricoMensagens
         visible={showHistoricoMensagens}
         onClose={() => setShowHistoricoMensagens(false)}
@@ -204,31 +282,26 @@ export default function SideMenu({
         onClose={() => setShowCentralAjuda(false)}
       />
       <PerfilUsuario
-        visible={showPefilUsuario}
+        visible={showPerfilUsuario}
         onClose={() => setShowPerfilUsuario(false)}
       />
       <MeusVeiculos
         visible={showMeusVeiculos}
         onClose={() => setShowMeusVeiculos(false)}
       />
-      <ConvidarMotorista
-        visible={showConvidarMotorista}
-        onClose={() => setShowConvidarMotorista(false)}
-      />
       <HorasDirigindo
         visible={showHorasDirigindo}
         onClose={() => setShowHorasDirigindo(false)}
       />
       <CentralGanhos
-        visible={showCentralGannhos}
-        onClose={() => setShowCentralGannhos(false)}
+        visible={showCentralGanhos}
+        onClose={() => setShowCentralGanhos(false)}
       />
-
       <Preferencias
         visible={showPreferencias}
         onClose={() => setShowPreferencias(false)}
         onDisconnect={handleDisconnect}
-        buscandoCorrida={false}
+        buscandoCorrida={disponivel && !emCorrida}
       />
 
       <View style={[StyleSheet.absoluteFill, { zIndex: 20 }]}>
@@ -245,6 +318,7 @@ export default function SideMenu({
             styles.sideMenu,
             {
               width: drawerWidth,
+              paddingTop: Math.max(insets.top + 12, 40),
               transform: [{ translateX }],
             },
           ]}
@@ -253,34 +327,57 @@ export default function SideMenu({
           {/* HEADER DE PERFIL */}
           <View style={styles.profileSection}>
             <TouchableOpacity onPress={() => setShowPerfilUsuario(true)}>
-              <Image
-                source={{ uri: "https://i.pravatar.cc/150?img=1" }}
-                style={styles.avatar}
-              />
+              {user?.foto ? (
+                <Image source={{ uri: user.foto }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarVazio]}>
+                  <Ionicons name="person" size={36} color="#777" />
+                </View>
+              )}
             </TouchableOpacity>
 
             <View style={styles.nameRow}>
-              <Text style={styles.userName}>{user || "Diogo"}</Text>
-              <Text style={styles.ratingText}> · 4,82 ★</Text>
+              <Text style={styles.userName}>{user?.name || "Motorista"}</Text>
             </View>
 
-            <TouchableOpacity style={styles.statusBadge}>
+            <Text style={styles.statusReal}>
+              {emCorrida ? "Em corrida" : disponivel ? "Online" : "Offline"}
+            </Text>
+
+            <TouchableOpacity
+              style={styles.statusBadge}
+              accessibilityRole="button"
+              onPress={() => setShowMeusVeiculos(true)}
+            >
               <View style={styles.badgeContent}>
                 <Ionicons name="shield-checkmark" size={14} color="#FFF" />
-                <Text style={styles.statusText}>Carro · Fase 3</Text>
+                <Text style={styles.statusText} numberOfLines={1}>
+                  {veiculoPrincipal ?? "Cadastrar veículo"}
+                </Text>
                 <Ionicons name="chevron-forward" size={14} color="#FFF" />
               </View>
-              <View style={styles.notificationDot} />
+              {/* o aviso é para cadastrar: com veículo não há o que avisar */}
+              {veiculoPrincipal ? null : (
+                <View style={styles.notificationDot} />
+              )}
             </TouchableOpacity>
 
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>48%</Text>
+                <Text style={styles.statValue}>
+                  {estatisticas?.taxa_aceitacao == null
+                    ? "—"
+                    : `${estatisticas.taxa_aceitacao}%`}
+                </Text>
                 <Text style={styles.statLabel}>Taxa de Aceitação</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statBox}>
-                <Text style={styles.statValue}>78%</Text>
+                <Text style={styles.statValue}>
+                  {estatisticas?.taxa_finalizacao == null
+                    ? "—"
+                    : `${estatisticas.taxa_finalizacao}%`}
+                </Text>
                 <Text style={styles.statLabel}>Taxa de Finalização</Text>
               </View>
             </View>
@@ -292,17 +389,45 @@ export default function SideMenu({
                 key={index}
                 style={styles.menuItem}
                 onPress={() => menuSelecionado(item)}
+                disabled={item.emBreve}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  item.emBreve ? `${item.label}, em breve` : item.label
+                }
+                accessibilityState={{ disabled: item.emBreve === true }}
               >
+                <Ionicons
+                  name={
+                    item.icon as React.ComponentProps<typeof Ionicons>["name"]
+                  }
+                  size={19}
+                  color={item.emBreve ? "#9CA3AF" : (item.color ?? "#333")}
+                />
                 <Text
-                  style={[styles.menuText, item.color && { color: item.color }]}
+                  style={[
+                    styles.menuText,
+                    item.color && { color: item.color },
+                    item.emBreve && styles.menuTextoEmBreve,
+                  ]}
                 >
                   {item.label}
                 </Text>
+                {item.emBreve ? (
+                  <View style={styles.emBreve}>
+                    <Text style={styles.emBreveTexto}>Em breve</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
             ))}
 
             {user && (
-              <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+              <TouchableOpacity
+                style={styles.menuItem}
+                onPress={handleLogout}
+                accessibilityRole="button"
+                accessibilityLabel="Sair da conta"
+              >
+                <Ionicons name="log-out-outline" size={19} color="#FF4D4D" />
                 <Text style={[styles.menuText, styles.logoutText]}>Sair</Text>
               </TouchableOpacity>
             )}
@@ -338,6 +463,11 @@ const styles = StyleSheet.create({
     borderRadius: 42.5,
     marginBottom: 15,
   },
+  avatarVazio: {
+    backgroundColor: "#F0F1F3",
+    alignItems: "center",
+    justifyContent: "center",
+  },
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -348,12 +478,13 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111",
   },
-  ratingText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#111",
+  statusReal: {
+    color: "#666",
+    fontSize: 13,
+    marginBottom: 8,
   },
   statusBadge: {
+    maxWidth: "100%",
     backgroundColor: "#313663",
     paddingVertical: 6,
     paddingHorizontal: 16,
@@ -363,11 +494,13 @@ const styles = StyleSheet.create({
     marginBottom: 25,
   },
   badgeContent: {
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
   statusText: {
+    flexShrink: 1,
     color: "#FFF",
     fontSize: 14,
     fontWeight: "600",
@@ -417,12 +550,23 @@ const styles = StyleSheet.create({
   },
   menuItem: {
     paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
   menuText: {
-    fontSize: 22,
+    fontSize: 18,
     color: "#111",
     fontWeight: "500",
   },
+  menuTextoEmBreve: { color: "#6B7280" },
+  emBreve: {
+    borderRadius: 999,
+    backgroundColor: "#ECEDEF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  emBreveTexto: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   logoutText: {
     color: "#FF4D4D",
   },

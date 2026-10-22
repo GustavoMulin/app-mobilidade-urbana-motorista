@@ -1,6 +1,13 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import {
+  carregarMetodosResgate,
+  mensagemDeErro,
+  MetodoResgate,
+  tornarPrincipal,
+} from "@/domain/carteira";
 import {
   Animated,
   BackHandler,
@@ -20,19 +27,43 @@ interface props {
   duration?: number;
 }
 
-type Metodo = "conta99" | "pix" | "banco";
-
 export default function DefinirMetodoResgate({
   visible,
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
-  // Estado para controlar qual método está selecionado conforme a imagem
-  const [selecionado, setSelecionado] = useState<Metodo>("pix");
+  const [metodos, setMetodos] = useState<MetodoResgate[]>([]);
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const recarregar = useCallback(() => {
+    carregarMetodosResgate()
+      .then(setMetodos)
+      .catch(() => setErro("Não foi possível carregar seus métodos."));
+  }, []);
+
+  useEffect(() => {
+    if (visible) recarregar();
+  }, [visible, recarregar]);
+
+  const escolher = async (metodo: MetodoResgate) => {
+    if (metodo.principal || salvando) return;
+    setSalvando(true);
+    setErro("");
+    try {
+      await tornarPrincipal(metodo.id);
+      recarregar();
+    } catch (falha) {
+      setErro(mensagemDeErro(falha, "Não foi possível trocar o método."));
+    } finally {
+      setSalvando(false);
+    }
+  };
 
   useEffect(() => {
     const onBackPress = () => {
@@ -51,7 +82,7 @@ export default function DefinirMetodoResgate({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -78,21 +109,22 @@ export default function DefinirMetodoResgate({
         }),
       ]).start(({ finished }) => finished && setIsMounted(false));
     }
-  }, [visible, duration]);
+  }, [visible, duration, translateX, overlayOpacity]);
 
   if (!isMounted) return null;
 
   const renderOption = (
-    id: Metodo,
+    metodo: MetodoResgate | null,
     title: string,
-    description: string,
-    icon: any,
+    icon: React.ReactNode,
     iconColor: string,
-    tag?: string,
   ) => (
     <TouchableOpacity
-      style={styles.optionContainer}
-      onPress={() => setSelecionado(id)}
+      style={[styles.optionContainer, !metodo && { opacity: 0.5 }]}
+      onPress={() => metodo && void escolher(metodo)}
+      disabled={!metodo || salvando}
+      accessibilityRole="radio"
+      accessibilityState={{ checked: !!metodo?.principal, disabled: !metodo }}
       activeOpacity={0.7}
     >
       <View style={[styles.iconCircle, { backgroundColor: iconColor }]}>
@@ -102,17 +134,16 @@ export default function DefinirMetodoResgate({
       <View style={styles.optionTextContainer}>
         <View style={styles.titleRow}>
           <Text style={styles.optionTitle}>{title}</Text>
-          {tag && (
-            <View style={styles.tag}>
-              <Text style={styles.tagText}>{tag}</Text>
-            </View>
-          )}
         </View>
-        <Text style={styles.optionDescription}>{description}</Text>
+        <Text style={styles.optionDescription}>
+          {metodo
+            ? metodo.descricao
+            : "Cadastre em Ganhos > Método de resgate para poder escolher."}
+        </Text>
       </View>
 
       <View style={styles.radioOuter}>
-        {selecionado === id && <View style={styles.radioInner} />}
+        {metodo?.principal && <View style={styles.radioInner} />}
       </View>
     </TouchableOpacity>
   );
@@ -130,7 +161,9 @@ export default function DefinirMetodoResgate({
 
       <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}>
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 50) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="chevron-back" size={24} color="#333" />
@@ -144,39 +177,27 @@ export default function DefinirMetodoResgate({
         <ScrollView style={styles.body} bounces={false}>
           <Text style={styles.mainTitle}>Definir método de resgate</Text>
           <Text style={styles.mainSubtitle}>
-            Os resgates serão processados usando o método escolhido, sujeito às
-            regras sobre horários de depósito, taxas de serviço e requisitos
-            mínimos de resgate.
+            Seus saques vão para o método escolhido aqui.
           </Text>
 
-          {/* OPÇÕES DE RESGATE */}
-          {renderOption(
-            "conta99",
-            "Conta99",
-            "Receba transferências diárias gratuitamente em sua conta em segundos",
-            <MaterialCommunityIcons
-              name="wallet-outline"
-              size={22}
-              color="#fff"
-            />,
-            "#ff6600",
-            "Recomendado",
+          {!!erro && (
+            <Text style={styles.erroTexto} accessibilityRole="alert">
+              {erro}
+            </Text>
           )}
 
           {renderOption(
-            "pix",
+            metodos.find((metodo) => metodo.tipo === "pix") ?? null,
             "Chave Pix",
-            "Receba transferências automáticas no seu cartão toda quarta-feira. Você receberá os ganhos em 1 ou 2 dias úteis.",
             <Ionicons name="qr-code-outline" size={20} color="#fff" />,
             "#2db089",
           )}
 
           {renderOption(
-            "banco",
-            "Saque por transferência bancária",
-            "Receba transferências automáticas no seu cartão toda quarta-feira. Você receberá os ganhos em 1 ou 2 dias úteis.",
+            metodos.find((metodo) => metodo.tipo === "conta") ?? null,
+            "Transferência bancária",
             <MaterialCommunityIcons
-              name="currency-usd"
+              name="bank-outline"
               size={22}
               color="#fff"
             />,
@@ -189,6 +210,7 @@ export default function DefinirMetodoResgate({
 }
 
 const styles = StyleSheet.create({
+  erroTexto: { fontSize: 13, color: "#C62828", marginBottom: 16 },
   drawer: {
     flex: 1,
     backgroundColor: "#fff",

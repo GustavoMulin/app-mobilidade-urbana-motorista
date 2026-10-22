@@ -1,5 +1,6 @@
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -118,8 +119,9 @@ export default function DefinirDestino({
   onClose,
   duration = 200,
 }: props) {
-  const translateX = useRef(new Animated.Value(width)).current;
-  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
+  const [translateX] = useState(() => new Animated.Value(width));
+  const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
 
   // Lógica para o botão de Configurações
@@ -144,7 +146,7 @@ export default function DefinirDestino({
 
   useEffect(() => {
     if (visible) {
-      setIsMounted(true);
+      setTimeout(() => setIsMounted(true), 0);
       Animated.parallel([
         Animated.timing(translateX, {
           // 👉 abre da direita para a esquerda
@@ -176,10 +178,6 @@ export default function DefinirDestino({
   }, [visible, translateX, overlayOpacity, duration]);
 
   if (!isMounted) return null;
-
-  const handleDesconectar = () => {
-    onClose(); // fecha o drawer logo em seguida
-  };
 
   // 👉 Componente de renderização para cada item da lista de endereços
   // 👈 Tipagem corrigida com ListRenderItem<AddressItem>
@@ -228,7 +226,9 @@ export default function DefinirDestino({
         ]}
       >
         {/* HEADER */}
-        <View style={styles.header}>
+        <View
+          style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
               <Ionicons name="arrow-back-outline" size={26} color="#111" />

@@ -1,3 +1,4 @@
+// CODEX: 0 linhas alteradas; adapta formulário, teclado e rodapé às áreas seguras. Remover após validação ou commit.
 import CodigoVerificacao from "@/components/auth/CodigoVerificacao";
 import AppLogo from "@/components/common/AppLogo";
 import ErrorBanner from "@/components/common/ErrorBanner";
@@ -9,7 +10,6 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,14 +17,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { api } from "../Services/api";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { api, ehErroDeRede, mensagemDaApi } from "../Services/api";
 import { useAuth } from "../context/AuthProvider";
 
 export default function Login() {
+  const insets = useSafeAreaInsets();
   const router = useRouter();
 
   const [phone, setPhone] = useState("");
-  const espacoDoTeclado = useEspacoDoTeclado();
+  const espacoDoTeclado = useEspacoDoTeclado(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showCodigoVerificacao, setShowCodigoVerificacao] = useState(false);
 
@@ -72,21 +74,24 @@ export default function Login() {
       });
 
       if (response.data.contaExiste) {
+        await api.post("/auth/enviar-codigo", {
+          telefone,
+          perfil: "motorista",
+        });
         setShowCodigoVerificacao(true);
 
         return;
       }
 
       router.push({ pathname: "/register", params: { telefone } });
-    } catch (error) {
-      const temResposta = Boolean(
-        (error as { response?: unknown })?.response ?? null,
-      );
-
+    } catch (error: unknown) {
       setErroLogin(
-        temResposta
-          ? "Não foi possível verificar seu número. Tente novamente."
-          : "Não foi possível conectar. Verifique sua internet.",
+        ehErroDeRede(error)
+          ? "Não foi possível conectar. Verifique sua internet."
+          : mensagemDaApi(
+              error,
+              "Não foi possível enviar o código. Tente novamente.",
+            ),
       );
     } finally {
       setLoadingVerificarConta(false);
@@ -123,8 +128,9 @@ export default function Login() {
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
         >
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
             <AppLogo />
 
             <View style={styles.badgeContainer}>
@@ -137,10 +143,7 @@ export default function Login() {
 
             <View style={styles.inputWrapper}>
               <View style={styles.countryPicker}>
-                <Image
-                  source={{ uri: "https://flagcdn.com/w40/br.png" }}
-                  style={styles.flag}
-                />
+                <Text style={styles.flag}>🇧🇷</Text>
                 <Text style={styles.countryCode}>+55</Text>
                 <Ionicons name="caret-down" size={12} color="#666" />
               </View>
@@ -219,7 +222,14 @@ export default function Login() {
           </View>
         </ScrollView>
 
-        <View style={[styles.footer, { paddingBottom: 60 + espacoDoTeclado }]}>
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingBottom: Math.max(insets.bottom, 16) + espacoDoTeclado,
+            },
+          ]}
+        >
           <TouchableOpacity
             onPress={() => verificarSeContaExiste()}
             style={[
@@ -293,6 +303,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   content: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
     flexGrow: 1,
     paddingHorizontal: 30,
     marginTop: 20,
@@ -319,8 +332,8 @@ const styles = StyleSheet.create({
     marginRight: 15,
   },
   flag: {
-    width: 20,
-    height: 14,
+    fontSize: 18,
+    lineHeight: 22,
     marginRight: 5,
   },
   countryCode: {
@@ -372,6 +385,9 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline",
   },
   footer: {
+    width: "100%",
+    maxWidth: 560,
+    alignSelf: "center",
     paddingHorizontal: 30,
     paddingTop: 12,
     paddingBottom: 16,
