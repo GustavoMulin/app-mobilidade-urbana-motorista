@@ -83,13 +83,13 @@ export default function VerificacoesUsuario({
     {
       title: "Verificação de Antecedentes",
       description:
-        "A 99 verifica os antecedentes dos motoristas antes de aceitar seu cadastro na plataforma",
+        "A plataforma verifica os antecedentes dos motoristas antes de aceitar seu cadastro na plataforma",
       icon: "person-outline",
     },
     {
       title: "CNH verificada",
       description:
-        "Todo motorista deve enviar foto de sua carteira de habilitação para se cadastrar na 99",
+        "Todo motorista deve enviar foto de sua carteira de habilitação para se cadastrar na plataforma",
       icon: "card-outline",
     },
     {
@@ -101,7 +101,7 @@ export default function VerificacoesUsuario({
     {
       title: "Foto com a CNH",
       description:
-        "A 99 verifica que a foto da carteira de habilitação confere com o rosto do motorista",
+        "A plataforma verifica que a foto da carteira de habilitação confere com o rosto do motorista",
       icon: "camera-outline",
     },
     {

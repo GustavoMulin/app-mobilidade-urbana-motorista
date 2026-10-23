@@ -19,3 +19,13 @@ export const emDistancia = (distanciaKm?: number | null) => {
     ? `${Math.max(1, Math.round(distanciaKm * 1000))} m`
     : `${distanciaKm.toFixed(1).replace(".", ",")} km`;
 };
+
+/**
+ * Máscara de dinheiro: os dígitos entram pela direita, como numa
+ * maquininha ("1234" → 12,34), e o valor fica preso no teto.
+ */
+export function valorDigitado(texto: string, maximo: number): number {
+  const digitos = texto.replace(/\D/g, "").replace(/^0+/, "").slice(0, 7);
+  const valor = Number(digitos || "0") / 100;
+  return Math.min(valor, maximo);
+}

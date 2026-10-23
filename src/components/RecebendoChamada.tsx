@@ -36,6 +36,12 @@ interface RecebendoChamadaProps {
   metodoPagamento?: string | null;
   notaPassageiro?: number | null;
   corridasPassageiro?: number;
+  // viagem compartilhada: vários embarques numa viagem só, valor da viagem inteira
+  compartilhada?: {
+    passageiros: number;
+    embarques: number;
+    bonus_percentual: number;
+  } | null;
   // Negocia: o lápis abre o valor livre (OfertaNegociaMotorista)
   onEditarValor?: () => void;
   // altura do card, para o mapa enquadrar a rota acima dele
@@ -53,6 +59,8 @@ const ICONE_PAGAMENTO: Record<
   dinheiro: { nome: "cash-outline", cor: "#21C987", rotulo: "Dinheiro" },
   pix: { nome: "qr-code-outline", cor: "#32BCAD", rotulo: "Pix" },
   cartao: { nome: "card-outline", cor: "#3488E8", rotulo: "Cartão" },
+  // compartilhada: cada passageiro paga do seu jeito
+  varios: { nome: "wallet-outline", cor: "#9CA3AF", rotulo: "Vários" },
 };
 
 const DURACAO_OFERTA_MS = 20_000;
@@ -90,6 +98,7 @@ export default function RecebendoChamadas({
   metodoPagamento,
   notaPassageiro,
   corridasPassageiro = 0,
+  compartilhada,
   onEditarValor,
   onAlturaChange,
 }: RecebendoChamadaProps) {
@@ -265,13 +274,27 @@ export default function RecebendoChamadas({
         <Text style={styles.valor}>{emReais(valor)}</Text>
         {valorPorKm ? (
           <Text style={[styles.valorKm, !negociavel && styles.valorKmDestaque]}>
-            {valorPorKm}
+            {/* no grupo o valor é da viagem inteira, não de um passageiro */}
+            {compartilhada ? `pela viagem toda · ${valorPorKm}` : valorPorKm}
           </Text>
         ) : null}
         {!negociavel ? (
-          <View style={styles.chipPagamento}>
-            <Ionicons name={pagamento.nome} size={15} color={pagamento.cor} />
-            <Text style={styles.chipPagamentoTexto}>{pagamento.rotulo}</Text>
+          <View style={styles.chipsLinha}>
+            {compartilhada ? (
+              <View style={styles.chipCompartilhada}>
+                <Ionicons name="people" size={15} color="#111" />
+                <Text style={styles.chipCompartilhadaTexto}>
+                  {`${compartilhada.embarques} embarques`}
+                  {compartilhada.bonus_percentual > 0
+                    ? ` · +${compartilhada.bonus_percentual}% bônus`
+                    : ""}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.chipPagamento}>
+              <Ionicons name={pagamento.nome} size={15} color={pagamento.cor} />
+              <Text style={styles.chipPagamentoTexto}>{pagamento.rotulo}</Text>
+            </View>
           </View>
         ) : null}
         <Animated.View
@@ -311,9 +334,11 @@ export default function RecebendoChamadas({
           <View style={styles.pontoTextos}>
             <Text style={styles.pontoTempo}>
               {viagem}
-              {paradas > 0
-                ? ` · ${paradas} ${paradas === 1 ? "parada" : "paradas"}`
-                : ""}
+              {compartilhada
+                ? ` · ${compartilhada.passageiros} passageiros`
+                : paradas > 0
+                  ? ` · ${paradas} ${paradas === 1 ? "parada" : "paradas"}`
+                  : ""}
             </Text>
             <Text style={styles.pontoEndereco} numberOfLines={2}>
               {enderecoDestino}
@@ -370,7 +395,14 @@ export default function RecebendoChamadas({
   );
 
   return (
-    <View style={styles.overlay} pointerEvents="box-none">
+    <View
+      style={[
+        styles.overlay,
+        // o cartão não encosta na barra de gestos do Android
+        { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+      ]}
+      pointerEvents="box-none"
+    >
       <TouchableOpacity
         style={[
           styles.fechar,
@@ -395,7 +427,9 @@ export default function RecebendoChamadas({
       <View
         style={styles.cardArea}
         onLayout={({ nativeEvent }) =>
-          onAlturaChange?.(nativeEvent.layout.height + 12)
+          onAlturaChange?.(
+            nativeEvent.layout.height + Math.max(insets.bottom, 12) + 8,
+          )
         }
       >
         {negociavel ? (
@@ -426,7 +460,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     justifyContent: "flex-end",
-    paddingBottom: 12,
     zIndex: 9999,
     elevation: 9999,
   },
@@ -495,6 +528,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   chipPagamentoTexto: { color: "#F5C542", fontSize: 14, fontWeight: "600" },
+  chipsLinha: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+  },
+  chipCompartilhada: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "#F5C542",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 8,
+  },
+  chipCompartilhadaTexto: { color: "#111", fontSize: 14, fontWeight: "700" },
   corpo: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 18 },
   reputacao: { flexDirection: "row", alignItems: "center", gap: 8 },
   reputacaoTexto: { color: "#FFF", fontSize: 16 },

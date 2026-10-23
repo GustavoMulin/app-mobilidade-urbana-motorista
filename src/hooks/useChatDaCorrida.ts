@@ -79,12 +79,17 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
   const ultimoId = useRef(0);
 
   const guardar = useCallback(
-    (novas: MensagemDaCorrida[]) => {
-      novas.forEach((item) => {
-        if (item.id !== null && item.id > ultimoId.current) {
-          ultimoId.current = item.id;
-        }
-      });
+    (novas: MensagemDaCorrida[], atualizarCursor = true) => {
+      // A resposta do POST pode ter um id maior que uma mensagem do outro
+      // participante que ainda não foi consultada. Avançar o cursor nesse
+      // ponto faria a próxima busca pular essa mensagem.
+      if (atualizarCursor) {
+        novas.forEach((item) => {
+          if (item.id !== null && item.id > ultimoId.current) {
+            ultimoId.current = item.id;
+          }
+        });
+      }
       setMensagens((atuais) => mesclar(atuais, novas));
     },
     [setMensagens],
@@ -186,7 +191,9 @@ export function useChatDaCorrida(corridaId: number | null, aberto: boolean) {
             client_message_id: mensagem.client_message_id,
           },
         );
-        guardar([data.data]);
+        // O cursor é atualizado apenas pelo GET, que devolve todas as
+        // mensagens posteriores em ordem e não deixa lacunas na conversa.
+        guardar([data.data], false);
         return true;
       } catch {
         setMensagens((atuais) =>

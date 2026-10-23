@@ -1,12 +1,12 @@
 import { Text, TextInput } from "@/components/common/Texto";
+import { valorDigitado } from "@/domain/negocia";
 import type { OfertaCorrida } from "@/hooks/useDespachoMotorista";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -31,9 +31,7 @@ export function EsperaProposta({
   expiraEm?: string | null;
   onExpirar: () => void;
 }) {
-  const [segundos, setSegundos] = useState(() =>
-    segundosDaProposta(expiraEm),
-  );
+  const [segundos, setSegundos] = useState(() => segundosDaProposta(expiraEm));
 
   useEffect(() => {
     let anterior = segundosDaProposta(expiraEm);
@@ -74,7 +72,13 @@ export default function OfertaNegociaMotorista({
   onConfirmar,
 }: Props) {
   const insets = useSafeAreaInsets();
+  // a folha sobe junto com o teclado do valor
+  const espacoDoTeclado = useEspacoDoTeclado();
   const [valor, setValor] = useState(0);
+  const minimo = oferta?.valor_motorista ?? 0;
+  // o servidor aceita até o dobro da oferta do passageiro
+  const maximo = minimo * 2;
+  const abaixoDoMinimo = oferta !== null && valor < minimo - 0.001;
 
   useEffect(() => {
     if (!oferta) return;
@@ -84,8 +88,6 @@ export default function OfertaNegociaMotorista({
 
   const alterar = (diferenca: number) => {
     if (!oferta) return;
-    const minimo = oferta.valor_motorista;
-    const maximo = oferta.valor_motorista * 2;
     setValor((atual) =>
       Math.min(
         maximo,
@@ -95,7 +97,7 @@ export default function OfertaNegociaMotorista({
   };
 
   const confirmar = async () => {
-    if (!oferta || ocupado) return;
+    if (!oferta || ocupado || abaixoDoMinimo) return;
     await onConfirmar(oferta.corrida_id, valor);
     onClose();
   };
@@ -108,15 +110,14 @@ export default function OfertaNegociaMotorista({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        style={styles.raiz}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={styles.raiz}>
         <Pressable style={styles.fundo} onPress={onClose} />
         <View
           style={[
             styles.folha,
-            { paddingBottom: Math.max(insets.bottom, 20) },
+            {
+              paddingBottom: Math.max(insets.bottom, 20, espacoDoTeclado + 12),
+            },
           ]}
         >
           <View style={styles.aviso}>
@@ -161,21 +162,36 @@ export default function OfertaNegociaMotorista({
               <Text style={styles.moeda}>R$</Text>
               <TextInput
                 value={valor.toFixed(2).replace(".", ",")}
-                onChangeText={(texto) => {
-                  const numero = Number(texto.replace(",", "."));
-                  if (Number.isFinite(numero)) setValor(numero);
-                }}
-                keyboardType="decimal-pad"
+                onChangeText={(texto) => setValor(valorDigitado(texto, maximo))}
+                keyboardType="number-pad"
                 selectTextOnFocus
+                maxLength={9}
+                importantForAutofill="no"
                 style={styles.campo}
                 accessibilityLabel="Valor da oferta"
               />
             </View>
 
-            <TouchableOpacity style={styles.passo} onPress={() => alterar(PASSO)}>
+            <TouchableOpacity
+              style={[styles.passo, valor >= maximo && styles.desabilitado]}
+              onPress={() => alterar(PASSO)}
+              disabled={valor >= maximo}
+              accessibilityLabel="Aumentar 50 centavos"
+              accessibilityState={{ disabled: valor >= maximo }}
+            >
               <Text style={styles.passoTexto}>+0,50</Text>
             </TouchableOpacity>
           </View>
+
+          {oferta ? (
+            <Text
+              style={[styles.limites, abaixoDoMinimo && styles.limitesErro]}
+            >
+              {`Entre R$ ${minimo.toFixed(2).replace(".", ",")} e R$ ${maximo
+                .toFixed(2)
+                .replace(".", ",")}`}
+            </Text>
+          ) : null}
 
           {oferta ? (
             <Text style={styles.valorKm}>
@@ -188,9 +204,12 @@ export default function OfertaNegociaMotorista({
           ) : null}
 
           <TouchableOpacity
-            style={[styles.confirmar, ocupado && styles.desabilitado]}
+            style={[
+              styles.confirmar,
+              (ocupado || abaixoDoMinimo) && styles.desabilitado,
+            ]}
             onPress={() => void confirmar()}
-            disabled={ocupado}
+            disabled={ocupado || abaixoDoMinimo}
           >
             {ocupado ? (
               <ActivityIndicator color="#111" />
@@ -199,7 +218,7 @@ export default function OfertaNegociaMotorista({
             )}
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -280,6 +299,13 @@ const styles = StyleSheet.create({
     color: "#111",
     textAlign: "center",
   },
+  limites: {
+    textAlign: "center",
+    marginTop: 10,
+    color: "#7A7D82",
+    fontSize: 13,
+  },
+  limitesErro: { color: "#B42318", fontWeight: "700" },
   valorKm: {
     textAlign: "center",
     marginTop: 7,
