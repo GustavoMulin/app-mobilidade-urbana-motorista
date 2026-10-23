@@ -1,5 +1,5 @@
 // CODEX: 14 linhas alteradas neste arquivo; reduz a tipografia global com limite seguro de acessibilidade.
-import { forwardRef } from "react";
+import { forwardRef, type ComponentRef } from "react";
 import {
   Platform,
   StyleSheet,
@@ -43,10 +43,10 @@ const ajustarFonte = <T,>(style: T): T => {
   ] as T;
 };
 
-export type Text = TextDoRN;
+export type Text = ComponentRef<typeof TextDoRN>;
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const Text = forwardRef<TextDoRN, TextProps>(
+export const Text = forwardRef<Text, TextProps>(
   ({ maxFontSizeMultiplier, style, ...resto }, ref) => (
     <TextDoRN
       ref={ref}
@@ -59,10 +59,10 @@ export const Text = forwardRef<TextDoRN, TextProps>(
 
 Text.displayName = "Text";
 
-export type TextInput = TextInputDoRN;
+export type TextInput = ComponentRef<typeof TextInputDoRN>;
 
 // eslint-disable-next-line @typescript-eslint/no-redeclare
-export const TextInput = forwardRef<TextInputDoRN, TextInputProps>(
+export const TextInput = forwardRef<TextInput, TextInputProps>(
   ({ maxFontSizeMultiplier, style, ...resto }, ref) => (
     <TextInputDoRN
       ref={ref}
