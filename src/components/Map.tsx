@@ -21,11 +21,12 @@ import {
   View,
 } from "react-native";
 import MapView, {
+  type LatLng,
   Marker,
-  Polyline,
   PROVIDER_GOOGLE,
   Region,
 } from "react-native-maps";
+import RotaAnimada from "@/components/RotaAnimada";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -88,6 +89,10 @@ const regiaoDaPosicao = (coords: {
 
 type Permissao = "verificando" | "concedida" | "negada";
 
+const SEM_ROTA: LatLng[] = [];
+
+const SEM_PADDING = { top: 0, right: 0, bottom: 0, left: 0 };
+
 export default function Map({
   region,
   onRegionChange,
@@ -113,8 +118,12 @@ export default function Map({
   const [regiaoReserva, setRegiaoReserva] = useState<Region>(REGIAO_BRASIL);
   const temPosicaoReal = useRef(false);
   const {
-    pronto: mapReady, tentativa: mapaTentativa, demorando: mapaDemorando,
-    aoPronto: mapaPronto, aoCarregar: mapaCarregado, dispensar: dispensarAvisoMapa,
+    pronto: mapReady,
+    tentativa: mapaTentativa,
+    demorando: mapaDemorando,
+    aoPronto: mapaPronto,
+    aoCarregar: mapaCarregado,
+    dispensar: dispensarAvisoMapa,
     tentarNovamente: recarregarMapa,
   } = useCarregamentoMapa();
   const [dimensoesMapa, setDimensoesMapa] = useState({ width: 0, height: 0 });
@@ -151,7 +160,13 @@ export default function Map({
           ? 1
           : interpolate(indice, [0, 1.7, 2], [1, 1, 0], Extrapolation.CLAMP),
     };
-  }, [alturaFolha, alturaMinimaRodape, alturaTela, bottomSheetIndex, indiceFolhaAnimado]);
+  }, [
+    alturaFolha,
+    alturaMinimaRodape,
+    alturaTela,
+    bottomSheetIndex,
+    indiceFolhaAnimado,
+  ]);
 
   // 🔹 guarda a região original do usuário para aplicar offsets conforme o BottomSheet
   const userInitialRegion = useRef<Region | null>(null);
@@ -163,16 +178,33 @@ export default function Map({
       ? `${rota.length}:${rota[0].latitude},${rota[0].longitude}:${rota[rota.length - 1].latitude},${rota[rota.length - 1].longitude}`
       : "";
 
-  // Contorno do react-native-maps no Android (nova arquitetura, issue
-  // react-native-maps#5840): desmontar a Polyline às vezes deixa a linha
-  // desenhada no mapa nativo. Quando a rota some (chegou no embarque,
-  // corrida acabou), remonta o mapa para limpá-la.
-  const rotaAnterior = useRef("");
+  // Desmontar a Polyline no Android (nova arquitetura, issue
+  // react-native-maps#5840) às vezes deixava a linha no mapa, e o mapa era
+  // remontado para limpá-la ("recarregava" na frente do motorista). Agora a
+  // linha nunca desmonta (RotaAnimada fica vazia sem rota) e só se desenha
+  // de novo quando o alvo muda, não a cada passo do motorista.
+  const ultimoPonto = rota[rota.length - 1];
+  const faseDaRota =
+    rota.length > 1 && ultimoPonto
+      ? `${alvoEhDestino ? "destino" : "embarque"}:${ultimoPonto.latitude.toFixed(4)},${ultimoPonto.longitude.toFixed(4)}`
+      : null;
+
+  // sem rota, a câmera vai deslizando até a região pedida (com `region`
+  // controlada ela pulava de uma vez)
+  const regiaoDoMapa = useRef<Region | null>(null);
   useEffect(() => {
-    const tinhaRota = rotaAnterior.current !== "";
-    rotaAnterior.current = chaveRota;
-    if (tinhaRota && chaveRota === "") recarregarMapa();
-  }, [chaveRota, recarregarMapa]);
+    if (!mapReady || !mapRef.current || rota.length > 0) return;
+    const alvo = region || userLocation || regiaoReserva;
+    const atual = regiaoDoMapa.current;
+    if (
+      atual &&
+      Math.abs(atual.latitude - alvo.latitude) < 1e-6 &&
+      Math.abs(atual.longitude - alvo.longitude) < 1e-6 &&
+      Math.abs(atual.latitudeDelta - alvo.latitudeDelta) < 1e-6
+    )
+      return;
+    mapRef.current.animateToRegion(alvo, 600);
+  }, [mapReady, region, userLocation, regiaoReserva, rota.length]);
 
   useEffect(() => {
     if (chaveRota === "" || !mapReady || mapRef.current === null) return;
@@ -181,11 +213,23 @@ export default function Map({
     const pontosValidos = rota.filter(pontoMapaValido);
     if (pontosValidos.length < 2) return;
     mapRef.current.fitToCoordinates(pontosValidos, {
-      edgePadding: paddingMapa(dimensoesMapa.width, dimensoesMapa.height, insets.top + 100, Math.max(alturaFolha, 120) + 16),
+      edgePadding: paddingMapa(
+        dimensoesMapa.width,
+        dimensoesMapa.height,
+        insets.top + 100,
+        Math.max(alturaFolha, 120) + 16,
+      ),
       animated: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chaveRota, alturaFolha, mapReady, dimensoesMapa.width, dimensoesMapa.height, insets.top]);
+  }, [
+    chaveRota,
+    alturaFolha,
+    mapReady,
+    dimensoesMapa.width,
+    dimensoesMapa.height,
+    insets.top,
+  ]);
 
   useEffect(() => {
     void AsyncStorage.getItem(CHAVE_ULTIMA_REGIAO)
@@ -363,18 +407,27 @@ export default function Map({
   };
 
   return (
-    <View collapsable={false} style={[StyleSheet.absoluteFill, styles.mapContainer]}>
+    <View
+      collapsable={false}
+      style={[StyleSheet.absoluteFill, styles.mapContainer]}
+    >
       <MapView
         key={mapaTentativa}
         ref={mapRef}
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-        region={
-          rota.length > 0 ? undefined : region || userLocation || regiaoReserva
-        }
+        initialRegion={region || userLocation || regiaoReserva}
         onRegionChangeComplete={(regiao) => {
+          regiaoDoMapa.current = regiao;
           onRegionChange(regiao);
         }}
+        // sem rota (esperando no embarque), o centro do mapa fica na parte que
+        // a folha e as mensagens rápidas não cobrem
+        mapPadding={
+          rota.length === 0 && alturaFolha > 0
+            ? { top: insets.top + 60, right: 0, bottom: alturaFolha, left: 0 }
+            : SEM_PADDING
+        }
         showsUserLocation={false}
         showsMyLocationButton={false}
         followsUserLocation={false}
@@ -384,19 +437,15 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
-        {userLocation && (
-          <MarcadorMinhaLocalizacao coordenada={userLocation} />
-        )}
+        {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
-        {rota.length > 1 && (
-          <Polyline
-            key={chaveRota}
-            coordinates={rota}
-            strokeWidth={5}
-            strokeColor={alvoEhDestino ? "#2F6BFF" : "#17A673"}
-            zIndex={10}
-          />
-        )}
+        <RotaAnimada
+          coordenadas={rota.length > 1 ? rota : SEM_ROTA}
+          fase={faseDaRota}
+          cor={alvoEhDestino ? "#2F6BFF" : "#17A673"}
+          largura={5}
+          zIndex={10}
+        />
 
         {marcadores.map((ponto, indice) => (
           <Marker
@@ -447,7 +496,9 @@ export default function Map({
       >
         {mapaDemorando && (
           <View accessibilityRole="alert" style={styles.aviso}>
-            <Text style={styles.avisoTitulo}>O mapa está demorando a aparecer?</Text>
+            <Text style={styles.avisoTitulo}>
+              O mapa está demorando a aparecer?
+            </Text>
             <Text style={styles.avisoTexto}>
               Confira sua conexão ou tente carregar novamente.
             </Text>
@@ -458,7 +509,11 @@ export default function Map({
             >
               <Text style={styles.avisoBotaoTexto}>Tentar novamente</Text>
             </TouchableOpacity>
-            <TouchableOpacity accessibilityRole="button" style={styles.dispensarAviso} onPress={dispensarAvisoMapa}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={styles.dispensarAviso}
+              onPress={dispensarAvisoMapa}
+            >
               <Text>O mapa já apareceu</Text>
             </TouchableOpacity>
           </View>
@@ -467,18 +522,25 @@ export default function Map({
         {permissao === "negada" ? (
           <View accessibilityRole="alert" style={styles.aviso}>
             <MaterialIcons name="location-off" size={26} color="#D93025" />
-            <Text style={styles.avisoTitulo}>Permita o acesso à localização</Text>
+            <Text style={styles.avisoTitulo}>
+              Permita o acesso à localização
+            </Text>
             <Text style={styles.avisoTexto}>
               Sem ela você não recebe corridas perto de você.
             </Text>
-            <TouchableOpacity style={styles.avisoBotao} onPress={pedirPermissao}>
+            <TouchableOpacity
+              style={styles.avisoBotao}
+              onPress={pedirPermissao}
+            >
               <Text style={styles.avisoBotaoTexto}>Permitir</Text>
             </TouchableOpacity>
           </View>
         ) : localizacaoIndisponivel ? (
           <View accessibilityRole="alert" style={styles.aviso}>
             <MaterialIcons name="location-disabled" size={26} color="#E37400" />
-            <Text style={styles.avisoTitulo}>Não encontramos sua localização</Text>
+            <Text style={styles.avisoTitulo}>
+              Não encontramos sua localização
+            </Text>
             <Text style={styles.avisoTexto}>
               Ative a localização do aparelho ou vá para um local com sinal.
             </Text>

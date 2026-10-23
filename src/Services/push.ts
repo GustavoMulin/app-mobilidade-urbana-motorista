@@ -29,19 +29,16 @@ export function configurarNotificacoes() {
   if (!Notificacoes) return;
 
   try {
-    // com o app aberto o aviso também aparece no topo, como no 99; a
-    // mensagem do chat não, porque o próprio app já mostra o pop-up dela
+    // com o app aberto a própria tela já mostra o que aconteceu (proposta,
+    // motorista chegou, mensagem em pop-up): o aviso do sistema por cima só
+    // cobria o cartão. Com o app fechado ou em segundo plano o Android mostra.
     Notificacoes.setNotificationHandler({
-      handleNotification: async (notificacao) => {
-        const doChat =
-          notificacao.request.content.data?.tipo === "chat_corrida";
-        return {
-          shouldShowBanner: !doChat,
-          shouldShowList: !doChat,
-          shouldPlaySound: !doChat,
-          shouldSetBadge: false,
-        };
-      },
+      handleNotification: async () => ({
+        shouldShowBanner: false,
+        shouldShowList: false,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+      }),
     });
 
     if (Platform.OS === "android") {

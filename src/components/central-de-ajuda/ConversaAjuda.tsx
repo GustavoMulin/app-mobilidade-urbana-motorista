@@ -123,8 +123,11 @@ export default function ConversaAjuda({ pedidoId, onVoltar }: Props) {
   const lista = useRef<FlatList<MensagemDeAjuda>>(null);
 
   const situacao = pedido ? situacaoDoPedido(pedido.status) : null;
+  // "open" é a fila geral (ninguém assumiu ainda); "waiting", a fila de um atendente
   const avisoDaFila =
-    pedido?.status === "waiting" ? (pedido.fila?.mensagem ?? null) : null;
+    pedido?.status === "waiting" || pedido?.status === "open"
+      ? (pedido.fila?.mensagem ?? null)
+      : null;
   // com o aviso da fila no topo, a mesma frase não se repete na conversa
   const visiveis = avisoDaFila
     ? mensagens.filter((item) => item.tipo_sistema !== "fila_atendimento")

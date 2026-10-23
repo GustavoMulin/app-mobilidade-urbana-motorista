@@ -45,6 +45,8 @@ export interface Movimento {
   valor: number;
   // corrida em dinheiro: o que o passageiro pagou em mãos (fora do saldo)
   recebido_em_maos?: number | null;
+  // saldo da carteira logo depois deste lançamento (extrato)
+  saldo_apos?: number;
   status: StatusSaque | null;
   quando: string | null;
 }

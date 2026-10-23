@@ -1,22 +1,14 @@
 import { Text, TextInput } from "@/components/common/Texto";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
-import {
-  MENSAGENS_RAPIDAS_PADRAO,
-  TAMANHO_MAXIMO_MENSAGEM_RAPIDA,
-} from "@/domain/mensagensRapidas";
+import { TAMANHO_MAXIMO_MENSAGEM_RAPIDA } from "@/domain/mensagensRapidas";
 import { ehMinha, type MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
 import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
+import MensagensDoChat from "@/components/MensagensDoChat";
+import RespostasRapidas from "@/components/RespostasRapidas";
+import { sugerirRespostas } from "@/domain/respostasSugeridas";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  FlatList,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useRef, useState } from "react";
+import { Alert, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
@@ -27,13 +19,19 @@ interface Props {
   podeEnviar: boolean;
   onEnviar: (texto: string) => void;
   onReenviar: (mensagem: MensagemDaCorrida) => void;
+  // etapa da corrida (status_corrida): muda as sugestões de resposta
+  etapa?: string | null;
 }
 
-const hora = (iso: string) =>
-  new Date(iso).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+const INTERVALO_RAPIDAS_MS = 1500;
+
+// toques seguidos numa mensagem rápida: só o primeiro passa
+const passouIntervalo = (ultima: { current: number }) => {
+  const agora = Date.now();
+  if (agora - ultima.current < INTERVALO_RAPIDAS_MS) return false;
+  ultima.current = agora;
+  return true;
+};
 
 // conversa com o passageiro durante a corrida (do aceite até o fim)
 export default function ChatDaCorrida({
@@ -44,11 +42,11 @@ export default function ChatDaCorrida({
   podeEnviar,
   onEnviar,
   onReenviar,
+  etapa,
 }: Props) {
   const insets = useSafeAreaInsets();
   const espacoDoTeclado = useEspacoDoTeclado();
   const [texto, setTexto] = useState("");
-  const lista = useRef<FlatList<MensagemDaCorrida>>(null);
   // respostas de um toque: as fixas e as que o motorista criou aqui
   const { personalizadas, adicionar, remover } = useMensagensRapidas();
   const [criando, setCriando] = useState(false);
@@ -56,14 +54,28 @@ export default function ChatDaCorrida({
   const [erroRapida, setErroRapida] = useState<string | null>(null);
   const primeiroNome = nomeDoOutro.trim().split(/\s+/)[0] || "Passageiro";
 
-  useEffect(() => {
-    if (!visible) return;
-    const espera = setTimeout(
-      () => lista.current?.scrollToEnd({ animated: true }),
-      80,
-    );
-    return () => clearTimeout(espera);
-  }, [visible, mensagens.length, espacoDoTeclado]);
+  // mensagem rápida vai uma vez por corrida e some da fileira; o intervalo
+  // segura toques repetidos antes de a lista atualizar
+  const ultimaRapida = useRef(0);
+  const jaEnviadas = new Set(
+    mensagens.filter(ehMinha).map((item) => item.conteudo.trim()),
+  );
+  // sugestões pela conversa e pela etapa, depois as criadas pelo motorista
+  const sugeridas = sugerirRespostas(
+    "motorista",
+    etapa,
+    mensagens.map((item) => ({
+      conteudo: item.conteudo,
+      minha: ehMinha(item),
+    })),
+  );
+  const rapidas = [
+    ...sugeridas,
+    ...personalizadas.filter((item) => !sugeridas.includes(item)),
+  ].filter((resposta) => !jaEnviadas.has(resposta.trim()));
+  const enviarRapida = (resposta: string) => {
+    if (passouIntervalo(ultimaRapida)) enviar(resposta);
+  };
 
   const enviar = (conteudo: string) => {
     if (!podeEnviar || conteudo.trim() === "") return;
@@ -121,53 +133,15 @@ export default function ChatDaCorrida({
           </View>
         </View>
 
-        <FlatList
-          ref={lista}
-          data={mensagens}
-          keyExtractor={(item, indice) =>
-            String(item.id ?? item.client_message_id ?? indice)
+        <MensagensDoChat
+          mensagens={mensagens}
+          // com o passageiro já no carro, o embarque não é mais o assunto
+          textoVazio={
+            etapa === "em_andamento"
+              ? `Fale com ${primeiroNome} por aqui.`
+              : `Avise ${primeiroNome} sobre o embarque por aqui.`
           }
-          contentContainerStyle={styles.mensagens}
-          ListEmptyComponent={
-            <View style={styles.vazio}>
-              <Ionicons name="chatbubbles-outline" size={34} color="#9CA3AF" />
-              <Text style={styles.vazioTexto}>
-                {`Avise ${primeiroNome} sobre o embarque por aqui.`}
-              </Text>
-            </View>
-          }
-          renderItem={({ item }) => {
-            const minha = ehMinha(item);
-            return (
-              <View style={[styles.linha, minha && styles.linhaMinha]}>
-                <View
-                  style={[
-                    styles.balao,
-                    minha ? styles.balaoMeu : styles.balaoDele,
-                    item.enviando && styles.balaoEnviando,
-                  ]}
-                >
-                  <Text style={styles.conteudo}>{item.conteudo}</Text>
-                  <Text style={styles.hora}>
-                    {item.enviando ? "Enviando..." : hora(item.created_at)}
-                  </Text>
-                </View>
-                {item.falhou ? (
-                  <TouchableOpacity
-                    style={styles.falhou}
-                    accessibilityRole="button"
-                    accessibilityLabel="Mensagem não enviada. Tocar para tentar de novo"
-                    onPress={() => onReenviar(item)}
-                  >
-                    <Ionicons name="alert-circle" size={14} color="#B42318" />
-                    <Text style={styles.falhouTexto}>
-                      Não enviada · tocar para tentar de novo
-                    </Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            );
-          }}
+          onReenviar={onReenviar}
         />
 
         <View
@@ -223,46 +197,22 @@ export default function ChatDaCorrida({
             </>
           ) : podeEnviar ? (
             <>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.rapidas}
-              >
-                <TouchableOpacity
-                  style={[styles.rapida, styles.rapidaNova]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Criar mensagem rápida"
-                  onPress={() => setCriando(true)}
-                >
-                  <Ionicons name="create-outline" size={18} color="#111" />
-                </TouchableOpacity>
-                {[...MENSAGENS_RAPIDAS_PADRAO, ...personalizadas].map(
-                  (resposta) => {
-                    const minha = personalizadas.includes(resposta);
-                    return (
-                      <TouchableOpacity
-                        key={resposta}
-                        style={[styles.rapida, minha && styles.rapidaMinha]}
-                        accessibilityRole="button"
-                        accessibilityHint={
-                          minha
-                            ? "Toque para enviar. Toque e segure para remover."
-                            : "Toque para enviar."
-                        }
-                        onPress={() => enviar(resposta)}
-                        onLongPress={
-                          minha ? () => confirmarRemocao(resposta) : undefined
-                        }
-                      >
-                        <Text style={styles.rapidaTexto} numberOfLines={1}>
-                          {resposta}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  },
-                )}
-              </ScrollView>
+              <RespostasRapidas
+                respostas={rapidas}
+                destacadas={personalizadas}
+                onEnviar={enviarRapida}
+                onSegurar={confirmarRemocao}
+                inicio={
+                  <TouchableOpacity
+                    style={[styles.rapida, styles.rapidaNova]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Criar mensagem rápida"
+                    onPress={() => setCriando(true)}
+                  >
+                    <Ionicons name="create-outline" size={18} color="#111" />
+                  </TouchableOpacity>
+                }
+              />
               <View style={styles.composicao}>
                 <TextInput
                   style={styles.campo}
@@ -319,37 +269,6 @@ const styles = StyleSheet.create({
   cabecalhoTextos: { flex: 1 },
   titulo: { fontSize: 18, fontWeight: "800", color: "#111" },
   subtitulo: { fontSize: 13, color: "#6B7280" },
-  mensagens: { padding: 16, gap: 8, flexGrow: 1 },
-  vazio: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    paddingHorizontal: 32,
-  },
-  vazioTexto: { fontSize: 15, color: "#6B7280", textAlign: "center" },
-  linha: { alignItems: "flex-start" },
-  linhaMinha: { alignItems: "flex-end" },
-  balao: {
-    maxWidth: "82%",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 6,
-    gap: 2,
-  },
-  balaoMeu: { backgroundColor: "#FFF1B8", borderBottomRightRadius: 4 },
-  balaoDele: { backgroundColor: "#F2F3F5", borderBottomLeftRadius: 4 },
-  balaoEnviando: { opacity: 0.6 },
-  conteudo: { fontSize: 15, color: "#111", lineHeight: 21 },
-  hora: { alignSelf: "flex-end", fontSize: 11, color: "#6B7280" },
-  falhou: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    minHeight: 32,
-  },
-  falhouTexto: { fontSize: 12, fontWeight: "600", color: "#B42318" },
   rodape: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
@@ -357,7 +276,6 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     gap: 8,
   },
-  rapidas: { flexDirection: "row", gap: 8, paddingRight: 4 },
   rapida: {
     borderRadius: 999,
     borderWidth: 1,
@@ -370,7 +288,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
   },
-  rapidaMinha: { backgroundColor: "#FFF8D6", borderColor: "#F2D45C" },
   rapidaNova: {
     borderStyle: "dashed",
     borderColor: "#9CA3AF",
@@ -387,7 +304,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  rapidaTexto: { fontSize: 13, color: "#111", fontWeight: "600" },
   composicao: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   campo: {
     flex: 1,

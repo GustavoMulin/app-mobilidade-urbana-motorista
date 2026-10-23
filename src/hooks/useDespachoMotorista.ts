@@ -17,9 +17,9 @@ const esperandoPassageiro = (item: OfertaCorrida) =>
   item.minha_proposta?.status === "pendente";
 
 // a chamada que toca (e aparece na tela) é a primeira corrida que o motorista
-// ainda não recusou, dispensou nem respondeu com uma proposta; o resto fica
-// só na lista de solicitações. Proposta esperando o passageiro não segura a
-// próxima chamada.
+// ainda não recusou, dispensou nem tem proposta esperando o passageiro; o
+// resto fica só na lista de solicitações. Proposta esperando o passageiro não
+// segura a próxima chamada.
 const chamadaDaVez = (
   lista: OfertaCorrida[],
   dispensadas: Map<number, number>,
@@ -28,7 +28,7 @@ const chamadaDaVez = (
     (item) =>
       !item.recusada_localmente &&
       !aindaFora(dispensadas, item.corrida_id) &&
-      !item.minha_proposta,
+      !esperandoPassageiro(item),
   ) ?? null;
 
 // recusada ou ignorada não some para sempre: se o passageiro continua
@@ -68,6 +68,38 @@ export interface OfertaCorrida {
   passageiro_nota: number | null;
   passageiro_corridas: number;
   recusada_localmente?: boolean;
+  // viagem compartilhada: uma chamada para o grupo inteiro
+  compartilhada?: {
+    passageiros: number;
+    embarques: number;
+    bonus_percentual: number;
+    pagamentos: string[];
+  } | null;
+}
+
+// viagem compartilhada em curso: cada passageiro tem a própria corrida e o
+// motorista age na corrida da próxima parada, na ordem que o servidor calcula
+export interface ParadaDoGrupo {
+  corrida_id: number;
+  acao: "embarque" | "desembarque";
+  ordem: number;
+  passageiro: string;
+  endereco: string;
+  latitude: number;
+  longitude: number;
+  metodo_pagamento: string | null;
+  valor_passageiro: number;
+  status_corrida: string;
+  cancelada: boolean;
+  feita: boolean;
+}
+
+export interface GrupoDaViagem {
+  sala_id: number;
+  passageiros: number;
+  paradas: ParadaDoGrupo[];
+  valor_total_motorista: number;
+  espera_embarque_segundos: number;
 }
 
 export interface PropostaEnviada {
@@ -172,6 +204,8 @@ export function useDespachoMotorista(pausado = false) {
   const [passageiro, setPassageiro] = useState<PassageiroDaCorrida | null>(
     null,
   );
+  const [grupo, setGrupo] = useState<GrupoDaViagem | null>(null);
+  const grupoRef = useRef<GrupoDaViagem | null>(null);
   // o servidor recusa com 403 + situacao quando o cadastro ainda não foi
   // aprovado; a home usa isso para mandar o motorista para a liberação
   const [precisaLiberacao, setPrecisaLiberacao] = useState(false);
@@ -306,6 +340,7 @@ export function useDespachoMotorista(pausado = false) {
         passageiro: PassageiroDaCorrida | null;
         espera: ResumoEspera | null;
         alteracao_destino?: PedidoNovoDestino | null;
+        compartilhada?: GrupoDaViagem | null;
       }>("/minha-corrida-atual", {
         params: { perfil: "motorista" },
         timeout: 10000,
@@ -330,6 +365,13 @@ export function useDespachoMotorista(pausado = false) {
           : (data?.passageiro ?? null),
       );
       setEspera(data?.espera ?? null);
+      const novoGrupo = data?.corrida ? (data?.compartilhada ?? null) : null;
+      grupoRef.current = novoGrupo;
+      setGrupo((anterior) =>
+        JSON.stringify(anterior) === JSON.stringify(novoGrupo)
+          ? anterior
+          : novoGrupo,
+      );
     } catch {
       // silencioso: é só sincronização de estado
     }
@@ -498,8 +540,13 @@ export function useDespachoMotorista(pausado = false) {
           ...item,
           recusada_localmente: aindaFora(recusadas.current, item.corrida_id),
         }));
-        // com proposta enviada a chamada não volta a tocar: o motorista só
-        // espera a escolha do passageiro (ou faz nova oferta pela lista)
+        // proposta que venceu ou foi recusada conta como chamada ignorada: se o
+        // passageiro continua esperando, volta a tocar depois de 1 min
+        esperandoAntes.current.forEach((_, corridaId) => {
+          const item = atuais.find((atual) => atual.corrida_id === corridaId);
+          if (item && !esperandoPassageiro(item))
+            dispensadas.current.set(corridaId, Date.now());
+        });
         setOfertas(atuais);
         setOferta(chamadaDaVez(atuais, dispensadas.current));
 
@@ -904,6 +951,27 @@ export function useDespachoMotorista(pausado = false) {
           `/motorista/corridas/${corrida.id}/${acao}`,
         );
 
+        // compartilhada: deixar um passageiro não encerra a viagem; a próxima
+        // parada do grupo vira a corrida da vez
+        const grupoAtual = grupoRef.current;
+        const grupoSegue =
+          acao === "finalizar" &&
+          grupoAtual !== null &&
+          grupoAtual.paradas.some(
+            (parada) => !parada.feita && parada.corrida_id !== corrida.id,
+          );
+
+        if (grupoSegue) {
+          mostrarToast({
+            tipo: "success",
+            titulo: "Passageiro deixado",
+            mensagem: "Siga para a próxima parada do grupo.",
+            chave: `corrida:${corrida.id}:finalizar-no-grupo`,
+          });
+          await carregarCorridaAtual();
+          return;
+        }
+
         aplicarCorrida(acao === "finalizar" ? null : data, false);
 
         const proximo =
@@ -942,7 +1010,13 @@ export function useDespachoMotorista(pausado = false) {
         });
 
         if (acao === "finalizar") {
-          const ganho = Number(data?.corrida_financeiro?.valor_motorista);
+          // no grupo o "cha-ching" mostra o que a viagem inteira rendeu
+          const ganho = Number(
+            grupoAtual?.valor_total_motorista ??
+              data?.corrida_financeiro?.valor_motorista,
+          );
+          grupoRef.current = null;
+          setGrupo(null);
           if (Number.isFinite(ganho) && ganho > 0) {
             setGanhoRecebido({ corridaId: corrida.id, valor: ganho });
           }
@@ -1157,6 +1231,7 @@ export function useDespachoMotorista(pausado = false) {
     chegada,
     espera,
     passageiro,
+    grupo,
     posicao,
     precisaLiberacao,
     ocupado,

@@ -4,13 +4,17 @@
 // motivo, ausência do passageiro, recusar novas corridas).
 import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
+import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import AnelProgresso from "@/components/AnelProgresso";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { Text } from "@/components/common/Texto";
 import { ResumoEspera, calcularContadorEspera } from "@/domain/contadorEspera";
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
-import type { ResultadoCancelamento } from "@/hooks/useDespachoMotorista";
+import type {
+  ParadaDoGrupo,
+  ResultadoCancelamento,
+} from "@/hooks/useDespachoMotorista";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
@@ -61,6 +65,18 @@ interface props {
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
+  // quanto a pílula do embarque ocupa abaixo da área segura (os avisos do
+  // chat aparecem logo embaixo dela)
+  onAlturaDoTopo?: (altura: number) => void;
+  // altura de tudo que fica embaixo (mensagens rápidas, faixa e folha): o
+  // mapa centraliza o carro e o embarque no que sobra acima
+  onAlturaChange?: (altura: number) => void;
+  // compartilhada: os outros passageiros esperam no carro, a ausência vale antes
+  esperaMinimaAusenciaS?: number;
+  // compartilhada: "Embarcou" em vez de "Iniciar corrida"
+  rotuloIniciar?: string;
+  // compartilhada: quem já está no carro e as próximas paradas
+  paradasDoGrupo?: ParadaDoGrupo[] | null;
 }
 
 // o backend só aceita encerrar por ausência depois de 3 min no embarque
@@ -98,6 +114,11 @@ export default function CorridaEmAndamento({
   onAbrirChat,
   mensagensEnviadas = [],
   onEnviarMensagem,
+  onAlturaDoTopo,
+  onAlturaChange,
+  esperaMinimaAusenciaS = ESPERA_MINIMA_AUSENCIA_S,
+  rotuloIniciar = "Iniciar corrida",
+  paradasDoGrupo = null,
 }: props) {
   const insets = useSafeAreaInsets();
   const { height: alturaTela } = useWindowDimensions();
@@ -153,7 +174,7 @@ export default function CorridaEmAndamento({
     : null;
   const cor = contador ? CORES_FASE[contador.fase] : CORES_FASE.tolerancia;
   const podeRegistrarAusencia =
-    (contador?.segundosDecorridos ?? 0) >= ESPERA_MINIMA_AUSENCIA_S;
+    (contador?.segundosDecorridos ?? 0) >= esperaMinimaAusenciaS;
 
   const faixa = !contador
     ? null
@@ -194,14 +215,24 @@ export default function CorridaEmAndamento({
   return (
     <>
       <StatusBar style="dark" />
-      <View style={[styles.pilulaEmbarque, { top: insets.top + 10 }]}>
+      <View
+        style={[styles.pilulaEmbarque, { top: insets.top + 10 }]}
+        onLayout={({ nativeEvent }) =>
+          onAlturaDoTopo?.(10 + nativeEvent.layout.height)
+        }
+      >
         <View style={styles.pontoEmbarque} />
         <Text numberOfLines={1} style={styles.pilulaTexto}>
           {origem ?? "Local de embarque não informado"}
         </Text>
       </View>
 
-      <View style={[styles.base, { maxHeight: alturaTela - insets.top - 80 }]}>
+      <View
+        style={[styles.base, { maxHeight: alturaTela - insets.top - 80 }]}
+        onLayout={({ nativeEvent }) =>
+          onAlturaChange?.(Math.ceil(nativeEvent.layout.height))
+        }
+      >
         {onEnviarMensagem ? (
           <BaloesDaChegada
             enviadas={mensagensEnviadas}
@@ -259,6 +290,10 @@ export default function CorridaEmAndamento({
 
             <View style={styles.separador} />
 
+            {paradasDoGrupo && paradasDoGrupo.length > 0 && (
+              <ListaParadasDoGrupo paradas={paradasDoGrupo} />
+            )}
+
             <View style={styles.linhaPassageiro}>
               {passageiro?.foto && !passageiro.foto_oculta ? (
                 <Image
@@ -311,7 +346,7 @@ export default function CorridaEmAndamento({
             </View>
 
             <BotaoDeslizar
-              rotulo="Iniciar corrida"
+              rotulo={rotuloIniciar}
               cor="#4A7DF7"
               desabilitado={ocupado}
               onConfirmar={() => onAvancar("iniciar")}
@@ -353,7 +388,8 @@ export default function CorridaEmAndamento({
             </>
           ) : null}
           <Text style={styles.taxaItem}>
-            Se o passageiro não aparecer, depois de 3 minutos no embarque você
+            Se o passageiro não aparecer, depois de{" "}
+            {Math.round(esperaMinimaAusenciaS / 60)} minutos no embarque você
             pode encerrar a corrida por ausência em ≡ › Cancelar Corrida ›
             “Passageiro não apareceu”. Nas categorias com tarifa base, ela fica
             para você como taxa de ausência.
@@ -369,6 +405,7 @@ export default function CorridaEmAndamento({
       </Modal>
 
       <MaisCorridaAtiva
+        compartilhada={(paradasDoGrupo?.length ?? 0) > 0}
         visible={maisVisivel}
         passageiro={passageiro}
         origem={origem}
