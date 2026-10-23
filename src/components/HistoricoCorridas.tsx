@@ -242,7 +242,7 @@ export default function HistoricoCorridas({
                     color="#1565C0"
                     style={styles.loadingMore}
                   />
-                ) : null
+                ) : undefined
               }
               keyExtractor={(item) => item.id}
               renderItem={renderItem}

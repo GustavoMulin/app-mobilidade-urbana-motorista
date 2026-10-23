@@ -1,5 +1,5 @@
 import type { BannerPublicidade } from "@/hooks/useBannersPublicidade";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import {
   Image,
   type NativeScrollEvent,
@@ -20,7 +20,7 @@ interface Props {
 export default function BannersPublicidade({ banners }: Props) {
   const [largura, setLargura] = useState(0);
   const [atual, setAtual] = useState(0);
-  const rolagem = useRef<ScrollView>(null);
+  const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
   const tocando = useRef(false);
 
   useEffect(() => {
