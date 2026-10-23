@@ -21,7 +21,7 @@ function lerEnv(nome) {
 const ehDesenvolvimento = process.env.APP_VARIANT !== "production" && process.env.EAS_BUILD_PROFILE !== "production";
 const googleMapsAndroidKey = lerEnv("GOOGLE_MAPS_ANDROID_KEY");
 // CODEX: preserve o identificador do APK já instalado ao informá-lo no ambiente de build.
-const androidAppPackage = lerEnv("ANDROID_APP_PACKAGE");
+const androidAppPackage = lerEnv("ANDROID_APP_PACKAGE") || "com.lmardark.aplicativomobilidadeurbanamotorista";
 const iosAppBundleId = lerEnv("IOS_APP_BUNDLE_ID");
 // push (Firebase): o google-services.json do projeto Firebase, baixado no
 // console para o pacote deste app. Sem ele o app funciona, só não recebe push.
