@@ -19,6 +19,12 @@ export interface CorridaParaAvaliar {
     valor_pago_passageiro?: string | number | null;
   } | null;
   corrida_destinos?: { tipo: string; endereco: string }[] | null;
+  // compartilhada: uma janela por passageiro, com o total da viagem
+  compartilhada?: {
+    passageiros: number;
+    posicao: number;
+    valor_total_motorista: number;
+  } | null;
 }
 
 export function useAvaliacaoPendente(recarregarQuando: unknown) {
@@ -78,6 +84,8 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
           titulo: "Avaliação enviada",
           mensagem: `Corrida ${corrida.codigo_corrida}.`,
         });
+        // compartilhada: cada passageiro do grupo tem a própria janela, em seguida
+        await buscar();
 
         return true;
       } catch {
@@ -91,7 +99,7 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
         setEnviando(false);
       }
     },
-    [corrida, mostrarToast],
+    [corrida, mostrarToast, buscar],
   );
 
   const dispensar = useCallback(() => {

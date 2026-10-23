@@ -10,6 +10,7 @@
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
 import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
+import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { enderecoCurto } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
@@ -29,12 +30,22 @@ import {
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import type { Coordenada } from "@/domain/rotaDaCorrida";
 import { useCarregamentoMapa } from "@/hooks/useCarregamentoMapa";
-import type { ResultadoCancelamento } from "@/hooks/useDespachoMotorista";
+import type {
+  ParadaDoGrupo,
+  ResultadoCancelamento,
+} from "@/hooks/useDespachoMotorista";
 import { useNavegacaoDaCorrida } from "@/hooks/useNavegacaoDaCorrida";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Image,
   Linking,
@@ -48,6 +59,11 @@ import {
   View,
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
+import Animated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
@@ -72,9 +88,14 @@ interface Props {
   rotaSimulada?: RotaNavegacao | null;
   onAvancar: (acao: AcaoCorrida) => void;
   onCancelar: (motivo: string) => Promise<ResultadoCancelamento>;
+  // viagem compartilhada: todas as paradas do grupo, na ordem
+  paradasDoGrupo?: ParadaDoGrupo[] | null;
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // quanto o cartão do topo ocupa abaixo da área segura (os avisos do chat
+  // aparecem logo embaixo dele, sem cobrir a manobra)
+  onAlturaDoTopo?: (altura: number) => void;
 }
 
 interface Passo {
@@ -114,11 +135,42 @@ function passoDaNavegacao(
   };
 }
 
+// compartilhada: o rótulo diz de quem é a parada ("Deixar Ana"); o último
+// desembarque encerra a viagem do grupo
+function passoDoGrupo(
+  passo: Passo,
+  paradas: ParadaDoGrupo[] | null,
+  nome?: string | null,
+): Passo {
+  if (!paradas || paradas.length === 0 || !nome) return passo;
+  const pendentes = paradas.filter((parada) => !parada.feita);
+
+  if (passo.acao === "cheguei") {
+    return { ...passo, rotulo: `Cheguei para buscar ${nome}` };
+  }
+  if (passo.acao === "finalizar") {
+    return {
+      ...passo,
+      rotulo:
+        pendentes.length <= 1 ? `Deixar ${nome} e finalizar` : `Deixar ${nome}`,
+    };
+  }
+  return passo;
+}
+
 const ROTULO_PAGAMENTO: Record<string, string> = {
   dinheiro: "dinheiro",
   cartao: "cartão",
   pix: "Pix",
 };
+
+// o mesmo ícone de cada forma que o passageiro vê ao pagar
+const ICONE_PAGAMENTO: Record<string, ComponentProps<typeof Ionicons>["name"]> =
+  {
+    dinheiro: "cash",
+    cartao: "card",
+    pix: "flash",
+  };
 
 const ZOOM_NAVEGACAO_ANDROID = 18;
 const ALTITUDE_NAVEGACAO_IOS = 350;
@@ -170,8 +222,14 @@ export default function NavegacaoAtiva({
   onCancelar,
   chatNaoLidas = 0,
   onAbrirChat,
+  onAlturaDoTopo,
+  paradasDoGrupo = null,
 }: Props) {
-  const passo = passoDaNavegacao(status, totalParadas, paradasPendentes);
+  const passo = passoDoGrupo(
+    passoDaNavegacao(status, totalParadas, paradasPendentes),
+    paradasDoGrupo,
+    passageiro?.nome,
+  );
   const corDoAlvo = tipoAlvo === "origem" ? "#18C9A0" : "#FF7A2F";
   const insets = useSafeAreaInsets();
   const { height: alturaTela } = useWindowDimensions();
@@ -209,7 +267,21 @@ export default function NavegacaoAtiva({
     ];
   }, [alturaTela, insets.top, insets.bottom, alturaCabecalho, alturaConteudo]);
   const [indiceFolha, setIndiceFolha] = useState(1);
-  const alturaFolha = pontosDaFolha[indiceFolha] ?? pontosDaFolha[1];
+  const folhaRef = useRef<BottomSheet>(null);
+  // posição e índice da folha a cada quadro: o velocímetro, a pílula e o
+  // conteúdo acompanham o arraste em vez de pular no fim da animação
+  const topoDaFolha = useSharedValue(alturaTela);
+  const indiceAnimado = useSharedValue(1);
+  const alturaDaTela = useSharedValue(alturaTela);
+  const estiloVelocidade = useAnimatedStyle(() => ({
+    bottom: Math.max(alturaDaTela.value - topoDaFolha.value, 0) + 84,
+  }));
+  const estiloPilula = useAnimatedStyle(() => ({
+    bottom: Math.max(alturaDaTela.value - topoDaFolha.value, 0) + 12,
+  }));
+  const estiloConteudo = useAnimatedStyle(() => ({
+    opacity: interpolate(indiceAnimado.value, [0, 1], [0, 1], "clamp"),
+  }));
   const [navegando, setNavegando] = useState(false);
   const [maisVisivel, setMaisVisivel] = useState(false);
   const [segurancaVisivel, setSegurancaVisivel] = useState(false);
@@ -231,7 +303,8 @@ export default function NavegacaoAtiva({
         {
           center: centro,
           heading: direcao,
-          pitch: 55,
+          // mapa reto (2D), sem inclinação nem prédios em 3D
+          pitch: 0,
           zoom: ZOOM_NAVEGACAO_ANDROID,
           altitude: ALTITUDE_NAVEGACAO_IOS,
         },
@@ -407,7 +480,22 @@ export default function NavegacaoAtiva({
         <View style={styles.puxador} />
 
         <View style={styles.resumoCabecalho}>
-          <Ionicons name="chevron-down" size={26} color="#111" />
+          <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel={
+              indiceFolha === 0 ? "Mostrar detalhes" : "Recolher detalhes"
+            }
+            hitSlop={12}
+            onPress={() =>
+              folhaRef.current?.snapToIndex(indiceFolha === 0 ? 1 : 0)
+            }
+          >
+            <Ionicons
+              name={indiceFolha === 0 ? "chevron-up" : "chevron-down"}
+              size={26}
+              color="#111"
+            />
+          </TouchableOpacity>
           <View style={styles.espacoMenuCorrida} />
           <View style={styles.resumoLinha}>
             <Text style={styles.resumoTexto}>
@@ -454,7 +542,7 @@ export default function NavegacaoAtiva({
         </View>
       </View>
     ),
-    [distanciaTexto, horarioChegada, minutosRestantes, status],
+    [distanciaTexto, horarioChegada, indiceFolha, minutosRestantes, status],
   );
 
   // funcional: mostra os telefones de emergência reais. FALTA pra chegar no
@@ -467,7 +555,12 @@ export default function NavegacaoAtiva({
   };
 
   return (
-    <View style={styles.tela}>
+    <View
+      style={styles.tela}
+      onLayout={({ nativeEvent }) => {
+        alturaDaTela.value = nativeEvent.layout.height;
+      }}
+    >
       <StatusBar style="dark" />
       <MapView
         key={tentativa}
@@ -487,6 +580,8 @@ export default function NavegacaoAtiva({
         }
         userInterfaceStyle="light"
         showsCompass={false}
+        pitchEnabled={false}
+        showsBuildings={false}
         // Não usar showsUserLocation/onUserLocationChange: em Android/Fabric
         // o Maps pode emitir topUserLocationChange, evento não registrado pelo
         // Expo Go. A localização é acompanhada pelo expo-location acima.
@@ -530,7 +625,12 @@ export default function NavegacaoAtiva({
       </MapView>
 
       {/* TOPO: manobra e próximo ponto no mesmo cartão, como no 99 */}
-      <View style={[styles.topo, { top: insets.top + 10 }]}>
+      <View
+        style={[styles.topo, { top: insets.top + 10 }]}
+        onLayout={({ nativeEvent }) =>
+          onAlturaDoTopo?.(10 + nativeEvent.layout.height)
+        }
+      >
         <View style={styles.cartaoTopo}>
           {navegando && passoAtual && (
             <>
@@ -621,15 +721,15 @@ export default function NavegacaoAtiva({
       </View>
 
       {/* velocímetro */}
-      <View style={[styles.velocidade, { bottom: alturaFolha + 84 }]}>
+      <Animated.View style={[styles.velocidade, estiloVelocidade]}>
         <Text style={styles.velocidadeValor}>
           {velocidadeKmh !== null ? Math.round(velocidadeKmh) : "--"}
         </Text>
         <Text style={styles.velocidadeUnidade}>km/h</Text>
-      </View>
+      </Animated.View>
 
       {/* segurança + compartilhar, na pílula do 99 */}
-      <View style={[styles.pilulaCompartilhar, { bottom: alturaFolha + 12 }]}>
+      <Animated.View style={[styles.pilulaCompartilhar, estiloPilula]}>
         <TouchableOpacity
           style={styles.pilulaSeguranca}
           accessibilityRole="button"
@@ -648,17 +748,20 @@ export default function NavegacaoAtiva({
         >
           <Text style={styles.botaoCompartilharTexto}>Compartilhar</Text>
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       {/* FOLHA INFERIOR */}
       <BottomSheet
+        ref={folhaRef}
         index={1}
         topInset={insets.top}
         snapPoints={pontosDaFolha}
+        animatedPosition={topoDaFolha}
+        animatedIndex={indiceAnimado}
         animateOnMount={false}
         enableDynamicSizing={false}
         enablePanDownToClose={false}
-        enableHandlePanningGesture={status === "aceita"}
+        enableHandlePanningGesture
         enableContentPanningGesture={false}
         onChange={aoMudarFolha}
         backgroundStyle={styles.folhaFundo}
@@ -668,7 +771,6 @@ export default function NavegacaoAtiva({
           onContentSizeChange={(_, altura) =>
             setAlturaConteudo(Math.ceil(altura))
           }
-          style={{ opacity: indiceFolha === 0 ? 0 : 1 }}
           pointerEvents={indiceFolha === 0 ? "none" : "auto"}
           accessibilityElementsHidden={indiceFolha === 0}
           importantForAccessibility={
@@ -677,78 +779,92 @@ export default function NavegacaoAtiva({
           bounces={false}
           contentContainerStyle={[
             styles.folhaConteudo,
-            { paddingBottom: Math.max(insets.bottom, 16) },
+            { paddingBottom: Math.max(insets.bottom, 16) + 8 },
           ]}
         >
-          {metodoPagamento && (
-            <View style={styles.chipPagamento}>
-              <Ionicons name="cash" size={20} color="#1959B3" />
-              <Text style={styles.chipPagamentoTexto}>
-                Corrida em{" "}
-                {ROTULO_PAGAMENTO[metodoPagamento] ?? metodoPagamento}
-              </Text>
-            </View>
-          )}
-
-          <View style={styles.separador} />
-
-          <View style={styles.linhaPassageiro}>
-            {passageiro?.foto && !passageiro.foto_oculta ? (
-              <Image source={{ uri: passageiro.foto }} style={styles.avatar} />
-            ) : (
-              <View
-                style={[
-                  styles.avatar,
-                  styles.avatarVazio,
-                  passageiro?.foto_oculta && styles.avatarProtegido,
-                ]}
-              >
-                <Feather name="user" size={20} color="#888" />
+          {/* o espaçamento fica aqui: este é o único filho da rolagem */}
+          <Animated.View style={[styles.conteudoFolha, estiloConteudo]}>
+            {paradasDoGrupo && paradasDoGrupo.length > 0 && (
+              <ListaParadasDoGrupo paradas={paradasDoGrupo} />
+            )}
+            {metodoPagamento && (
+              <View style={styles.chipPagamento}>
+                <Ionicons
+                  name={ICONE_PAGAMENTO[metodoPagamento] ?? "cash"}
+                  size={18}
+                  color="#1959B3"
+                />
+                <Text style={styles.chipPagamentoTexto}>
+                  Corrida em{" "}
+                  {ROTULO_PAGAMENTO[metodoPagamento] ?? metodoPagamento}
+                </Text>
               </View>
             )}
 
-            <View style={styles.passageiroBloco}>
-              <Text style={styles.passageiroNome}>
-                {passageiro?.nome ?? "Passageiro"}
-              </Text>
-              <Text style={styles.passageiroApoio}>
-                {reputacaoPassageiro(passageiro?.nota, passageiro?.corridas)}
-                {passageiro?.solicitante
-                  ? ` · Pedido por ${passageiro.solicitante}`
-                  : ""}
-              </Text>
+            <View style={styles.separador} />
+
+            <View style={styles.linhaPassageiro}>
+              {passageiro?.foto && !passageiro.foto_oculta ? (
+                <Image
+                  source={{ uri: passageiro.foto }}
+                  style={styles.avatar}
+                />
+              ) : (
+                <View
+                  style={[
+                    styles.avatar,
+                    styles.avatarVazio,
+                    passageiro?.foto_oculta && styles.avatarProtegido,
+                  ]}
+                >
+                  <Feather name="user" size={20} color="#888" />
+                </View>
+              )}
+
+              <View style={styles.passageiroBloco}>
+                <Text style={styles.passageiroNome}>
+                  {passageiro?.nome ?? "Passageiro"}
+                </Text>
+                <Text style={styles.passageiroApoio}>
+                  {reputacaoPassageiro(passageiro?.nota, passageiro?.corridas)}
+                  {passageiro?.solicitante
+                    ? ` · Pedido por ${passageiro.solicitante}`
+                    : ""}
+                </Text>
+              </View>
+
+              {onAbrirChat ? (
+                <BotaoChatPassageiro
+                  naoLidas={chatNaoLidas}
+                  onPress={onAbrirChat}
+                  estilo={styles.botaoLigar}
+                />
+              ) : null}
+              {passageiro?.telefone ? (
+                <TouchableOpacity
+                  style={styles.botaoLigar}
+                  onPress={ligar}
+                  accessibilityRole="button"
+                  accessibilityLabel="Ligar para o passageiro"
+                >
+                  <Feather name="phone" size={20} color="#000" />
+                </TouchableOpacity>
+              ) : null}
             </View>
 
-            {onAbrirChat ? (
-              <BotaoChatPassageiro
-                naoLidas={chatNaoLidas}
-                onPress={onAbrirChat}
-                estilo={styles.botaoLigar}
-              />
-            ) : null}
-            {passageiro?.telefone ? (
-              <TouchableOpacity
-                style={styles.botaoLigar}
-                onPress={ligar}
-                accessibilityRole="button"
-                accessibilityLabel="Ligar para o passageiro"
-              >
-                <Feather name="phone" size={20} color="#000" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          <BotaoDeslizar
-            rotulo={passo.rotulo}
-            cor={passo.cor}
-            corTexto={passo.corTexto}
-            desabilitado={ocupado}
-            onConfirmar={() => onAvancar(passo.acao)}
-          />
+            <BotaoDeslizar
+              rotulo={passo.rotulo}
+              cor={passo.cor}
+              corTexto={passo.corTexto}
+              desabilitado={ocupado}
+              onConfirmar={() => onAvancar(passo.acao)}
+            />
+          </Animated.View>
         </BottomSheetScrollView>
       </BottomSheet>
 
       <MaisCorridaAtiva
+        compartilhada={(paradasDoGrupo?.length ?? 0) > 0}
         visible={maisVisivel}
         passageiro={passageiro}
         origem={origem}
@@ -1033,8 +1149,9 @@ const styles = StyleSheet.create({
   },
   folhaConteudo: {
     paddingHorizontal: 20,
-    gap: 12,
+    paddingTop: 4,
   },
+  conteudoFolha: { gap: 14 },
   cabecalhoFolhaArrastavel: {
     paddingTop: 10,
     paddingHorizontal: 20,
@@ -1077,19 +1194,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chipPagamento: {
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     backgroundColor: "#EAF2FE",
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    borderRadius: 18,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
   chipPagamentoTexto: {
     flexShrink: 1,
     color: "#1959B3",
-    fontSize: 17,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   separador: { height: 1, backgroundColor: "#EEE" },
   linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },

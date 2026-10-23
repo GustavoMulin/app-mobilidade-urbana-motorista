@@ -37,6 +37,8 @@ interface Props {
   onRegistrarAusencia?: () => Promise<ResultadoCancelamento>;
   onClose: () => void;
   onCancelar: (motivo: string) => Promise<ResultadoCancelamento>;
+  // compartilhada: desistir devolve o grupo e suspende as chamadas de grupo
+  compartilhada?: boolean;
 }
 
 const MOTIVO_AUSENCIA = "Passageiro não apareceu";
@@ -69,6 +71,7 @@ export default function MaisCorridaAtiva({
   onRegistrarAusencia,
   onClose,
   onCancelar,
+  compartilhada = false,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [tela, setTela] = useState<"mais" | "motivos">("mais");
@@ -285,6 +288,15 @@ export default function MaisCorridaAtiva({
             <Text style={styles.tituloMotivos}>
               Por favor, nos conte o motivo do cancelamento
             </Text>
+            {compartilhada && (
+              <View style={styles.avisoGrupo} accessibilityRole="alert">
+                <Ionicons name="people" size={18} color="#9A5B00" />
+                <Text style={styles.avisoGrupoTexto}>
+                  Desistir do grupo suspende suas compartilhadas por 24 h. O
+                  grupo volta para outro motorista com o mesmo valor.
+                </Text>
+              </View>
+            )}
             {motivos.map((item) => (
               <TouchableOpacity
                 key={item}
@@ -346,7 +358,9 @@ export default function MaisCorridaAtiva({
                 <Text style={styles.politicaDetalhe}>
                   {motivo === MOTIVO_AUSENCIA
                     ? "Você esperou o tempo mínimo no embarque. A corrida é encerrada por ausência e a tarifa base da categoria, quando houver, fica para você como taxa."
-                    : "O motivo fica registrado na corrida e o passageiro é avisado na hora. Se ele não aparecer depois de 3 minutos de espera no embarque, escolha “Passageiro não apareceu”."}
+                    : compartilhada
+                      ? "O motivo fica registrado e o grupo volta para outro motorista. Se um passageiro não aparecer depois de 2 minutos de espera no embarque, escolha “Passageiro não apareceu”: só ele sai e você segue com os outros."
+                      : "O motivo fica registrado na corrida e o passageiro é avisado na hora. Se ele não aparecer depois de 3 minutos de espera no embarque, escolha “Passageiro não apareceu”."}
                 </Text>
               )}
               {erro && (
@@ -539,6 +553,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   motivoSelecionado: { backgroundColor: "#EAF2F8", borderRadius: 8 },
+  avisoGrupo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    borderRadius: 12,
+    backgroundColor: "#FFF4DE",
+    padding: 12,
+    marginBottom: 8,
+  },
+  avisoGrupoTexto: { flex: 1, fontSize: 13, color: "#5C3B00", lineHeight: 18 },
   motivoTextos: { flex: 1, paddingVertical: 8 },
   motivoTexto: { color: "#252525", fontSize: 16 },
   motivoApoio: { color: "#6B7280", fontSize: 12, marginTop: 2 },

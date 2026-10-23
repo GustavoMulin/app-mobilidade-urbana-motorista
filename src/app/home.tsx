@@ -76,6 +76,7 @@ export default function Home() {
     chegada,
     espera,
     passageiro,
+    grupo,
     posicao,
     precisaLiberacao,
     ocupado,
@@ -132,6 +133,8 @@ export default function Home() {
     chamadaNoMapa && !simuladorCorrida.ativa ? ofertaExibida : null,
   );
   const [alturaDaChamada, setAlturaDaChamada] = useState(0);
+  // no embarque, a altura medida da folha com as mensagens rápidas
+  const [alturaDaEspera, setAlturaDaEspera] = useState(ALTURA_FOLHA_ESPERA);
   // Negocia: o lápis do card abre o valor livre (fica aberto mesmo se a
   // chamada sumir; a corrida continua na lista de Solicitações)
   const [valorLivre, setValorLivre] = useState<OfertaCorrida | null>(null);
@@ -146,6 +149,8 @@ export default function Home() {
   const [alturaDoAviso, setAlturaDoAviso] = useState(0);
   // conversa com o passageiro da corrida atual (backend: ChatCorridaController)
   const [chatAberto, setChatAberto] = useState(false);
+  // altura do cartão do topo da navegação: os avisos do chat ficam logo abaixo
+  const [alturaDoTopo, setAlturaDoTopo] = useState(160);
   const chat = useChatDaCorrida(
     simuladorCorrida.ativa ? null : (corridaExibida?.id ?? null),
     chatAberto,
@@ -360,7 +365,7 @@ export default function Home() {
           marcadores={chamadaNoMapa ? pontosDaOferta : []}
           alturaFolha={
             telaDeEspera
-              ? ALTURA_FOLHA_ESPERA
+              ? alturaDaEspera
               : chamadaNoMapa
                 ? alturaDaChamada
                 : corridaExibida === null
@@ -387,7 +392,11 @@ export default function Home() {
           tipoAlvo={proximoPonto?.tipo}
           totalParadas={proximoPonto?.totalParadas}
           paradasPendentes={proximoPonto?.paradasPendentes}
-          categoria={corridaExibida.produto?.nome ?? null}
+          categoria={
+            grupo && !simuladorCorrida.ativa
+              ? "Compartilhada"
+              : (corridaExibida.produto?.nome ?? null)
+          }
           recusarNovas={recusarNovas}
           onAlternarRecusarNovas={
             simuladorCorrida.ativa ? () => undefined : alternarRecusarNovas
@@ -423,6 +432,8 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          paradasDoGrupo={simuladorCorrida.ativa ? null : grupo?.paradas}
+          onAlturaDoTopo={setAlturaDoTopo}
         />
       )}
 
@@ -461,6 +472,19 @@ export default function Home() {
           onEnviarMensagem={
             simuladorCorrida.ativa || !chat.podeEnviar ? undefined : chat.enviar
           }
+          onAlturaDoTopo={setAlturaDoTopo}
+          onAlturaChange={setAlturaDaEspera}
+          esperaMinimaAusenciaS={
+            grupo && !simuladorCorrida.ativa
+              ? grupo.espera_embarque_segundos
+              : undefined
+          }
+          rotuloIniciar={
+            grupo && !simuladorCorrida.ativa
+              ? `${passageiroExibido?.nome ?? "Passageiro"} embarcou`
+              : undefined
+          }
+          paradasDoGrupo={simuladorCorrida.ativa ? null : grupo?.paradas}
         />
       )}
 
@@ -534,6 +558,7 @@ export default function Home() {
           }
           notaPassageiro={ofertaExibida.passageiro_nota}
           corridasPassageiro={ofertaExibida.passageiro_corridas}
+          compartilhada={ofertaExibida.compartilhada}
           onAceitar={
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar
           }
@@ -555,10 +580,8 @@ export default function Home() {
           recebidas={chat.recebidasNaoLidas}
           carregada={chat.carregada}
           onAbrir={abrirChat}
-          // na navegação o cartão de manobra fica livre
-          distanciaDoTopo={
-            corridaExibida.status_corrida === "motorista_chegou" ? 66 : 170
-          }
+          // logo abaixo da pílula do embarque ou do cartão de manobra
+          distanciaDoTopo={alturaDoTopo + 10}
         />
       )}
 
@@ -573,6 +596,7 @@ export default function Home() {
         podeEnviar={chat.podeEnviar}
         onEnviar={(texto) => void chat.enviar(texto)}
         onReenviar={(mensagem) => void chat.reenviar(mensagem)}
+        etapa={corridaExibida?.status_corrida}
       />
 
       <OfertaNegociaMotorista

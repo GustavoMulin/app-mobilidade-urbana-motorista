@@ -54,12 +54,12 @@ export default function AvaliarPassageiro({
     corrida.corrida_financeiro?.valor_pago_passageiro,
   );
   const distancia = formatarKm(corrida.distancia_total);
-  const passageiro =
-    corrida.convidado_nome || corrida.passageiro?.user?.name;
+  const passageiro = corrida.convidado_nome || corrida.passageiro?.user?.name;
 
   const destino = corrida.corrida_destinos?.find(
     (ponto) => ponto.tipo === "destino",
   );
+  const grupo = corrida.compartilhada ?? null;
 
   return (
     <View style={styles.sobreposicao}>
@@ -69,13 +69,23 @@ export default function AvaliarPassageiro({
           { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 20 },
         ]}
       >
-        <Text style={styles.titulo}>Corrida finalizada</Text>
-        <Text style={styles.codigo}>Corrida {corrida.codigo_corrida}</Text>
+        <Text style={styles.titulo}>
+          {grupo ? "Viagem compartilhada finalizada" : "Corrida finalizada"}
+        </Text>
+        <Text style={styles.codigo}>
+          {grupo
+            ? `Passageiro ${grupo.posicao} de ${grupo.passageiros} · corrida ${corrida.codigo_corrida}`
+            : `Corrida ${corrida.codigo_corrida}`}
+        </Text>
 
         {ganho !== null && (
           <>
             <Text style={styles.ganho}>{ganho}</Text>
-            <Text style={styles.ganhoApoio}>Seu ganho nesta corrida</Text>
+            <Text style={styles.ganhoApoio}>
+              {grupo
+                ? `Seu ganho com ${passageiro ?? "este passageiro"} · ${formatarValor(grupo.valor_total_motorista)} na viagem toda`
+                : "Seu ganho nesta corrida"}
+            </Text>
           </>
         )}
 
@@ -85,9 +95,8 @@ export default function AvaliarPassageiro({
           <View style={styles.cobrar}>
             <Ionicons name="cash-outline" size={22} color="#0F7B4E" />
             <Text style={styles.cobrarTexto}>
-              Receba{" "}
-              <Text style={styles.cobrarValor}>{cobrarEmDinheiro}</Text> em
-              dinheiro do passageiro
+              Receba <Text style={styles.cobrarValor}>{cobrarEmDinheiro}</Text>{" "}
+              em dinheiro do passageiro
             </Text>
           </View>
         ) : null}

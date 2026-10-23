@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import PreferenciaCompartilhada from "@/components/PreferenciaCompartilhada";
 import {
   Animated,
   BackHandler,
@@ -160,6 +161,7 @@ export default function Preferencias({
 
           {/* BODY */}
           <View style={styles.body}>
+            <PreferenciaCompartilhada visivel={visible} />
             <View style={styles.cardGroup}>
               {ITENS_EM_BREVE.map((item) => (
                 <View
