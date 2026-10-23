@@ -224,7 +224,7 @@ export default function SolicitacoesCorrida({
           ListFooterComponent={
             corridas.length > 0 ? (
               <Text style={styles.fimLista}>Isso é tudo por enquanto</Text>
-            ) : null
+            ) : undefined
           }
           renderItem={({ item }) => {
             const proposta = item.minha_proposta;
