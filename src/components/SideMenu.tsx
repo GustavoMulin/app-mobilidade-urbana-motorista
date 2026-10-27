@@ -107,9 +107,10 @@ export default function SideMenu({
 
     let ativo = true;
     Promise.all([
-      api.get<{ data: { marca?: string; modelo?: string; placa?: string }[] }>(
-        "/motorista/me/veiculos",
-      ),
+      api.get<{
+        veiculo_ativo_id: number | null;
+        data: { id: number; marca?: string; modelo?: string; placa?: string }[];
+      }>("/motorista/me/veiculos"),
       api.get<{
         taxa_aceitacao: number | null;
         taxa_finalizacao: number | null;
@@ -117,7 +118,9 @@ export default function SideMenu({
     ])
       .then(([veiculos, numeros]) => {
         if (!ativo) return;
-        const primeiro = veiculos.data.data?.[0];
+        const primeiro = veiculos.data.data?.find(
+          (veiculo) => veiculo.id === veiculos.data.veiculo_ativo_id,
+        );
         setVeiculoPrincipal(
           primeiro
             ? // a placa vem primeiro: se o nome do modelo for longo, ela não some
@@ -288,6 +291,13 @@ export default function SideMenu({
       <MeusVeiculos
         visible={showMeusVeiculos}
         onClose={() => setShowMeusVeiculos(false)}
+        disponivel={disponivel}
+        emCorrida={emCorrida}
+        onVeiculoSelecionado={(veiculo) =>
+          setVeiculoPrincipal(
+            [veiculo.placa, veiculo.modelo].filter(Boolean).join(" · "),
+          )
+        }
       />
       <HorasDirigindo
         visible={showHorasDirigindo}

@@ -11,7 +11,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "postinstall": "patch-package",
-    "start:go": "expo start --go"
+    "start:go": "expo start --go --port 8083"
   },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.15",
