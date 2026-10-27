@@ -20,11 +20,19 @@ export interface OpcoesToast {
   tipo?: TipoToast;
   duracaoMs?: number;
   chave?: string;
+  // troca o ícone padrão do tipo
+  icone?: React.ComponentProps<typeof Ionicons>["name"];
+  // fundo levemente transparente, deixando o que está atrás aparecer
+  translucido?: boolean;
 }
 
-interface ToastInterno extends Required<Omit<OpcoesToast, "mensagem">> {
+interface ToastInterno extends Required<
+  Omit<OpcoesToast, "mensagem" | "icone" | "translucido">
+> {
   id: number;
   mensagem?: string;
+  icone?: OpcoesToast["icone"];
+  translucido?: boolean;
 }
 
 interface ToastContextValue {
@@ -43,6 +51,8 @@ const TOASTS_PERMITIDOS = [
   /^destino:\d+:(aceito|recusado)$/,
   /^empilhar-negociadas:(true|false)$/,
   /^negocia:\d+:(recusada|outro)$/,
+  /^veiculo-em-uso:\d+$/,
+  /^veiculo-removido:\d+$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;
@@ -125,11 +135,16 @@ function ToastItem({
       accessibilityRole="alert"
       style={[
         styles.toast,
+        toast.translucido && styles.toastTranslucido,
         { opacity: opacidade, transform: [{ translateY: deslocamento }] },
       ]}
     >
       <View style={[styles.iconeCirculo, { backgroundColor: aparencia.cor }]}>
-        <Ionicons name={aparencia.icone} size={23} color="#FFFFFF" />
+        <Ionicons
+          name={toast.icone ?? aparencia.icone}
+          size={23}
+          color="#FFFFFF"
+        />
       </View>
       <View style={styles.conteudo}>
         <Text style={styles.titulo}>{toast.titulo}</Text>
@@ -183,6 +198,8 @@ export function ToastProvider({ children }: PropsWithChildren) {
       titulo: opcoes.titulo,
       // só o título, como no app do passageiro: a segunda linha não aparece
       mensagem: undefined,
+      icone: opcoes.icone,
+      translucido: opcoes.translucido,
       tipo,
       duracaoMs: problema
         ? Math.min(6000, Math.max(3500, opcoes.duracaoMs ?? 4500))
@@ -247,6 +264,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
   },
+  toastTranslucido: { backgroundColor: "rgba(36, 39, 43, 0.88)" },
   iconeCirculo: {
     width: 42,
     height: 42,
