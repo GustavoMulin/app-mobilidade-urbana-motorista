@@ -1,6 +1,6 @@
 import { Text } from "@/components/common/Texto";
 import type { ReactNode } from "react";
-import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
@@ -29,12 +29,7 @@ export default function RespostasRapidas({
   if (!inicio && respostas.length === 0) return null;
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.fileira}
-    >
+    <View style={styles.fileira}>
       {inicio}
       {respostas.map((resposta) => {
         const destacada = destacadas.includes(resposta);
@@ -65,12 +60,13 @@ export default function RespostasRapidas({
           </Animated.View>
         );
       })}
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fileira: { flexDirection: "row", gap: 8, paddingRight: 4 },
+  // duas respostas cabem na tela: toque único, sem rolar para o lado
+  fileira: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   resposta: {
     borderRadius: 999,
     borderWidth: 1,
@@ -78,7 +74,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     minHeight: 36,
-    maxWidth: 260,
+    maxWidth: "100%",
     justifyContent: "center",
   },
   respostaDestacada: { backgroundColor: "#FFF8D6", borderColor: "#F2D45C" },

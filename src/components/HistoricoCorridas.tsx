@@ -1,3 +1,4 @@
+import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
 import {
   ItemHistorico,
@@ -6,7 +7,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   BackHandler,
   Dimensions,
@@ -238,10 +238,9 @@ export default function HistoricoCorridas({
               }
               ListFooterComponent={
                 carregandoMais ? (
-                  <ActivityIndicator
-                    color="#1565C0"
-                    style={styles.loadingMore}
-                  />
+                  <View style={styles.loadingMore}>
+                    <Carregando3D tamanho={32} cor="#FFB800" />
+                  </View>
                 ) : undefined
               }
               keyExtractor={(item) => item.id}
@@ -281,6 +280,7 @@ const styles = StyleSheet.create({
   },
   loadingMore: {
     paddingVertical: 16,
+    alignItems: "center",
   },
   drawer: {
     position: "absolute",
