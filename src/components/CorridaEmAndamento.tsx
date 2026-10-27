@@ -32,10 +32,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type AcaoCorrida =
-  | "cheguei"
-  | "iniciar"
-  | "confirmar-parada"
-  | "finalizar";
+  "cheguei" | "iniciar" | "confirmar-parada" | "finalizar";
 
 export interface PassageiroDaCorrida {
   nome: string;
@@ -64,6 +61,8 @@ interface props {
   onAbrirChat?: () => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
+  // mensagens rápidas que o motorista criou no chat
+  mensagensPersonalizadas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
   // quanto a pílula do embarque ocupa abaixo da área segura (os avisos do
   // chat aparecem logo embaixo dela)
@@ -113,6 +112,7 @@ export default function CorridaEmAndamento({
   chatNaoLidas = 0,
   onAbrirChat,
   mensagensEnviadas = [],
+  mensagensPersonalizadas = [],
   onEnviarMensagem,
   onAlturaDoTopo,
   onAlturaChange,
@@ -236,6 +236,7 @@ export default function CorridaEmAndamento({
         {onEnviarMensagem ? (
           <BaloesDaChegada
             enviadas={mensagensEnviadas}
+            personalizadas={mensagensPersonalizadas}
             onEnviar={onEnviarMensagem}
           />
         ) : null}

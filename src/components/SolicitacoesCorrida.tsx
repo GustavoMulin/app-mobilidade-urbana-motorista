@@ -1,3 +1,4 @@
+import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
 import OfertaNegociaMotorista, {
   EsperaProposta,
@@ -9,7 +10,6 @@ import { OfertaCorrida } from "@/hooks/useDespachoMotorista";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   BackHandler,
   FlatList,
@@ -144,10 +144,7 @@ export default function SolicitacoesCorrida({
               onPress={() => setAba(item)}
             >
               <Text
-                style={[
-                  styles.abaTexto,
-                  aba === item && styles.abaTextoAtiva,
-                ]}
+                style={[styles.abaTexto, aba === item && styles.abaTextoAtiva]}
               >
                 {item === "corridas" ? "Corridas" : "Entregas"}
               </Text>
@@ -201,7 +198,7 @@ export default function SolicitacoesCorrida({
           ListEmptyComponent={
             <View style={styles.vazio}>
               {carregando && aba === "corridas" ? (
-                <ActivityIndicator size="large" color="#FFB800" />
+                <Carregando3D tamanho={56} cor="#FFB800" />
               ) : (
                 <Ionicons name="car-outline" size={46} color="#AAA" />
               )}
@@ -238,8 +235,7 @@ export default function SolicitacoesCorrida({
             );
             const minutosCorrida = minutosEstimados(item.distancia_corrida_km);
             const valorKm =
-              item.valor_motorista /
-              Math.max(item.distancia_corrida_km, 0.1);
+              item.valor_motorista / Math.max(item.distancia_corrida_km, 0.1);
 
             return (
               <View style={[styles.card, pendente && styles.cardEsperando]}>
@@ -248,7 +244,7 @@ export default function SolicitacoesCorrida({
                     <Text style={styles.categoria}>
                       {item.negociavel
                         ? "Negocia Nova"
-                        : item.categoria ?? "Corrida"}
+                        : (item.categoria ?? "Corrida")}
                     </Text>
                   </View>
                   <View style={styles.iconeMapa}>
@@ -314,8 +310,8 @@ export default function SolicitacoesCorrida({
                     </View>
                     <Text style={styles.endereco} numberOfLines={2}>
                       <Text style={styles.tempoEndereco}>
-                        ({minutosCorrida} min{" "}
-                        {emKm(item.distancia_corrida_km)}){" "}
+                        ({minutosCorrida} min {emKm(item.distancia_corrida_km)}
+                        ){" "}
                       </Text>
                       {item.destino
                         ? enderecoCurto(item.destino)
@@ -400,7 +396,7 @@ export default function SolicitacoesCorrida({
 
                 {carregando && corridas.length > 0 ? (
                   <View style={styles.atualizando} pointerEvents="none">
-                    <ActivityIndicator color="#111" />
+                    <Carregando3D tamanho={26} cor="#111" />
                   </View>
                 ) : null}
               </View>

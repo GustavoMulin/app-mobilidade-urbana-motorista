@@ -1,5 +1,6 @@
 // app/home.tsx
 // CODEX: 168 linhas adicionadas e 68 removidas no diff atual; integra o simulador local ao fluxo do motorista. Remover após validação/commit.
+import Carregando3D from "@/components/common/Carregando3D";
 import AvaliarPassageiro from "@/components/AvaliarPassageiro";
 import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import DinheiroRecebido from "@/components/DinheiroRecebido";
@@ -35,6 +36,7 @@ import { ehMinha, useChatDaCorrida } from "@/hooks/useChatDaCorrida";
 import AvisosDoChat from "@/components/AvisosDoChat";
 import { ouvirToqueNoChat } from "@/Services/push";
 import ChatDaCorrida from "@/components/ChatDaCorrida";
+import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
@@ -42,7 +44,6 @@ import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Dimensions,
   Pressable,
@@ -155,6 +156,8 @@ export default function Home() {
     simuladorCorrida.ativa ? null : (corridaExibida?.id ?? null),
     chatAberto,
   );
+  // criadas no chat, usadas também no painel do embarque
+  const mensagensRapidas = useMensagensRapidas();
   const abrirChat = () => {
     chat.marcarLidas();
     setChatAberto(true);
@@ -321,7 +324,7 @@ export default function Home() {
     return (
       <View style={styles.loadingContainer}>
         <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-        <ActivityIndicator size="large" color="#000" />
+        <Carregando3D tamanho={56} cor="#FFB800" />
         <Text style={styles.loadingText}>Verificando autenticação...</Text>
       </View>
     );
@@ -469,6 +472,7 @@ export default function Home() {
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
           mensagensEnviadas={mensagensEnviadas}
+          mensagensPersonalizadas={mensagensRapidas.personalizadas}
           onEnviarMensagem={
             simuladorCorrida.ativa || !chat.podeEnviar ? undefined : chat.enviar
           }
@@ -580,6 +584,7 @@ export default function Home() {
           recebidas={chat.recebidasNaoLidas}
           carregada={chat.carregada}
           onAbrir={abrirChat}
+          onResponder={(texto) => void chat.enviar(texto)}
           // logo abaixo da pílula do embarque ou do cartão de manobra
           distanciaDoTopo={alturaDoTopo + 10}
         />
@@ -597,6 +602,7 @@ export default function Home() {
         onEnviar={(texto) => void chat.enviar(texto)}
         onReenviar={(mensagem) => void chat.reenviar(mensagem)}
         etapa={corridaExibida?.status_corrida}
+        mensagensRapidas={mensagensRapidas}
       />
 
       <OfertaNegociaMotorista
