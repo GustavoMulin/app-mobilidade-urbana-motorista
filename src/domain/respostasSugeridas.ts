@@ -145,7 +145,7 @@ const POR_ETAPA: Record<Perfil, Record<string, string[]>> = {
       "Estou te aguardando",
       "Não te encontrei. Onde você está?",
     ],
-    em_andamento: ["Ok!", "Estamos quase chegando", "Obrigado!"],
+    em_andamento: ["Estamos quase chegando", "Obrigado!"],
   },
   passageiro: {
     aceita: [
@@ -158,7 +158,7 @@ const POR_ETAPA: Record<Perfil, Record<string, string[]>> = {
       "Estou indo",
       "Pode me esperar um pouco?",
     ],
-    em_andamento: ["Obrigado!", "Pode ligar o ar?", "Ok!"],
+    em_andamento: ["Obrigado!", "Pode ligar o ar?"],
   },
 };
 

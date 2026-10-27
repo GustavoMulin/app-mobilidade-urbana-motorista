@@ -1,20 +1,29 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Balões de um toque fora do chat, quando o motorista chega ao embarque
+// As duas mensagens padrão: aparecem no painel do embarque quando o motorista
+// ainda não criou as dele
 export const MENSAGENS_DA_CHEGADA = [
   "Cheguei! Estou no local de embarque.",
   "Pode vir, estou te aguardando.",
-  "Não te encontrei. Onde você está?",
 ];
 
-// respostas fixas dentro do chat; as do motorista vêm depois delas
-export const MENSAGENS_RAPIDAS_PADRAO = [
-  "Estou a caminho",
-  "Cheguei ao embarque",
-  "Estou preso no trânsito",
-];
+// padrão e personalizadas não se repetem
+export const MENSAGENS_RAPIDAS_PADRAO = MENSAGENS_DA_CHEGADA;
 
-export const LIMITE_MENSAGENS_PERSONALIZADAS = 8;
+// quantas mensagens rápidas aparecem de uma vez, sem rolar para o lado
+export const MENSAGENS_RAPIDAS_VISIVEIS = 2;
+
+export const LIMITE_MENSAGENS_PERSONALIZADAS = 2;
+
+// as que o motorista criou vêm na frente das padrão
+export function mensagensRapidasEmOrdem(personalizadas: string[]): string[] {
+  return [
+    ...personalizadas,
+    ...MENSAGENS_RAPIDAS_PADRAO.filter(
+      (item) => !personalizadas.includes(item),
+    ),
+  ];
+}
 export const TAMANHO_MAXIMO_MENSAGEM_RAPIDA = 80;
 
 // ficam no aparelho, por conta: sair da conta não apaga
@@ -28,7 +37,9 @@ export async function carregarMensagensRapidas(
       (await AsyncStorage.getItem(chave(userId))) ?? "[]",
     );
     return Array.isArray(salvo)
-      ? salvo.filter((item): item is string => typeof item === "string")
+      ? salvo
+          .filter((item): item is string => typeof item === "string")
+          .slice(0, LIMITE_MENSAGENS_PERSONALIZADAS)
       : [];
   } catch {
     return [];
@@ -63,7 +74,7 @@ export function motivoParaNaoAdicionar(
     return "Essa mensagem já está na lista.";
   }
   if (personalizadas.length >= LIMITE_MENSAGENS_PERSONALIZADAS) {
-    return `Você pode ter até ${LIMITE_MENSAGENS_PERSONALIZADAS} mensagens suas. Remova uma para adicionar outra.`;
+    return `Você pode ter até ${LIMITE_MENSAGENS_PERSONALIZADAS} mensagens suas. Segure uma na fileira para remover e criar outra.`;
   }
   return null;
 }

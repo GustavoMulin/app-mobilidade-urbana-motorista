@@ -1,8 +1,11 @@
 import { Text, TextInput } from "@/components/common/Texto";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
-import { TAMANHO_MAXIMO_MENSAGEM_RAPIDA } from "@/domain/mensagensRapidas";
+import {
+  MENSAGENS_RAPIDAS_VISIVEIS,
+  TAMANHO_MAXIMO_MENSAGEM_RAPIDA,
+} from "@/domain/mensagensRapidas";
 import { ehMinha, type MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
-import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
+import type { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import MensagensDoChat from "@/components/MensagensDoChat";
 import RespostasRapidas from "@/components/RespostasRapidas";
 import { sugerirRespostas } from "@/domain/respostasSugeridas";
@@ -21,6 +24,9 @@ interface Props {
   onReenviar: (mensagem: MensagemDaCorrida) => void;
   // etapa da corrida (status_corrida): muda as sugestões de resposta
   etapa?: string | null;
+  // as mensagens rápidas do motorista ficam na home: o painel do embarque usa
+  // a mesma lista
+  mensagensRapidas: ReturnType<typeof useMensagensRapidas>;
 }
 
 const INTERVALO_RAPIDAS_MS = 1500;
@@ -43,12 +49,13 @@ export default function ChatDaCorrida({
   onEnviar,
   onReenviar,
   etapa,
+  mensagensRapidas,
 }: Props) {
   const insets = useSafeAreaInsets();
   const espacoDoTeclado = useEspacoDoTeclado();
   const [texto, setTexto] = useState("");
   // respostas de um toque: as fixas e as que o motorista criou aqui
-  const { personalizadas, adicionar, remover } = useMensagensRapidas();
+  const { personalizadas, adicionar, remover } = mensagensRapidas;
   const [criando, setCriando] = useState(false);
   const [novaRapida, setNovaRapida] = useState("");
   const [erroRapida, setErroRapida] = useState<string | null>(null);
@@ -69,10 +76,13 @@ export default function ChatDaCorrida({
       minha: ehMinha(item),
     })),
   );
+  // as do motorista vêm na frente; só duas cabem, sem rolar para o lado
   const rapidas = [
-    ...sugeridas,
-    ...personalizadas.filter((item) => !sugeridas.includes(item)),
-  ].filter((resposta) => !jaEnviadas.has(resposta.trim()));
+    ...personalizadas,
+    ...sugeridas.filter((item) => !personalizadas.includes(item)),
+  ]
+    .filter((resposta) => !jaEnviadas.has(resposta.trim()))
+    .slice(0, MENSAGENS_RAPIDAS_VISIVEIS);
   const enviarRapida = (resposta: string) => {
     if (passouIntervalo(ultimaRapida)) enviar(resposta);
   };

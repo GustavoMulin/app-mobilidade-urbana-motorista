@@ -2,7 +2,13 @@ import { FATOR_FONTE_GLOBAL, Text } from "@/components/common/Texto";
 import type { MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
@@ -27,6 +33,7 @@ interface Props {
   carregada: boolean;
   onAbrir: () => void;
   distanciaDoTopo?: number;
+  onResponder: (texto: string) => void;
 }
 
 interface Aviso {
@@ -39,7 +46,10 @@ interface Aviso {
 // pop-up do passageiro
 const fonte = (tamanho: number) => tamanho / FATOR_FONTE_GLOBAL;
 
-const VIDA_MS = 6000;
+// tempo para ler e tocar numa resposta
+const VIDA_MS = 8000;
+// por enquanto só o "Ok." aparece no aviso
+const RESPOSTAS_NO_AVISO = ["Ok."];
 const MAXIMO_NA_TELA = 3;
 
 function BarraDeVida() {
@@ -62,12 +72,29 @@ function BarraDeVida() {
 interface CartaoProps {
   aviso: Aviso;
   antigo: boolean;
+  respostas: string[];
   onAbrir: () => void;
   onDispensar: (id: number) => void;
+  onResponder: (texto: string) => void;
 }
 
-function CartaoDoAviso({ aviso, antigo, onAbrir, onDispensar }: CartaoProps) {
+function CartaoDoAviso({
+  aviso,
+  antigo,
+  respostas,
+  onAbrir,
+  onDispensar,
+  onResponder,
+}: CartaoProps) {
   const { width: largura } = useWindowDimensions();
+  // dois toques seguidos não mandam duas respostas
+  const respondeu = useRef(false);
+  const responder = (texto: string) => {
+    if (respondeu.current) return;
+    respondeu.current = true;
+    onResponder(texto);
+    onDispensar(aviso.id);
+  };
   const deslocamento = useSharedValue(0);
 
   const arrastar = Gesture.Pan()
@@ -136,6 +163,24 @@ function CartaoDoAviso({ aviso, antigo, onAbrir, onDispensar }: CartaoProps) {
             </View>
             <Text style={styles.responder}>Responder</Text>
           </Pressable>
+          {respostas.length > 0 ? (
+            <View style={styles.respostas}>
+              {respostas.map((resposta) => (
+                <TouchableOpacity
+                  key={resposta}
+                  style={styles.resposta}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Responder: ${resposta}`}
+                  activeOpacity={0.7}
+                  onPress={() => responder(resposta)}
+                >
+                  <Text style={styles.respostaTexto} numberOfLines={1}>
+                    {resposta}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
           <BarraDeVida />
         </Animated.View>
       </GestureDetector>
@@ -149,6 +194,7 @@ export default function AvisosDoChat({
   carregada,
   onAbrir,
   distanciaDoTopo = 72,
+  onResponder,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [avisos, setAvisos] = useState<Aviso[]>([]);
@@ -260,8 +306,10 @@ export default function AvisosDoChat({
           key={aviso.id}
           aviso={aviso}
           antigo={posicao > 0}
+          respostas={RESPOSTAS_NO_AVISO}
           onAbrir={abrir}
           onDispensar={dispensar}
+          onResponder={onResponder}
         />
       ))}
     </Animated.View>
@@ -269,6 +317,25 @@ export default function AvisosDoChat({
 }
 
 const styles = StyleSheet.create({
+  respostas: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    paddingBottom: 10,
+    paddingLeft: 58,
+    paddingRight: 12,
+  },
+  resposta: {
+    backgroundColor: "#FFF8D6",
+    borderColor: "#F2D45C",
+    borderRadius: 999,
+    borderWidth: 1,
+    justifyContent: "center",
+    maxWidth: "100%",
+    minHeight: 36,
+    paddingHorizontal: 14,
+  },
+  respostaTexto: { color: "#111", fontSize: fonte(14), fontWeight: "700" },
   pilha: {
     position: "absolute",
     left: 12,

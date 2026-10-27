@@ -1,7 +1,10 @@
 import { Text } from "@/components/common/Texto";
-import { MENSAGENS_DA_CHEGADA } from "@/domain/mensagensRapidas";
+import {
+  MENSAGENS_RAPIDAS_VISIVEIS,
+  mensagensRapidasEmOrdem,
+} from "@/domain/mensagensRapidas";
 import { Ionicons } from "@expo/vector-icons";
-import { type ComponentProps, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -11,27 +14,61 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
+  type EntryExitAnimationFunction,
   FadeIn,
-  FadeInDown,
-  FadeOutDown,
   FadeOutRight,
   LinearTransition,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   withTiming,
   ZoomIn,
 } from "react-native-reanimated";
 
-// um tempo só para o painel inteiro: quando a barra esvazia, ele vira a pílula
-const EXIBICAO_MS = 30_000;
+const MOLA = { damping: 15, stiffness: 150, mass: 0.9 };
 
-type Icone = ComponentProps<typeof Ionicons>["name"];
-
-const ICONES: Record<string, Icone> = {
-  "Cheguei! Estou no local de embarque.": "location",
-  "Pode vir, estou te aguardando.": "walk",
-  "Não te encontrei. Onde você está?": "search",
+const abrirPainel: EntryExitAnimationFunction = () => {
+  "worklet";
+  return {
+    initialValues: {
+      opacity: 0,
+      transform: [
+        { perspective: 900 },
+        { translateY: 50 },
+        { rotateX: "-75deg" },
+      ],
+    },
+    animations: {
+      opacity: withTiming(1, { duration: 160 }),
+      transform: [
+        { perspective: 900 },
+        { translateY: withSpring(0, MOLA) },
+        { rotateX: withSpring("0deg", MOLA) },
+      ],
+    },
+  };
 };
+
+const fecharPainel: EntryExitAnimationFunction = () => {
+  "worklet";
+  return {
+    initialValues: {
+      opacity: 1,
+      transform: [{ perspective: 900 }, { translateY: 0 }, { rotateX: "0deg" }],
+    },
+    animations: {
+      opacity: withTiming(0, { duration: 200 }),
+      transform: [
+        { perspective: 900 },
+        { translateY: withTiming(40, { duration: 220 }) },
+        { rotateX: withTiming("-75deg", { duration: 220 }) },
+      ],
+    },
+  };
+};
+
+// um tempo só para o painel inteiro: quando a barra esvazia, ele vira a pílula
+const EXIBICAO_MS = 20_000;
 
 // No embarque o motorista fica parado e o mapa não tem nada novo: o painel
 // ocupa esse espaço com as mensagens de um toque, sem abrir a conversa. Cada
@@ -39,6 +76,8 @@ const ICONES: Record<string, Icone> = {
 // Fechado ou com o tempo esgotado, vira uma pílula que abre de novo.
 interface Props {
   enviadas: string[];
+  // as que o motorista criou no chat: passam na frente das padrão
+  personalizadas: string[];
   onEnviar: (texto: string) => Promise<boolean>;
 }
 
@@ -63,7 +102,11 @@ function BarraDoTempo() {
   );
 }
 
-export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
+export default function BaloesDaChegada({
+  enviadas,
+  personalizadas,
+  onEnviar,
+}: Props) {
   const { height: alturaTela } = useWindowDimensions();
   const compacto = alturaTela < 700;
   const [aberto, setAberto] = useState(true);
@@ -78,9 +121,9 @@ export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
     return () => clearTimeout(fim);
   }, [aberto]);
 
-  const pendentes = MENSAGENS_DA_CHEGADA.filter(
-    (mensagem) => !enviadas.includes(mensagem),
-  );
+  const pendentes = mensagensRapidasEmOrdem(personalizadas)
+    .filter((mensagem) => !enviadas.includes(mensagem))
+    .slice(0, MENSAGENS_RAPIDAS_VISIVEIS);
 
   if (pendentes.length === 0) return null;
 
@@ -121,8 +164,8 @@ export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
 
   return (
     <Animated.View
-      entering={FadeInDown.springify().damping(18)}
-      exiting={FadeOutDown.duration(180)}
+      entering={abrirPainel}
+      exiting={fecharPainel}
       layout={LinearTransition.springify().damping(20)}
       style={styles.painel}
     >
@@ -170,13 +213,6 @@ export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
                   ocupado && styles.mensagemEnviando,
                 ]}
               >
-                <View style={styles.iconeMensagem}>
-                  <Ionicons
-                    name={ICONES[mensagem] ?? "chatbubble-ellipses"}
-                    size={20}
-                    color="#111"
-                  />
-                </View>
                 <View style={styles.mensagemTextos}>
                   <Text style={styles.mensagemTexto} numberOfLines={2}>
                     {mensagem}
@@ -205,6 +241,7 @@ export default function BaloesDaChegada({ enviadas, onEnviar }: Props) {
 
 const styles = StyleSheet.create({
   painel: {
+    transformOrigin: "bottom",
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
     marginBottom: 10,
@@ -266,14 +303,6 @@ const styles = StyleSheet.create({
   },
   mensagemCompacta: { minHeight: 48, paddingVertical: 6 },
   mensagemEnviando: { backgroundColor: "#FFF4B8" },
-  iconeMensagem: {
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 18,
-    height: 36,
-    justifyContent: "center",
-    width: 36,
-  },
   mensagemTextos: { flex: 1 },
   mensagemTexto: { color: "#111", fontSize: 16, fontWeight: "700" },
   erro: { color: "#B42318", fontSize: 12, fontWeight: "600", marginTop: 2 },
