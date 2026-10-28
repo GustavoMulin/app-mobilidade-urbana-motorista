@@ -20,11 +20,10 @@ function useGiro(duracao: number) {
   const giro = useSharedValue(0);
 
   useEffect(() => {
-    giro.set(
-      withRepeat(
-        withTiming(360, { duration: duracao, easing: Easing.linear }),
-        -1,
-      ),
+    giro.value = 0;
+    giro.value = withRepeat(
+      withTiming(360, { duration: duracao, easing: Easing.linear }),
+      -1,
     );
     return () => cancelAnimation(giro);
   }, [giro, duracao]);
@@ -42,17 +41,16 @@ export default function Carregando3D({
   const pulso = useSharedValue(1);
 
   useEffect(() => {
-    pulso.set(
-      withRepeat(
-        withSequence(
-          withTiming(1.25, {
-            duration: 600,
-            easing: Easing.inOut(Easing.quad),
-          }),
-          withTiming(0.8, { duration: 600, easing: Easing.inOut(Easing.quad) }),
-        ),
-        -1,
+    pulso.value = 1;
+    pulso.value = withRepeat(
+      withSequence(
+        withTiming(1.25, {
+          duration: 600,
+          easing: Easing.inOut(Easing.quad),
+        }),
+        withTiming(0.8, { duration: 600, easing: Easing.inOut(Easing.quad) }),
       ),
+      -1,
     );
     return () => cancelAnimation(pulso);
   }, [pulso]);
@@ -126,7 +124,7 @@ export default function Carregando3D({
 }
 
 const styles = StyleSheet.create({
-  anel: { position: "absolute", left: 0, top: 0 },
+  anel: { position: "absolute", left: 0, top: 0, backfaceVisibility: "visible" },
   centro: {
     ...StyleSheet.absoluteFill,
     alignItems: "center",

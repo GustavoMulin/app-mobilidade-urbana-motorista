@@ -6,7 +6,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import "@/styles/global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Image, useColorScheme } from "react-native";
+import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
@@ -34,54 +34,24 @@ function Rotas() {
   }, [user?.id]);
 
   return (
-    <Stack>
-      <Stack.Screen
-        name="index"
-        options={{
-          headerShown: true,
-          headerStyle: { backgroundColor: "black" },
-          headerTintColor: "#fff",
-          headerTitleStyle: { fontWeight: "bold" },
-          headerTitle: () => (
-            <Image source={require("../../assets/images/logo.png")} />
-          ),
-        }}
-      />
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "fade",
+        contentStyle: { backgroundColor: "#0D0D0D" },
+      }}
+    >
+      <Stack.Screen name="index" options={{ animation: "fade" }} />
       <Stack.Protected guard={!logado}>
-        <Stack.Screen
-          name="login"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="loginEmail"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="register"
-          options={{
-            headerShown: false,
-          }}
-        />
+        <Stack.Screen name="login" options={{ animation: "fade" }} />
+        <Stack.Screen name="loginEmail" options={{ animation: "fade" }} />
+        <Stack.Screen name="register" options={{ animation: "fade" }} />
       </Stack.Protected>
       {/* enquanto a sessão é lida do aparelho, a área logada não é tirada
           da pilha (senão o app piscava para o login ao abrir) */}
       <Stack.Protected guard={logado || loading}>
-        <Stack.Screen
-          name="liberacao"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="home"
-          options={{
-            headerShown: false,
-          }}
-        />
+        <Stack.Screen name="liberacao" options={{ animation: "fade" }} />
+        <Stack.Screen name="home" options={{ animation: "fade" }} />
       </Stack.Protected>
     </Stack>
   );

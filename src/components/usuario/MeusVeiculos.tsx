@@ -18,6 +18,7 @@ import {
   BackHandler,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   RefreshControl,
@@ -237,6 +238,47 @@ export default function MeusVeiculos({
   const listaRef = useRef<ComponentRef<typeof ScrollView>>(null);
   const [detalhandoId, setDetalhandoId] = useState<number | null>(null);
   const [removendo, setRemovendo] = useState(false);
+  const [veiculoParaRemover, setVeiculoParaRemover] = useState<Veiculo | null>(
+    null,
+  );
+  const [animCardRemover] = useState(() => new Animated.Value(300));
+  const [animFundoRemover] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (veiculoParaRemover) {
+      animCardRemover.setValue(300);
+      animFundoRemover.setValue(0);
+      Animated.parallel([
+        Animated.timing(animFundoRemover, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animCardRemover, {
+          toValue: 0,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [veiculoParaRemover, animCardRemover, animFundoRemover]);
+
+  const fecharModalRemover = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(animFundoRemover, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(animCardRemover, {
+        toValue: 300,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setVeiculoParaRemover(null);
+    });
+  }, [animCardRemover, animFundoRemover]);
   const [formulario, setFormulario] =
     useState<FormularioVeiculo>(FORMULARIO_INICIAL);
   const [carregando, setCarregando] = useState(false);
@@ -284,6 +326,7 @@ export default function MeusVeiculos({
         );
         setCarregando(false);
         return;
+    
       } catch (falha) {
         const semResposta =
           (falha as { response?: unknown } | null)?.response === undefined;
@@ -328,7 +371,7 @@ export default function MeusVeiculos({
       !veiculo.pode_selecionar ||
       veiculo.id === veiculoAtivoId
     )
-      return;
+  
     trocandoVeiculo.current = true;
     setSelecionandoId(veiculo.id);
     // o loading fica no card do veículo em uso, no topo
@@ -371,6 +414,7 @@ export default function MeusVeiculos({
       setVeiculoAtivoId(data.veiculo_ativo_id);
       setPodeTrocar(data.pode_trocar_veiculo);
       setDetalhandoId(null);
+
       mostrarToast({
         tipo: "success",
         icone: "trash",
@@ -388,10 +432,16 @@ export default function MeusVeiculos({
       await carregarVeiculos(true);
     } finally {
       setRemovendo(false);
+      setVeiculoParaRemover(null);
     }
   };
 
   const confirmarRemocao = (veiculo: Veiculo) => {
+    setVeiculoParaRemover(veiculo);
+
+  };
+
+  const _alertaRemoverAntigo = (veiculo: Veiculo) => {
     Alert.alert(
       "Remover veículo?",
       `${veiculo.placa} deixará de aparecer nos seus veículos. Para usá-lo de novo, será preciso cadastrá-lo outra vez.`,
@@ -411,8 +461,11 @@ export default function MeusVeiculos({
       "hardwareBackPress",
       () => {
         if (!visible) return false;
-        if (detalhandoId !== null) {
+        if (veiculoParaRemover !== null) {
+          fecharModalRemover();
+        } else if (detalhandoId !== null) {
           setDetalhandoId(null);
+
         } else if (mostrandoFormulario) {
           setMostrandoFormulario(false);
           setErro(null);
@@ -423,7 +476,7 @@ export default function MeusVeiculos({
       },
     );
     return () => subscription.remove();
-  }, [detalhandoId, mostrandoFormulario, onClose, visible]);
+  }, [detalhandoId, mostrandoFormulario, onClose, veiculoParaRemover, visible]);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -556,6 +609,7 @@ export default function MeusVeiculos({
         style={StyleSheet.absoluteFill}
         onPress={() => {
           setDetalhandoId(null);
+
           onClose();
         }}
       >
@@ -576,6 +630,7 @@ export default function MeusVeiculos({
             onPress={() => {
               if (veiculoDetalhe) {
                 setDetalhandoId(null);
+
               } else if (mostrandoFormulario) {
                 setMostrandoFormulario(false);
                 setErro(null);
@@ -605,6 +660,7 @@ export default function MeusVeiculos({
             insetsBottom={insets.bottom}
             onUsar={() => {
               setDetalhandoId(null);
+
               void selecionarVeiculo(veiculoDetalhe);
             }}
             onRemover={() => confirmarRemocao(veiculoDetalhe)}
@@ -743,6 +799,68 @@ export default function MeusVeiculos({
           </View>
         )}
       </Animated.View>
+
+      <Modal
+        visible={veiculoParaRemover !== null}
+        transparent
+        animationType="none"
+        onRequestClose={() => {
+          if (!removendo) fecharModalRemover();
+        }}
+      >
+        <Animated.View
+          style={[styles.modalRemocaoFundo, { opacity: animFundoRemover }]}
+        >
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => {
+              if (!removendo) fecharModalRemover();
+            }}
+          />
+          <Animated.View
+            style={[
+              styles.modalRemocaoCard,
+              {
+                paddingBottom: Math.max(insets.bottom, 24),
+                transform: [{ translateY: animCardRemover }],
+              },
+            ]}
+          >
+            <Text style={styles.modalRemocaoTitulo}>
+              Você tem certeza que deseja remover este veículo?
+            </Text>
+
+            <TouchableOpacity
+              style={[
+                styles.modalRemocaoBotaoSim,
+                removendo && styles.botaoDesabilitado,
+              ]}
+              disabled={removendo}
+              onPress={() => {
+                if (veiculoParaRemover) {
+                  void removerVeiculo(veiculoParaRemover);
+                }
+              }}
+              activeOpacity={0.8}
+            >
+              {removendo ? (
+                <ActivityIndicator color="#111" />
+              ) : (
+                <Text style={styles.modalRemocaoBotaoSimTexto}>Sim</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalRemocaoBotaoNao}
+              disabled={removendo}
+              onPress={fecharModalRemover}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.modalRemocaoBotaoNaoTexto}>Não</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
+      </Modal>
     </View>
   );
 }
@@ -1608,6 +1726,50 @@ const styles = StyleSheet.create({
   campoRotulo: { fontSize: 13, color: "#444", fontWeight: "600" },
   inputComErro: { borderColor: "#D92D20", backgroundColor: "#FFFBFA" },
   campoErro: { fontSize: 12, color: "#B42318" },
+  modalRemocaoFundo: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0, 0, 0, 0.6)",
+  },
+  modalRemocaoCard: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 28,
+  },
+  modalRemocaoTitulo: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111",
+    lineHeight: 28,
+    marginBottom: 24,
+  },
+  modalRemocaoBotaoSim: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "#FFD600",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  modalRemocaoBotaoSimTexto: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  modalRemocaoBotaoNao: {
+    height: 52,
+    borderRadius: 18,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalRemocaoBotaoNaoTexto: {
+    color: "#111",
+    fontSize: 18,
+    fontWeight: "800",
+  },
   input: {
     minHeight: 48,
     paddingVertical: 10,

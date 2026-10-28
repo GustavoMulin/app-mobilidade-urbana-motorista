@@ -21,20 +21,18 @@ export default function SplashAnimada() {
   const balanco = useSharedValue(0);
 
   useEffect(() => {
-    entrada.set(withSpring(1, { damping: 11, stiffness: 70, mass: 1 }));
-    balanco.set(
-      withDelay(
-        900,
-        withRepeat(
-          withSequence(
-            withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
-            withTiming(-1, {
-              duration: 1100,
-              easing: Easing.inOut(Easing.sin),
-            }),
-          ),
-          -1,
+    entrada.value = withSpring(1, { damping: 11, stiffness: 70, mass: 1 });
+    balanco.value = withDelay(
+      900,
+      withRepeat(
+        withSequence(
+          withTiming(1, { duration: 1100, easing: Easing.inOut(Easing.sin) }),
+          withTiming(-1, {
+            duration: 1100,
+            easing: Easing.inOut(Easing.sin),
+          }),
         ),
+        -1,
       ),
     );
   }, [entrada, balanco]);
@@ -79,6 +77,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.6,
     shadowRadius: 24,
     elevation: 12,
+    backfaceVisibility: "visible",
   },
   numero: { fontSize: 54, fontWeight: "900", color: "#111", lineHeight: 60 },
 });

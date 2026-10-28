@@ -748,7 +748,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#0D0D0D",
   },
   loadingText: {
     marginTop: 16,
