@@ -1,7 +1,13 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { api } from "@/Services/api";
+import { useToast } from "@/context/ToastContext";
+import type {
+  CadastroMotorista,
+  DocumentoEnviado,
+} from "@/hooks/useCadastroMotorista";
 import {
   Animated,
   BackHandler,
@@ -12,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import EnviarDocumentoMotorista from "./EnviarDocumentoMotorista";
 
 const { width } = Dimensions.get("window");
 
@@ -21,37 +28,28 @@ interface props {
   duration?: number;
 }
 
-// Mock de dados para os documentos
-const DOCUMENTOS = [
-  {
-    id: "1",
-    titulo: "Documento de Identidade (RG)",
-    data: "Enviado em 12/03/2026",
-    status: "Aprovado",
-    icon: "person-card-outline",
-  },
-  {
-    id: "2",
-    titulo: "Comprovante de Residência",
-    data: "Enviado em 12/03/2026",
-    status: "Em análise",
-    icon: "home-outline",
-  },
-  {
-    id: "3",
-    titulo: "CNH (Motorista)",
-    data: "Enviado em 10/03/2026",
-    status: "Aprovado",
-    icon: "car-outline",
-  },
-  {
-    id: "4",
+type Icone = React.ComponentProps<typeof Ionicons>["name"];
+
+// o CRLV fica em "Meus veículos"; aqui entram só os documentos do motorista
+const TIPOS: Record<string, { titulo: string; icon: Icone }> = {
+  cnh: { titulo: "CNH (Motorista)", icon: "car-outline" },
+  nada_consta: {
     titulo: "Antecedentes Criminais",
-    data: "Enviado em 05/03/2026",
-    status: "Recusado",
     icon: "document-text-outline",
   },
-];
+  seguro_obrigatorio: {
+    titulo: "Seguro obrigatório",
+    icon: "shield-checkmark-outline",
+  },
+};
+const STATUS: Record<string, string> = {
+  aprovado: "Aprovado",
+  em_analise: "Em análise",
+  reprovado: "Recusado",
+};
+
+const dataEnvio = (iso?: string) =>
+  iso ? `Enviado em ${new Date(iso).toLocaleDateString("pt-BR")}` : "";
 
 export default function DocumentosEnviados({
   visible,
@@ -62,6 +60,26 @@ export default function DocumentosEnviados({
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+  const [cadastro, setCadastro] = useState<CadastroMotorista | null>(null);
+  const { mostrarToast } = useToast();
+  const [erro, setErro] = useState(false);
+  const [enviando, setEnviando] = useState(false);
+
+  const carregar = useCallback(async () => {
+    try {
+      const { data } = await api.get<CadastroMotorista>("/motorista/cadastro");
+      setCadastro(data);
+      setErro(false);
+    } catch {
+      setErro(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => void carregar(), 0);
+    return () => clearTimeout(timer);
+  }, [visible, carregar]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -111,22 +129,28 @@ export default function DocumentosEnviados({
 
   if (!isMounted) return null;
 
-  const renderItem = ({ item }: any) => {
-    const getStatusColor = (status: string) => {
-      if (status === "Aprovado") return "#2ECC71";
-      if (status === "Em análise") return "#F1C40F";
+  const documentos = (cadastro?.documentos ?? []).filter(
+    (doc) => doc.tipo_documento in TIPOS,
+  );
+
+  const renderItem = ({ item }: { item: DocumentoEnviado }) => {
+    const tipo = TIPOS[item.tipo_documento];
+    const status = STATUS[item.status] ?? item.status;
+    const getStatusColor = (valor: string) => {
+      if (valor === "Aprovado") return "#2ECC71";
+      if (valor === "Em análise") return "#F1C40F";
       return "#E74C3C";
     };
 
     return (
-      <TouchableOpacity style={styles.card}>
+      <View style={styles.card}>
         <View style={styles.cardLeft}>
           <View style={styles.iconContainer}>
-            <Ionicons name={item.icon} size={24} color="#555" />
+            <Ionicons name={tipo.icon} size={24} color="#555" />
           </View>
           <View style={styles.infoContainer}>
-            <Text style={styles.docTitle}>{item.titulo}</Text>
-            <Text style={styles.docDate}>{item.data}</Text>
+            <Text style={styles.docTitle}>{tipo.titulo}</Text>
+            <Text style={styles.docDate}>{dataEnvio(item.created_at)}</Text>
           </View>
         </View>
 
@@ -134,16 +158,14 @@ export default function DocumentosEnviados({
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: getStatusColor(item.status) },
+              { backgroundColor: getStatusColor(status) },
             ]}
           />
-          <Text
-            style={[styles.statusText, { color: getStatusColor(item.status) }]}
-          >
-            {item.status}
+          <Text style={[styles.statusText, { color: getStatusColor(status) }]}>
+            {status}
           </Text>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 
@@ -187,19 +209,45 @@ export default function DocumentosEnviados({
           </View>
 
           <FlatList
-            data={DOCUMENTOS}
-            keyExtractor={(item) => item.id}
+            data={documentos}
+            keyExtractor={(item) => item.tipo_documento}
             renderItem={renderItem}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <Text style={styles.docDate}>
+                {erro
+                  ? "Não foi possível carregar seus documentos."
+                  : "Você ainda não enviou documentos."}
+              </Text>
+            }
           />
 
-          <TouchableOpacity style={styles.newDocButton}>
+          <TouchableOpacity
+            style={styles.newDocButton}
+            onPress={() => setEnviando(true)}
+          >
             <Ionicons name="add-circle-outline" size={20} color="#111" />
             <Text style={styles.newDocText}>Enviar novo documento</Text>
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {enviando && (
+        <EnviarDocumentoMotorista
+          onClose={() => setEnviando(false)}
+          onEnviado={(tipo) => {
+            void carregar();
+            mostrarToast({
+              tipo: "success",
+              icone: "document-text",
+              translucido: true,
+              titulo: "Documento enviado para análise",
+              chave: `documento-enviado:${tipo}`,
+            });
+          }}
+        />
+      )}
     </View>
   );
 }

@@ -13,6 +13,8 @@ export interface DocumentoEnviado {
   tipo_documento: string;
   status: string;
   observacao: string | null;
+  created_at?: string;
+  motivo_reprovacao_texto?: string | null;
 }
 
 export interface CadastroMotorista {
