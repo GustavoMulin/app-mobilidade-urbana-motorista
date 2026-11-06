@@ -4,6 +4,7 @@ import AppLogo from "@/components/common/AppLogo";
 import ErrorBanner from "@/components/common/ErrorBanner";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
+import { rotaDoMotorista } from "@/domain/rotaDoMotorista";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
@@ -60,7 +61,7 @@ export default function CodigoVerificacao({
 
   useEffect(() => {
     if (user && !loading) {
-      router.replace("/home");
+      router.replace(rotaDoMotorista(user.status));
     }
   }, [user, loading, router]);
 

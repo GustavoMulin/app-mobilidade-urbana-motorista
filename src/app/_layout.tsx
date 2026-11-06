@@ -41,7 +41,7 @@ function Rotas() {
         contentStyle: { backgroundColor: "#0D0D0D" },
       }}
     >
-      <Stack.Screen name="index" options={{ animation: "fade" }} />
+      <Stack.Screen name="index" options={{ animation: "none" }} />
       <Stack.Protected guard={!logado}>
         <Stack.Screen name="login" options={{ animation: "fade" }} />
         <Stack.Screen name="loginEmail" options={{ animation: "fade" }} />
@@ -50,7 +50,7 @@ function Rotas() {
       {/* enquanto a sessão é lida do aparelho, a área logada não é tirada
           da pilha (senão o app piscava para o login ao abrir) */}
       <Stack.Protected guard={logado || loading}>
-        <Stack.Screen name="liberacao" options={{ animation: "fade" }} />
+        <Stack.Screen name="liberacao" options={{ animation: "none" }} />
         <Stack.Screen name="home" options={{ animation: "fade" }} />
       </Stack.Protected>
     </Stack>

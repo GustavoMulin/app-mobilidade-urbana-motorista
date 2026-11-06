@@ -20,6 +20,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, ehErroDeRede, mensagemDaApi } from "../Services/api";
 import { useAuth } from "../context/AuthProvider";
+import { rotaDoMotorista } from "@/domain/rotaDoMotorista";
 
 export default function Login() {
   const insets = useSafeAreaInsets();
@@ -43,7 +44,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user && !loading) {
-      router.replace("/home");
+      router.replace(rotaDoMotorista(user.status));
     }
   }, [user, loading, router]);
 
@@ -122,7 +123,7 @@ export default function Login() {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.container}
+        style={[styles.container, { paddingTop: insets.top }]}
       >
         <ScrollView
           style={styles.scroll}
@@ -130,7 +131,7 @@ export default function Login() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
         >
-          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+          <View style={styles.header}>
             <AppLogo />
 
             <View style={styles.badgeContainer}>
@@ -299,7 +300,7 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    paddingTop: 56,
+    paddingTop: 16,
     paddingHorizontal: 20,
   },
   content: {
