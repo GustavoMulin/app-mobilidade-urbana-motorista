@@ -1,9 +1,10 @@
 // CODEX: 0 linhas alteradas; adapta cadastro de veículos a teclado, largura e rotação. Remover após validação ou commit.
 import AdicionarVeiculo from "./AdicionarVeiculo";
+import VeiculoColorido from "./VeiculoColorido";
 import { api } from "@/Services/api";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useToast } from "@/context/ToastContext";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import {
   type ComponentRef,
   useCallback,
@@ -16,7 +17,6 @@ import {
   Alert,
   Animated,
   BackHandler,
-  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -686,6 +686,7 @@ export default function MeusVeiculos({
             ) : (
               <ScrollView
                 ref={listaRef}
+                style={styles.listaFundo}
                 contentContainerStyle={styles.lista}
                 showsVerticalScrollIndicator={false}
                 alwaysBounceVertical
@@ -700,7 +701,6 @@ export default function MeusVeiculos({
               >
                 {veiculoSelecionado ? (
                   <DestaqueVeiculo
-                    key={veiculoSelecionado.id}
                     veiculo={veiculoSelecionado}
                     carregando={selecionandoId !== null}
                     onAbrir={() => setDetalhandoId(veiculoSelecionado.id)}
@@ -803,6 +803,8 @@ export default function MeusVeiculos({
       <Modal
         visible={veiculoParaRemover !== null}
         transparent
+        statusBarTranslucent
+        navigationBarTranslucent
         animationType="none"
         onRequestClose={() => {
           if (!removendo) fecharModalRemover();
@@ -874,7 +876,9 @@ function DestaqueVeiculo({
   carregando?: boolean;
   onAbrir: () => void;
 }) {
-  const [categoriasExpandidas, setCategoriasExpandidas] = useState(false);
+  // guarda o veículo: trocar recolhe as categorias sem recriar a imagem do carro
+  const [expandidoId, setExpandidoId] = useState<number | null>(null);
+  const categoriasExpandidas = expandidoId === veiculo.id;
   const categorias = veiculo.categorias_servico ?? [];
   return (
     <TouchableOpacity
@@ -893,17 +897,11 @@ function DestaqueVeiculo({
         </View>
       </View>
       <View style={styles.destaqueImagemArea}>
-        <Image
-          source={
-            veiculo.categoria === "moto"
-              ? require("../../../assets/images/cadastro-veiculo/moto.png")
-              : require("../../../assets/images/cadastro-veiculo/carro.png")
-          }
+        <VeiculoColorido
+          categoria={veiculo.categoria}
+          cor={veiculo.cor}
           style={styles.destaqueImagem}
-          resizeMode="contain"
-          accessible={false}
         />
-        <Text style={styles.imagemIlustrativa}>Imagem ilustrativa</Text>
       </View>
       <Text style={styles.destaqueModelo}>
         {[veiculo.ano_modelo, veiculo.marca, veiculo.modelo]
@@ -918,7 +916,7 @@ function DestaqueVeiculo({
       </Text>
       <TouchableOpacity
         style={styles.destaqueCategoriasControle}
-        onPress={() => setCategoriasExpandidas((expandido) => !expandido)}
+        onPress={() => setExpandidoId(categoriasExpandidas ? null : veiculo.id)}
         accessibilityRole="button"
         accessibilityLabel={`Categorias de viagem, ${categorias.length} disponíveis`}
         accessibilityState={{ expanded: categoriasExpandidas }}
@@ -951,8 +949,8 @@ const aparenciaStatus: Record<
   string,
   { icone: React.ComponentProps<typeof Ionicons>["name"]; cor: string }
 > = {
-  aprovado: { icone: "checkmark-circle", cor: "#16815C" },
-  em_analise: { icone: "time", cor: "#FF9800" },
+  aprovado: { icone: "checkmark-circle", cor: "#10B981" },
+  em_analise: { icone: "time", cor: "#F59E0B" },
   reprovado: { icone: "close-circle", cor: "#D32F2F" },
 };
 
@@ -1084,10 +1082,11 @@ function CartaoVeiculo({
   onAbrir?: () => void;
 }) {
   const exibirSelecao = veiculo.status !== "em_analise";
+  const corStatus = aparenciaStatus[veiculo.status]?.cor ?? "#10B981";
 
   return (
     <TouchableOpacity
-      style={[styles.card, ativo && styles.cardSelecionado]}
+      style={[styles.veiculoLinha, ativo && styles.cardSelecionado]}
       onPress={onAbrir}
       disabled={!onAbrir}
       activeOpacity={0.8}
@@ -1095,79 +1094,65 @@ function CartaoVeiculo({
       accessibilityLabel={`${veiculo.placa || "Novo veículo"}, ${rotuloStatus[veiculo.status] || veiculo.status}`}
       accessibilityHint={onAbrir ? "Abre os detalhes do veículo" : undefined}
     >
-      <View style={styles.cardTopo}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeTexto}>{rotuloDoVeiculo(veiculo)}</Text>
-        </View>
-        <View style={styles.selecaoStatus}>
-          <Text
-            style={[
-              styles.status,
-              veiculo.status === "em_analise" && styles.statusEmAnalise,
-            ]}
-          >
-            {rotuloStatus[veiculo.status] || veiculo.status}
-          </Text>
-          {exibirSelecao && (
-            <TouchableOpacity
-              onPress={onSelecionar}
-              disabled={!podeSelecionar || ativo}
-              hitSlop={12}
-              accessibilityRole="radio"
-              accessibilityLabel="Usar este veículo"
-              accessibilityState={{
-                checked: ativo,
-                disabled: !podeSelecionar || ativo,
-                busy: selecionando,
-              }}
-            >
-              <Ionicons
-                name={ativo ? "radio-button-on" : "radio-button-off"}
-                size={23}
-                color={ativo ? "#16815C" : "#999"}
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-      <View style={styles.cardLinha}>
-        <View style={styles.iconeVeiculo}>
-          <MaterialCommunityIcons
-            name={veiculo.categoria === "moto" ? "motorbike" : "car-side"}
-            size={32}
-            color="#222"
-          />
-        </View>
-        <View style={styles.cardDados}>
-          <Text style={styles.placa}>{veiculo.placa || "Novo veículo"}</Text>
-          <Text style={styles.modelo}>
-            {[veiculo.marca, veiculo.modelo].filter(Boolean).join(" · ") ||
-              "Dados do CRLV em análise"}
-          </Text>
-          {[veiculo.cor, veiculo.ano_modelo, veiculo.uf].some(Boolean) ? (
-            <Text style={styles.detalhes}>
-              {[veiculo.cor, veiculo.ano_modelo, veiculo.uf]
-                .filter(Boolean)
-                .join(" · ")}
-            </Text>
-          ) : null}
-        </View>
-      </View>
-      {veiculo.status === "em_analise" ? (
-        <View style={styles.ativoLinha}>
-          <Ionicons name="time-outline" size={16} color="#FF9800" />
+      <VeiculoColorido
+        categoria={veiculo.categoria}
+        cor={veiculo.cor}
+        style={styles.miniaturaVeiculo}
+      />
+      <View style={styles.cardDados}>
+        <Text style={styles.placa}>{veiculo.placa || "Novo veículo"}</Text>
+        <Text style={styles.modelo}>
+          {[veiculo.marca, veiculo.modelo].filter(Boolean).join(" · ") ||
+            "Dados do CRLV em análise"}
+        </Text>
+        <Text style={styles.detalhes}>
+          {[
+            rotuloDoVeiculo(veiculo),
+            veiculo.cor,
+            veiculo.ano_modelo,
+            veiculo.uf,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+        </Text>
+        {veiculo.status === "em_analise" ? (
           <Text style={styles.analiseTexto}>
             Aguardando aprovação para receber corridas
           </Text>
-        </View>
-      ) : ativo ? (
-        <View style={styles.ativoLinha}>
-          <View style={styles.pontoAtivo} />
+        ) : ativo ? (
           <Text style={styles.ativoTexto}>
             Veículo em uso nas próximas corridas
           </Text>
+        ) : null}
+      </View>
+      <View style={styles.veiculoStatus}>
+        <View style={[styles.statusBadge, { backgroundColor: corStatus }]}>
+          <View style={styles.statusPonto} />
+          <Text style={styles.status}>
+            {rotuloStatus[veiculo.status] || veiculo.status}
+          </Text>
         </View>
-      ) : null}
+        {exibirSelecao && (
+          <TouchableOpacity
+            onPress={onSelecionar}
+            disabled={!podeSelecionar || ativo}
+            hitSlop={12}
+            accessibilityRole="radio"
+            accessibilityLabel="Usar este veículo"
+            accessibilityState={{
+              checked: ativo,
+              disabled: !podeSelecionar || ativo,
+              busy: selecionando,
+            }}
+          >
+            <Ionicons
+              name={ativo ? "radio-button-on" : "radio-button-off"}
+              size={23}
+              color={ativo ? "#16815C" : "#999"}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 }
@@ -1447,6 +1432,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: "700", color: "#111" },
   espacoHeader: { width: 25 },
   conteudoLista: { flex: 1 },
+  listaFundo: { backgroundColor: "#FFF" },
   lista: { flexGrow: 1, padding: 16, paddingBottom: 24 },
   listaTitulo: {
     fontSize: 19,
@@ -1472,8 +1458,7 @@ const styles = StyleSheet.create({
   },
   destaqueRotulo: { color: "#666", fontSize: 13, fontWeight: "600" },
   destaqueImagemArea: { alignItems: "center", marginVertical: 18 },
-  destaqueImagem: { width: "100%", maxWidth: 260, height: 160 },
-  imagemIlustrativa: { fontSize: 10, color: "#888", marginTop: 4 },
+  destaqueImagem: { width: "100%", maxWidth: 230, height: 118 },
   destaqueModelo: {
     fontSize: 27,
     lineHeight: 34,
@@ -1542,15 +1527,14 @@ const styles = StyleSheet.create({
     color: "#B42318",
     textAlign: "center",
   },
-  card: {
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 15,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
+  veiculoLinha: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    minHeight: 108,
+    paddingVertical: 15,
   },
-  cardSelecionado: { borderColor: "#16815C", backgroundColor: "#F0FAF5" },
+  cardSelecionado: { backgroundColor: "#F0FAF5", borderRadius: 16 },
   cardCarregando: {
     position: "absolute",
     top: 0,
@@ -1571,52 +1555,38 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     lineHeight: 19,
   },
-  cardTopo: {
+  veiculoStatus: { alignItems: "flex-end", gap: 10 },
+  statusBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
-  },
-  badge: {
-    backgroundColor: "#EEE",
-    paddingHorizontal: 9,
+    paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 7,
+    borderRadius: 6,
   },
-  badgeTexto: { fontSize: 11, fontWeight: "700", color: "#555" },
+  statusPonto: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+    backgroundColor: "#FFF",
+  },
   status: {
     fontSize: 12,
-    color: "#16815C",
     fontWeight: "700",
-    textTransform: "capitalize",
+    color: "#FFF",
+    textTransform: "uppercase",
   },
-  statusEmAnalise: { color: "#FF9800" },
-  analiseTexto: { flex: 1, fontSize: 12, color: "#FF9800", fontWeight: "600" },
-  cardLinha: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconeVeiculo: {
-    width: 58,
-    height: 58,
-    borderRadius: 14,
-    backgroundColor: "#F5F5F5",
-    alignItems: "center",
-    justifyContent: "center",
+  analiseTexto: {
+    marginTop: 4,
+    fontSize: 12,
+    color: "#F59E0B",
+    fontWeight: "600",
   },
+  miniaturaVeiculo: { width: 76, height: 56 },
   cardDados: { flex: 1 },
-  placa: { fontSize: 18, fontWeight: "800", color: "#111" },
-  modelo: { marginTop: 3, fontSize: 13, fontWeight: "600", color: "#333" },
-  detalhes: { marginTop: 3, fontSize: 12, color: "#777" },
-  ativoLinha: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 13,
-    gap: 7,
-  },
-  pontoAtivo: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "#19A974",
-  },
+  placa: { fontSize: 17, lineHeight: 22, fontWeight: "700", color: "#151515" },
+  modelo: { marginTop: 4, fontSize: 13, color: "#909090" },
+  detalhes: { marginTop: 2, fontSize: 13, color: "#909090" },
   ativoTexto: { fontSize: 12, color: "#16815C", fontWeight: "600" },
   footer: {
     backgroundColor: "#FFF",
