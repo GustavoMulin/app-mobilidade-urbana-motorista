@@ -19,7 +19,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 type Etapa = "documentos" | "formato" | "requisitos";
 type Formato = "fisico" | "digital";
-type TipoDocumento = "cnh" | "nada_consta" | "seguro_obrigatorio";
+export type TipoDocumento =
+  "cnh" | "crlv" | "nada_consta" | "seguro_obrigatorio";
 type IconeCommunity = React.ComponentProps<
   typeof MaterialCommunityIcons
 >["name"];
@@ -30,12 +31,18 @@ interface Arquivo {
   size?: number;
 }
 interface Props {
+  // vindo do cartão de um documento: pula a escolha e já abre o envio dele
+  tipoInicial?: TipoDocumento;
+  // só o que ainda pode ser enviado; fora da liberação, também sem o CRLV
+  tipos: TipoDocumento[];
+  // sem veículo, o CRLV é enviado pelo cadastro do veículo
+  onCadastrarVeiculo?: () => void;
   onClose: () => void;
   onEnviado: (tipo: TipoDocumento) => void;
 }
 
 const TAMANHO_MAXIMO = 10 * 1024 * 1024;
-const DOCUMENTOS: {
+export const DOCUMENTOS: {
   tipo: TipoDocumento;
   titulo: string;
   nome: string;
@@ -56,6 +63,22 @@ const DOCUMENTOS: {
       digital: [
         "A CNH deve estar dentro do prazo de validade.",
         "Nos envie a CNH digital no formato PDF.",
+      ],
+    },
+  },
+  {
+    tipo: "crlv",
+    titulo: "CRLV",
+    nome: "o CRLV",
+    icone: "car-outline",
+    requisitos: {
+      fisico: [
+        "O documento do veículo deve estar dentro do prazo de validade.",
+        "Nos envie somente a primeira página do documento, com os dados legíveis.",
+      ],
+      digital: [
+        "O documento do veículo deve estar dentro do prazo de validade.",
+        "Nos envie o documento no formato PDF.",
       ],
     },
   },
@@ -96,12 +119,17 @@ const DOCUMENTOS: {
 ];
 
 export default function EnviarDocumentoMotorista({
+  tipoInicial,
+  tipos,
+  onCadastrarVeiculo,
   onClose,
   onEnviado,
 }: Props) {
   const insets = useSafeAreaInsets();
-  const [etapa, setEtapa] = useState<Etapa>("documentos");
-  const [tipo, setTipo] = useState<TipoDocumento | null>(null);
+  const [etapa, setEtapa] = useState<Etapa>(
+    tipoInicial ? "formato" : "documentos",
+  );
+  const [tipo, setTipo] = useState<TipoDocumento | null>(tipoInicial ?? null);
   const [formato, setFormato] = useState<Formato | null>(null);
   const [frenteCnh, setFrenteCnh] = useState<Arquivo | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -124,12 +152,18 @@ export default function EnviarDocumentoMotorista({
   const semEscolha =
     (etapa === "documentos" && !tipo) || (etapa === "formato" && !formato);
 
+  const avancarDaEscolha = () => {
+    if (tipo === "crlv" && onCadastrarVeiculo) onCadastrarVeiculo();
+    else setEtapa("formato");
+  };
+
   const voltar = () => {
     if (ocupado.current) return;
     setErro("");
     setFrenteCnh(null);
-    if (etapa === "documentos") onClose();
-    else setEtapa(etapa === "requisitos" ? "formato" : "documentos");
+    if (etapa === "documentos" || (etapa === "formato" && tipoInicial)) {
+      onClose();
+    } else setEtapa(etapa === "requisitos" ? "formato" : "documentos");
   };
   const fechar = () => {
     if (ocupado.current) return;
@@ -270,6 +304,8 @@ export default function EnviarDocumentoMotorista({
       visible
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={voltar}
     >
       <StatusBar style="dark" />
@@ -309,41 +345,45 @@ export default function EnviarDocumentoMotorista({
               <Text style={s.subtitulo}>
                 Selecione o documento que deseja enviar
               </Text>
-              {DOCUMENTOS.map((item) => {
-                const selecionado = tipo === item.tipo;
+              {DOCUMENTOS.filter((item) => tipos.includes(item.tipo)).map(
+                (item) => {
+                  const selecionado = tipo === item.tipo;
 
-                return (
-                  <TouchableOpacity
-                    key={item.tipo}
-                    style={s.documentoLinha}
-                    onPress={() => {
-                      setErro("");
-                      setTipo(item.tipo);
-                      setFormato(null);
-                    }}
-                    accessibilityRole="radio"
-                    accessibilityState={{ checked: selecionado }}
-                  >
-                    <MaterialCommunityIcons
-                      name={item.icone}
-                      color="#222"
-                      size={34}
-                      style={s.iconeDocumento}
-                    />
-                    <View style={s.flex}>
-                      <Text style={s.opcaoTitulo}>{item.titulo}</Text>
-                    </View>
-                    <View style={[s.radio, selecionado && s.radioSelecionado]}>
-                      {selecionado && <View style={s.radioCentro} />}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+                  return (
+                    <TouchableOpacity
+                      key={item.tipo}
+                      style={s.documentoLinha}
+                      onPress={() => {
+                        setErro("");
+                        setTipo(item.tipo);
+                        setFormato(null);
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: selecionado }}
+                    >
+                      <MaterialCommunityIcons
+                        name={item.icone}
+                        color="#222"
+                        size={34}
+                        style={s.iconeDocumento}
+                      />
+                      <View style={s.flex}>
+                        <Text style={s.opcaoTitulo}>{item.titulo}</Text>
+                      </View>
+                      <View
+                        style={[s.radio, selecionado && s.radioSelecionado]}
+                      >
+                        {selecionado && <View style={s.radioCentro} />}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                },
+              )}
             </>
           )}
           {etapa === "formato" && documento && (
             <>
-              <Text style={s.titulo}>Faça o envio {documento.nome}</Text>
+              <Text style={s.titulo}>Faça o envio d{documento.nome}</Text>
               <Text style={[s.paragrafo, s.introducao]}>
                 Aceitamos o envio do documento físico, em foto, e também
                 digital, em PDF
@@ -381,7 +421,11 @@ export default function EnviarDocumentoMotorista({
                     </Text>
                     <Text style={s.legenda}>
                       Selecione esta opção se você tiver {documento.nome}{" "}
-                      {item === "fisico" ? "físico" : "digital em PDF"}
+                      {item === "digital"
+                        ? "digital em PDF"
+                        : tipo === "cnh"
+                          ? "física"
+                          : "físico"}
                     </Text>
                   </View>
                   {formato === item && (
@@ -438,7 +482,7 @@ export default function EnviarDocumentoMotorista({
             style={[s.botao, (semEscolha || enviando) && s.botaoDesabilitado]}
             onPress={
               etapa === "documentos"
-                ? () => setEtapa("formato")
+                ? avancarDaEscolha
                 : etapa === "formato"
                   ? () => setEtapa("requisitos")
                   : escolherArquivo
