@@ -150,6 +150,7 @@ export default function MaisCorridaAtiva({
       animationType="slide"
       presentationStyle="fullScreen"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={voltar}
     >
       <View style={styles.tela}>

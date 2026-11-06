@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import {
   ActivityIndicator,
   Animated,
@@ -12,6 +13,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 import SaqueStatus from "./SaqueStatus";
 import {
@@ -41,6 +43,7 @@ export default function SacarSaldo({
   onSacado,
 }: props) {
   const insets = useSafeAreaInsets();
+  const espacoDoTeclado = useEspacoDoTeclado();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [slideConfirm] = useState(() => new Animated.Value(height));
@@ -271,7 +274,11 @@ export default function SacarSaldo({
             </Pressable>
           )}
 
-          <View style={styles.body}>
+          <ScrollView
+            style={styles.body}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.sectionRow}>
               <Text style={styles.sectionLabel}>Conta para saque</Text>
               <Text
@@ -352,9 +359,14 @@ export default function SacarSaldo({
                 </Text>
               </View>
             </View>
-          </View>
+          </ScrollView>
 
-          <View style={styles.footer}>
+          <View
+            style={[
+              styles.footer,
+              { paddingBottom: Math.max(35, espacoDoTeclado + 16) },
+            ]}
+          >
             <TouchableOpacity
               style={[styles.btnSacar, !podeSacar && styles.btnDisabled]}
               disabled={!podeSacar}

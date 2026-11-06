@@ -887,6 +887,7 @@ export default function NavegacaoAtiva({
         transparent
         animationType="fade"
         statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setSegurancaVisivel(false)}
       >
         <Pressable

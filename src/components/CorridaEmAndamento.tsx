@@ -361,6 +361,7 @@ export default function CorridaEmAndamento({
         transparent
         animationType="fade"
         statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setTaxaVisivel(false)}
       >
         <Pressable

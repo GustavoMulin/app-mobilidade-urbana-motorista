@@ -1,12 +1,11 @@
-// O Android (Expo SDK 57) desenha o app de ponta a ponta: a área útil vai até
-// o fim da tela, atrás da barra de navegação, e o teclado nunca encolhe a
-// janela. O topo do teclado vem em coordenada de tela, então precisa ser
-// comparado com a altura da TELA. Comparar com a da janela (que no Android
-// desconta as barras de status e navegação) subestimava ~64 dp e deixava
-// botões como "Avançar" e "Reenviar código" atrás do teclado.
+// O topo do teclado vem em coordenada de tela e o fim da área do app também
+// precisa vir: comparar com a altura da tela ou da janela erra nos dois
+// sentidos. No Android de ponta a ponta o teclado fica por cima do app e a
+// comparação com a janela deixava botões atrás dele; no Android que encolhe a
+// área do app, a comparação com a tela subia o rodapé duas vezes.
 export function espacoCobertoPeloTeclado(
-  alturaTela: number,
+  fimDaArea: number,
   topoDoTeclado: number,
 ): number {
-  return Math.max(alturaTela - topoDoTeclado, 0);
+  return Math.max(fimDaArea - topoDoTeclado, 0);
 }

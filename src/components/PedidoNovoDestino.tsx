@@ -76,6 +76,7 @@ export default function PedidoNovoDestino({
       transparent
       animationType="slide"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={() => {}}
     >
       <View style={styles.fundo} />
