@@ -4,10 +4,12 @@ import ErrorBanner from "@/components/common/ErrorBanner";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
+import { api } from "@/Services/api";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   BackHandler,
   KeyboardAvoidingView,
   Platform,
@@ -53,6 +55,8 @@ export default function Cadastro() {
   // step 1
   const [email, setEmail] = useState("");
   const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const [verificandoEmail, setVerificandoEmail] = useState(false);
+  const verificacaoEmail = useRef<AbortController | null>(null);
 
   // step 3
   const [senha, setSenha] = useState("");
@@ -113,6 +117,8 @@ export default function Cadastro() {
   const maiorDeIdade =
     dataNascimentoFormatoValido && calcularIdade(dataNascimento) >= 18;
   const menorDeIdade = dataNascimentoFormatoValido && !maiorDeIdade;
+  const dataInexistente =
+    dataNascimento.length === 10 && !dataNascimentoFormatoValido;
 
   // validação step 5
   const step5Valido = maiorDeIdade;
@@ -216,9 +222,49 @@ export default function Cadastro() {
     6: concordo,
   };
 
-  const podeAvancar = (podeAvancarPorPasso[step] ?? false) && !enviando;
+  const podeAvancar =
+    (podeAvancarPorPasso[step] ?? false) && !enviando && !verificandoEmail;
 
   const rotuloAvancar = step === PASSO_FINAL ? "Finalizar" : "Avançar";
+
+  // o e-mail só passa daqui se estiver livre; o cadastro final repete a regra no servidor
+  const validarEmailEAvancar = async () => {
+    const verificacao = new AbortController();
+
+    verificacaoEmail.current = verificacao;
+    setVerificandoEmail(true);
+    setErroEmailServidor("");
+
+    try {
+      await api.post(
+        "/auth/valida-email-cadastro",
+        { email },
+        { signal: verificacao.signal },
+      );
+
+      setStep(3);
+    } catch (error: any) {
+      if (verificacao.signal.aborted) return;
+
+      setErroEmailServidor(
+        error?.response?.data?.errors?.email?.[0] ??
+          "Não foi possível verificar o e-mail. Tente novamente.",
+      );
+    } finally {
+      if (verificacaoEmail.current === verificacao) {
+        setVerificandoEmail(false);
+      }
+    }
+  };
+
+  // editar durante a consulta descarta a resposta: ela é do e-mail anterior
+  const alterarEmail = (texto: string) => {
+    verificacaoEmail.current?.abort();
+    verificacaoEmail.current = null;
+    setVerificandoEmail(false);
+    setErroEmailServidor("");
+    setEmail(texto);
+  };
 
   const avancar = () => {
     if (!podeAvancar) return;
@@ -228,13 +274,18 @@ export default function Cadastro() {
       return;
     }
 
-    setStep(step === 1 ? 3 : step + 1);
+    if (step === 1) {
+      void validarEmailEAvancar();
+      return;
+    }
+
+    setStep(step + 1);
   };
 
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
+      style={[styles.container, { paddingTop: insets.top }]}
     >
       <ScrollView
         style={styles.scroll}
@@ -243,7 +294,7 @@ export default function Cadastro() {
         keyboardDismissMode="on-drag"
       >
         {/* HEADER */}
-        <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
+        <View style={styles.header}>
           <AppLogo />
           <View style={styles.badgeContainer}>
             <Text style={styles.badgeText}>🚗 Área do Motorista</Text>
@@ -269,16 +320,13 @@ export default function Cadastro() {
                     placeholderTextColor="#CCC"
                     style={styles.input}
                     value={email}
-                    onChangeText={(texto) => {
-                      if (erroEmailServidor) setErroEmailServidor("");
-
-                      setEmail(texto);
-                    }}
+                    onChangeText={alterarEmail}
                     keyboardType="email-address"
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType={emailValido ? "go" : "done"}
-                    onSubmitEditing={() => emailValido && setStep(3)}
+                    submitBehavior="submit"
+                    onSubmitEditing={avancar}
                   />
                 </View>
                 <View style={styles.inputUnderline} />
@@ -364,7 +412,7 @@ export default function Cadastro() {
                 <View style={styles.inputWrapper}>
                   <TextInput
                     autoFocus
-                    placeholder="Informe seu nome completo"
+                    placeholder="Informe seu nome"
                     placeholderTextColor="#CCC"
                     returnKeyType={name.trim() ? "go" : "done"}
                     onSubmitEditing={() => name.trim() && setStep(5)}
@@ -387,7 +435,7 @@ export default function Cadastro() {
                 <View
                   style={[
                     styles.inputWrapper,
-                    (menorDeIdade || erroIdadeServidor) &&
+                    (menorDeIdade || dataInexistente || erroIdadeServidor) &&
                       styles.inputWrapperError,
                   ]}
                 >
@@ -414,6 +462,8 @@ export default function Cadastro() {
                   <ErrorBanner message={erroIdadeServidor} />
                 ) : menorDeIdade ? (
                   <ErrorBanner message="Você precisa ter pelo menos 18 anos para se cadastrar." />
+                ) : dataInexistente ? (
+                  <ErrorBanner message="Essa data não existe. Confira o dia, o mês e o ano." />
                 ) : null}
               </View>
             </View>
@@ -498,11 +548,15 @@ export default function Cadastro() {
             {rotuloAvancar}
           </Text>
 
-          <Feather
-            name="arrow-right"
-            size={18}
-            color={podeAvancar ? "black" : "#CCC"}
-          />
+          {verificandoEmail ? (
+            <ActivityIndicator size="small" color="#999" />
+          ) : (
+            <Feather
+              name="arrow-right"
+              size={18}
+              color={podeAvancar ? "black" : "#CCC"}
+            />
+          )}
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -540,7 +594,7 @@ const styles = StyleSheet.create({
 
   header: {
     alignItems: "center",
-    paddingTop: 56,
+    paddingTop: 16,
     paddingHorizontal: 20,
   },
 
