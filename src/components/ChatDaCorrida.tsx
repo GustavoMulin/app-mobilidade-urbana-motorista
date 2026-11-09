@@ -95,6 +95,7 @@ export default function ChatDaCorrida({
       animationType="slide"
       onRequestClose={onClose}
       statusBarTranslucent
+      navigationBarTranslucent
     >
       <View style={styles.tela}>
         <View style={[styles.cabecalho, { paddingTop: insets.top + 8 }]}>

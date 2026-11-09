@@ -13,6 +13,9 @@ export interface DocumentoEnviado {
   tipo_documento: string;
   status: string;
   observacao: string | null;
+  created_at?: string;
+  motivo_reprovacao_texto?: string | null;
+  vencido?: boolean;
 }
 
 export interface CadastroMotorista {
@@ -27,14 +30,10 @@ export interface CadastroMotorista {
   documentos_faltando: string[];
   veiculos: number;
   pendencias: ("cnh" | "documentos" | "veiculo")[];
-}
-
-export interface DadosCnh {
-  // nome do campo no backend (antes era cnh_numero)
-  numero_registro: string;
-  cnh_categoria: string;
-  cnh_expiracao: string;
-  ear: boolean;
+  // documentos vencidos ou reprovados e "veiculo" quando não há veículo
+  acoes_necessarias?: string[];
+  // já foi aprovado uma vez: fica na home mesmo com pendência
+  liberado?: boolean;
 }
 
 const mensagemDoErro = (erro: unknown, padrao: string) => {
@@ -51,9 +50,28 @@ const mensagemDoErro = (erro: unknown, padrao: string) => {
   return primeiroErro ?? resposta?.data?.message ?? padrao;
 };
 
+// Buscado ainda na tela do código: a liberação abre pronta, sem tela de carregando.
+let cadastroAdiantado: CadastroMotorista | null = null;
+
+export const adiantarCadastro = async () => {
+  try {
+    const { data } = await api.get<CadastroMotorista>("/motorista/cadastro");
+
+    cadastroAdiantado = data;
+  } catch {
+    // a própria tela busca de novo ao abrir
+  }
+};
+
 export function useCadastroMotorista() {
-  const [cadastro, setCadastro] = useState<CadastroMotorista | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [cadastro, setCadastro] = useState<CadastroMotorista | null>(() => {
+    const adiantado = cadastroAdiantado;
+
+    cadastroAdiantado = null;
+
+    return adiantado;
+  });
+  const [carregando, setCarregando] = useState(cadastro === null);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
@@ -75,56 +93,6 @@ export function useCadastroMotorista() {
 
     return () => clearTimeout(timer);
   }, [carregar]);
-
-  const enviarCnh = useCallback(
-    async (dados: DadosCnh) => {
-      setEnviando(true);
-      setErro("");
-
-      try {
-        await api.post("/motorista/cadastro/cnh", dados);
-        await carregar();
-
-        return true;
-      } catch (falha) {
-        setErro(mensagemDoErro(falha, "Não foi possível enviar sua CNH."));
-
-        return false;
-      } finally {
-        setEnviando(false);
-      }
-    },
-    [carregar],
-  );
-
-  const enviarDocumento = useCallback(
-    async (
-      tipo: string,
-      arquivo: { uri: string; name: string; mimeType?: string },
-    ) => {
-      setEnviando(true);
-      setErro("");
-
-      try {
-        const dados = new FormData();
-        dados.append("tipo_documento", tipo);
-        dados.append("arquivo", {
-          uri: arquivo.uri,
-          name: arquivo.name,
-          type: arquivo.mimeType ?? "application/octet-stream",
-        } as unknown as Blob);
-        await api.post("/motorista/cadastro/documentos", dados);
-        await carregar();
-        return true;
-      } catch (falha) {
-        setErro(mensagemDoErro(falha, "Não foi possível enviar o documento."));
-        return false;
-      } finally {
-        setEnviando(false);
-      }
-    },
-    [carregar],
-  );
 
   // atalho de desenvolvimento: pula CNH e documentos e aprova direto (ver
   // MotoristaCadastroController::aprovarDev no backend)
@@ -151,8 +119,6 @@ export function useCadastroMotorista() {
     carregando,
     enviando,
     erro,
-    enviarCnh,
-    enviarDocumento,
     aprovarDev,
     recarregar: carregar,
   };

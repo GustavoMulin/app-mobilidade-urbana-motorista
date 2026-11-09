@@ -15,7 +15,10 @@ import PilhaPropostasNegocia from "@/components/PilhaPropostasNegocia";
 import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
 import GanhoDiario from "@/components/GanhoDiario";
 import Map from "@/components/Map";
+import { ALTURA_COM_ACOES } from "@/components/AcoesNecessarias";
 import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
+import DocumentosEnviados from "@/components/usuario/DocumentosPendentes";
+import { useCadastroMotorista } from "@/hooks/useCadastroMotorista";
 import RecebendoChamada from "@/components/RecebendoChamada";
 import SideMenu from "@/components/SideMenu";
 import SolicitacoesCorrida from "@/components/SolicitacoesCorrida";
@@ -50,6 +53,7 @@ import {
   StyleSheet,
   View,
   useColorScheme,
+  Modal,
 } from "react-native";
 import { Region } from "react-native-maps";
 import { useSharedValue } from "react-native-reanimated";
@@ -249,6 +253,24 @@ export default function Home() {
   // ✨ NOVO: Estado para armazenar o índice do BottomSheet
   const [bottomSheetIndex, setBottomSheetIndex] = useState<number>(0);
   const [alturaMenuInferior, setAlturaMenuInferior] = useState(0);
+  const { cadastro, recarregar: recarregarCadastro } = useCadastroMotorista();
+  const [documentosAbertos, setDocumentosAbertos] = useState(false);
+  // online ele já está rodando: a faixa explica por que não dá para conectar
+  const acoesNecessarias = disponivelExibido
+    ? []
+    : (cadastro?.acoes_necessarias ?? []);
+  const fecharDocumentos = () => {
+    setDocumentosAbertos(false);
+    void recarregarCadastro();
+  };
+
+  // a gestão pode reprovar um documento com o app aberto na home
+  useEffect(() => {
+    if (disponivelExibido) return;
+
+    const intervalo = setInterval(() => void recarregarCadastro(), 30000);
+    return () => clearInterval(intervalo);
+  }, [disponivelExibido, recarregarCadastro]);
   const bottomSheetAnimatedIndex = useSharedValue(0);
 
   // ✨ NOVO: Estado do modal de ganhos foi elevado para cá
@@ -330,6 +352,9 @@ export default function Home() {
     );
   }
 
+  // a caminho da liberação: o mapa não pode aparecer nem por um instante
+  if (precisaLiberacao) return <View style={styles.aCaminhoDaLiberacao} />;
+
   if (!user) {
     return null;
   }
@@ -350,7 +375,9 @@ export default function Home() {
           indiceFolhaAnimado={bottomSheetAnimatedIndex}
           alturaMinimaRodape={
             corridaExibida === null
-              ? alturaMenuInferior + (avisoNoRodape ? alturaDoAviso + 12 : 0)
+              ? alturaMenuInferior +
+                (acoesNecessarias.length > 0 ? ALTURA_COM_ACOES : 0) +
+                (avisoNoRodape ? alturaDoAviso + 12 : 0)
               : 0
           }
           isGanhoModalVisible={ganhoModalVisivel}
@@ -649,6 +676,20 @@ export default function Home() {
         onAlternarDisponibilidade={alternarDisponibilidade}
       />
 
+      <Modal
+        visible={documentosAbertos}
+        transparent
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={fecharDocumentos}
+      >
+        <DocumentosEnviados
+          modoAcoes
+          visible={documentosAbertos}
+          onClose={fecharDocumentos}
+        />
+      </Modal>
+
       {/* FolhaInferior */}
       {ofertaExibida === null && corridaExibida === null && (
         <>
@@ -662,6 +703,9 @@ export default function Home() {
           <FolhaInferiorMotorista
             onSheetChange={onChangeBottomSheetMotorista}
             indiceAnimado={bottomSheetAnimatedIndex}
+            alturaMenuInferior={alturaMenuInferior}
+            acoesNecessarias={acoesNecessarias}
+            onResolverAcoes={() => setDocumentosAbertos(true)}
           />
 
           <SolicitarCorrida
@@ -749,11 +793,12 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.28)",
     zIndex: 18, // zIndex para o backdrop do SideMenu
   },
+  aCaminhoDaLiberacao: { flex: 1, backgroundColor: "#FFF" },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "#0D0D0D",
   },
   loadingText: {
     marginTop: 16,

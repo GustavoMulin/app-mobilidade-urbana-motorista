@@ -367,6 +367,8 @@ export default function AdicionarVeiculo({ onClose, onEnviado }: Props) {
       visible
       animationType="slide"
       presentationStyle="fullScreen"
+      statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={voltar}
     >
       <StatusBar style="dark" />

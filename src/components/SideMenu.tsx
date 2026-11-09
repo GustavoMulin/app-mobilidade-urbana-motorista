@@ -10,6 +10,7 @@ import {
   BackHandler,
   Image,
   PanResponder,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   TouchableWithoutFeedback,
@@ -334,114 +335,121 @@ export default function SideMenu({
           ]}
           {...panResponder.panHandlers}
         >
-          {/* HEADER DE PERFIL */}
-          <View style={styles.profileSection}>
-            <TouchableOpacity onPress={() => setShowPerfilUsuario(true)}>
-              {user?.foto ? (
-                <Image source={{ uri: user.foto }} style={styles.avatar} />
-              ) : (
-                <View style={[styles.avatar, styles.avatarVazio]}>
-                  <Ionicons name="person" size={36} color="#777" />
-                </View>
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.nameRow}>
-              <Text style={styles.userName}>{user?.name || "Motorista"}</Text>
-            </View>
-
-            <Text style={styles.statusReal}>
-              {emCorrida ? "Em corrida" : disponivel ? "Online" : "Offline"}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.statusBadge}
-              accessibilityRole="button"
-              onPress={() => setShowMeusVeiculos(true)}
-            >
-              <View style={styles.badgeContent}>
-                <Ionicons name="shield-checkmark" size={14} color="#FFF" />
-                <Text style={styles.statusText} numberOfLines={1}>
-                  {veiculoPrincipal ?? "Cadastrar veículo"}
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color="#FFF" />
-              </View>
-              {/* o aviso é para cadastrar: com veículo não há o que avisar */}
-              {veiculoPrincipal ? null : (
-                <View style={styles.notificationDot} />
-              )}
-            </TouchableOpacity>
-
-            <View style={styles.statsRow}>
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
-                  {estatisticas?.taxa_aceitacao == null
-                    ? "—"
-                    : `${estatisticas.taxa_aceitacao}%`}
-                </Text>
-                <Text style={styles.statLabel}>Taxa de Aceitação</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statBox}>
-                <Text style={styles.statValue}>
-                  {estatisticas?.taxa_finalizacao == null
-                    ? "—"
-                    : `${estatisticas.taxa_finalizacao}%`}
-                </Text>
-                <Text style={styles.statLabel}>Taxa de Finalização</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.menuList}>
-            {menuItems.map((item, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.menuItem}
-                onPress={() => menuSelecionado(item)}
-                disabled={item.emBreve}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  item.emBreve ? `${item.label}, em breve` : item.label
-                }
-                accessibilityState={{ disabled: item.emBreve === true }}
-              >
-                <Ionicons
-                  name={
-                    item.icon as React.ComponentProps<typeof Ionicons>["name"]
-                  }
-                  size={19}
-                  color={item.emBreve ? "#9CA3AF" : (item.color ?? "#333")}
-                />
-                <Text
-                  style={[
-                    styles.menuText,
-                    item.color && { color: item.color },
-                    item.emBreve && styles.menuTextoEmBreve,
-                  ]}
-                >
-                  {item.label}
-                </Text>
-                {item.emBreve ? (
-                  <View style={styles.emBreve}>
-                    <Text style={styles.emBreveTexto}>Em breve</Text>
+          <ScrollView
+            contentContainerStyle={{
+              paddingBottom: Math.max(insets.bottom, 16),
+            }}
+            showsVerticalScrollIndicator={false}
+          >
+            {/* HEADER DE PERFIL */}
+            <View style={styles.profileSection}>
+              <TouchableOpacity onPress={() => setShowPerfilUsuario(true)}>
+                {user?.foto ? (
+                  <Image source={{ uri: user.foto }} style={styles.avatar} />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarVazio]}>
+                    <Ionicons name="person" size={36} color="#777" />
                   </View>
-                ) : null}
+                )}
               </TouchableOpacity>
-            ))}
 
-            {user && (
+              <View style={styles.nameRow}>
+                <Text style={styles.userName}>{user?.name || "Motorista"}</Text>
+              </View>
+
+              <Text style={styles.statusReal}>
+                {emCorrida ? "Em corrida" : disponivel ? "Online" : "Offline"}
+              </Text>
+
               <TouchableOpacity
-                style={styles.menuItem}
-                onPress={handleLogout}
+                style={styles.statusBadge}
                 accessibilityRole="button"
-                accessibilityLabel="Sair da conta"
+                onPress={() => setShowMeusVeiculos(true)}
               >
-                <Ionicons name="log-out-outline" size={19} color="#FF4D4D" />
-                <Text style={[styles.menuText, styles.logoutText]}>Sair</Text>
+                <View style={styles.badgeContent}>
+                  <Ionicons name="shield-checkmark" size={14} color="#FFF" />
+                  <Text style={styles.statusText} numberOfLines={1}>
+                    {veiculoPrincipal ?? "Cadastrar veículo"}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={14} color="#FFF" />
+                </View>
+                {/* o aviso é para cadastrar: com veículo não há o que avisar */}
+                {veiculoPrincipal ? null : (
+                  <View style={styles.notificationDot} />
+                )}
               </TouchableOpacity>
-            )}
-          </View>
+
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>
+                    {estatisticas?.taxa_aceitacao == null
+                      ? "—"
+                      : `${estatisticas.taxa_aceitacao}%`}
+                  </Text>
+                  <Text style={styles.statLabel}>Taxa de Aceitação</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statBox}>
+                  <Text style={styles.statValue}>
+                    {estatisticas?.taxa_finalizacao == null
+                      ? "—"
+                      : `${estatisticas.taxa_finalizacao}%`}
+                  </Text>
+                  <Text style={styles.statLabel}>Taxa de Finalização</Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.menuList}>
+              {menuItems.map((item, index) => (
+                <TouchableOpacity
+                  key={index}
+                  style={styles.menuItem}
+                  onPress={() => menuSelecionado(item)}
+                  disabled={item.emBreve}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    item.emBreve ? `${item.label}, em breve` : item.label
+                  }
+                  accessibilityState={{ disabled: item.emBreve === true }}
+                >
+                  <Ionicons
+                    name={
+                      item.icon as React.ComponentProps<typeof Ionicons>["name"]
+                    }
+                    size={19}
+                    color={item.emBreve ? "#9CA3AF" : (item.color ?? "#333")}
+                  />
+                  <Text
+                    style={[
+                      styles.menuText,
+                      item.color && { color: item.color },
+                      item.emBreve && styles.menuTextoEmBreve,
+                    ]}
+                  >
+                    {item.label}
+                  </Text>
+                  {item.emBreve ? (
+                    <View style={styles.emBreve}>
+                      <Text style={styles.emBreveTexto}>Em breve</Text>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+
+              {user && (
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleLogout}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sair da conta"
+                >
+                  <Ionicons name="log-out-outline" size={19} color="#FF4D4D" />
+                  <Text style={[styles.menuText, styles.logoutText]}>Sair</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </ScrollView>
         </Animated.View>
       </View>
     </>

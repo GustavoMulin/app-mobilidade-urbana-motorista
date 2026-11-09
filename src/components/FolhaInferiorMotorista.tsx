@@ -1,3 +1,6 @@
+import AcoesNecessarias, {
+  ALTURA_COM_ACOES,
+} from "@/components/AcoesNecessarias";
 import BannersPublicidade from "@/components/BannersPublicidade";
 import { useAuth } from "@/context/AuthProvider";
 import { useBannersPublicidade } from "@/hooks/useBannersPublicidade";
@@ -12,16 +15,30 @@ interface DriverSearchProps {
   // ✨ NOVO: Callback para notificar o componente pai (Home) sobre a mudança de estado
   onSheetChange: (index: number) => void;
   indiceAnimado: SharedValue<number>;
+  alturaMenuInferior: number;
+  acoesNecessarias: string[];
+  onResolverAcoes: () => void;
 }
 
 export default function FolhaInferiorMotorista({
   onSheetChange,
   indiceAnimado,
+  alturaMenuInferior,
+  acoesNecessarias,
+  onResolverAcoes,
 }: DriverSearchProps) {
   const { user } = useAuth();
   const banners = useBannersPublicidade();
   // snap points do bottomsheet
-  const snapPoints = useMemo(() => ["18%", "52%", "92%"], []);
+  const temAcoes = acoesNecessarias.length > 0;
+  const snapPoints = useMemo(
+    () => [
+      temAcoes ? alturaMenuInferior + ALTURA_COM_ACOES : "18%",
+      "52%",
+      "92%",
+    ],
+    [temAcoes, alturaMenuInferior],
+  );
   const sheetRef = useRef<BottomSheet>(null);
 
   // eventos
@@ -49,6 +66,12 @@ export default function FolhaInferiorMotorista({
           <Text maxFontSizeMultiplier={1.1} style={styles.saudacao}>
             Olá, {user?.name?.split(/\s+/)[0]}!
           </Text>
+          {temAcoes && (
+            <AcoesNecessarias
+              acoes={acoesNecessarias}
+              onPress={onResolverAcoes}
+            />
+          )}
           <BannersPublicidade banners={banners} />
         </BottomSheetView>
       </BottomSheet>

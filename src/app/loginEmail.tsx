@@ -3,6 +3,7 @@ import AppLogo from "@/components/common/AppLogo";
 import ErrorBanner from "@/components/common/ErrorBanner";
 import { Text, TextInput } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
+import { rotaDoMotorista } from "@/domain/rotaDoMotorista";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { ehErroDeRede, mensagemDaApi } from "@/Services/api";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -61,7 +62,7 @@ export default function LoginEmail() {
 
   useEffect(() => {
     if (user && !loading) {
-      router.replace("/home");
+      router.replace(rotaDoMotorista(user.status));
     }
   }, [user, loading, router]);
 
@@ -124,7 +125,7 @@ export default function LoginEmail() {
       <SafeAreaView style={styles.container} edges={[]}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : undefined}
-          style={styles.keyboard}
+          style={[styles.keyboard, { paddingTop: insets.top }]}
         >
           <ScrollView
             style={styles.scroll}
@@ -133,12 +134,7 @@ export default function LoginEmail() {
             keyboardDismissMode="on-drag"
           >
             {/* HEADER */}
-            <View
-              style={[
-                styles.header,
-                { paddingTop: Math.max(insets.top + 12, 36) },
-              ]}
-            >
+            <View style={styles.header}>
               <AppLogo />
 
               <View style={styles.badgeContainer}>
@@ -334,7 +330,7 @@ const styles = StyleSheet.create({
 
   header: {
     alignItems: "center",
-    paddingTop: 36,
+    paddingTop: 12,
     paddingHorizontal: 20,
   },
 

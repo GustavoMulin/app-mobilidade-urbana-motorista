@@ -108,6 +108,7 @@ export default function OfertaNegociaMotorista({
       transparent
       animationType="slide"
       statusBarTranslucent
+      navigationBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.raiz}>

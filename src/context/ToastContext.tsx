@@ -55,6 +55,7 @@ const TOASTS_PERMITIDOS = [
   /^negocia:\d+:(recusada|outro)$/,
   /^veiculo-em-uso:\d+$/,
   /^veiculo-removido:\d+$/,
+  /^documento-enviado:(cnh|crlv|nada_consta|seguro_obrigatorio)$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;
