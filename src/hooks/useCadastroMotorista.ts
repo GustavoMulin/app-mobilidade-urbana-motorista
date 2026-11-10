@@ -1,5 +1,6 @@
 import { api } from "@/Services/api";
 import { useCallback, useEffect, useState } from "react";
+import { AppState } from "react-native";
 
 export type SituacaoCadastro =
   | "sem_cadastro"
@@ -32,6 +33,8 @@ export interface CadastroMotorista {
   pendencias: ("cnh" | "documentos" | "veiculo")[];
   // documentos vencidos ou reprovados e "veiculo" quando não há veículo
   acoes_necessarias?: string[];
+  // só aviso: aguardam a gestão, não impedem ficar online com outro veículo
+  veiculos_em_analise?: { nome: string; placa: string | null }[];
   // já foi aprovado uma vez: fica na home mesmo com pendência
   liberado?: boolean;
 }
@@ -90,36 +93,46 @@ export function useCadastroMotorista() {
 
   useEffect(() => {
     const timer = setTimeout(() => void carregar(), 0);
+    // de volta ao app: a gestão pode ter aprovado ou reprovado algo nesse meio tempo
+    const assinatura = AppState.addEventListener("change", (estado) => {
+      if (estado === "active") void carregar();
+    });
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      assinatura.remove();
+    };
   }, [carregar]);
 
-  // atalho de desenvolvimento: pula CNH e documentos e aprova direto (ver
-  // MotoristaCadastroController::aprovarDev no backend)
-  const aprovarDev = useCallback(async () => {
-    setEnviando(true);
-    setErro("");
+  // atalhos de desenvolvimento (ver MotoristaCadastroController no backend):
+  // "aprovar-dev" aprova com documentos fictícios; "liberar-dev" entra sem nenhum
+  const atalhoDev = useCallback(
+    async (rota: "aprovar-dev" | "liberar-dev") => {
+      setEnviando(true);
+      setErro("");
 
-    try {
-      await api.post("/motorista/cadastro/aprovar-dev");
-      await carregar();
+      try {
+        await api.post(`/motorista/cadastro/${rota}`);
+        await carregar();
 
-      return true;
-    } catch (falha) {
-      setErro(mensagemDoErro(falha, "Não foi possível aprovar o cadastro."));
+        return true;
+      } catch (falha) {
+        setErro(mensagemDoErro(falha, "Não foi possível usar o atalho."));
 
-      return false;
-    } finally {
-      setEnviando(false);
-    }
-  }, [carregar]);
+        return false;
+      } finally {
+        setEnviando(false);
+      }
+    },
+    [carregar],
+  );
 
   return {
     cadastro,
     carregando,
     enviando,
     erro,
-    aprovarDev,
+    atalhoDev,
     recarregar: carregar,
   };
 }

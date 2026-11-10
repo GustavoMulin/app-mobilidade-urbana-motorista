@@ -112,7 +112,7 @@ module.exports = {
     "expo-font",
     "expo-status-bar",
     "expo-web-browser",
-    "expo-audio",
+    ["expo-audio", { microphonePermission: "Permitir $(PRODUCT_NAME) usar o microfone." }],
     // CODEX: 2 linhas alteradas neste arquivo; habilita fotos com descrição em português no iPhone.
     ["expo-image-picker", { photosPermission: "Permitir selecionar fotos dos seus documentos para análise." }],
     "expo-asset",

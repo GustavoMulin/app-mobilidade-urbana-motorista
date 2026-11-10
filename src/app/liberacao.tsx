@@ -59,7 +59,7 @@ export default function Liberacao() {
   const router = useRouter();
   const { logout } = useAuth();
   const { mostrarToast } = useToast();
-  const { cadastro, carregando, enviando, erro, aprovarDev, recarregar } =
+  const { cadastro, carregando, enviando, erro, atalhoDev, recarregar } =
     useCadastroMotorista();
 
   const [saindo, setSaindo] = useState(false);
@@ -80,15 +80,19 @@ export default function Liberacao() {
     await logout();
   };
 
-  // atalho de desenvolvimento: pula CNH e documentos e aprova direto
-  const aprovarSemDocumentos = async () => {
+  // atalhos de desenvolvimento: aprovar com documentos fictícios, ou entrar
+  // sem nenhum para ver as ações necessárias na home
+  const usarAtalho = async (rota: "aprovar-dev" | "liberar-dev") => {
     if (enviando) return;
-    const sucesso = await aprovarDev();
+    const sucesso = await atalhoDev(rota);
 
     if (sucesso) {
       mostrarToast({
         tipo: "success",
-        titulo: "Cadastro aprovado (atalho de desenvolvimento)",
+        titulo:
+          rota === "aprovar-dev"
+            ? "Cadastro aprovado (atalho de desenvolvimento)"
+            : "Entrou sem documentos (atalho de desenvolvimento)",
       });
     }
   };
@@ -118,9 +122,16 @@ export default function Liberacao() {
 
         {__DEV__ &&
           cadastro?.situacao !== "aprovado" &&
-          cadastro?.situacao !== "ativo" && (
+          cadastro?.situacao !== "ativo" &&
+          (
+            [
+              ["aprovar-dev", "Pular e aprovar (dev)"],
+              ["liberar-dev", "Entrar sem documentos (dev)"],
+            ] as const
+          ).map(([rota, rotulo]) => (
             <TouchableOpacity
-              onPress={() => void aprovarSemDocumentos()}
+              key={rota}
+              onPress={() => void usarAtalho(rota)}
               disabled={enviando || saindo}
               style={styles.acao}
               activeOpacity={0.7}
@@ -131,10 +142,10 @@ export default function Liberacao() {
                   (enviando || saindo) && styles.testClickableTextDisabled,
                 ]}
               >
-                Pular e aprovar (dev)
+                {rotulo}
               </Text>
             </TouchableOpacity>
-          )}
+          ))}
 
         <TouchableOpacity
           style={styles.acao}
