@@ -61,8 +61,9 @@ interface props {
   onAbrirChat?: () => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
+  // as frases da etapa "no embarque", das preferências do motorista
+  mensagensRapidas?: string[];
   // mensagens rápidas que o motorista criou no chat
-  mensagensPersonalizadas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
   // quanto a pílula do embarque ocupa abaixo da área segura (os avisos do
   // chat aparecem logo embaixo dela)
@@ -112,7 +113,7 @@ export default function CorridaEmAndamento({
   chatNaoLidas = 0,
   onAbrirChat,
   mensagensEnviadas = [],
-  mensagensPersonalizadas = [],
+  mensagensRapidas = [],
   onEnviarMensagem,
   onAlturaDoTopo,
   onAlturaChange,
@@ -236,7 +237,7 @@ export default function CorridaEmAndamento({
         {onEnviarMensagem ? (
           <BaloesDaChegada
             enviadas={mensagensEnviadas}
-            personalizadas={mensagensPersonalizadas}
+            mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
           />
         ) : null}
@@ -361,6 +362,7 @@ export default function CorridaEmAndamento({
         transparent
         animationType="fade"
         statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setTaxaVisivel(false)}
       >
         <Pressable

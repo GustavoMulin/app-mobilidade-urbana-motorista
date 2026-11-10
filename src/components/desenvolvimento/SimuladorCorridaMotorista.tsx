@@ -65,6 +65,7 @@ export default function SimuladorCorridaMotorista({
         visible={aberto}
         animationType="fade"
         statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setAberto(false)}
       >
         <Pressable style={styles.fundo} onPress={() => setAberto(false)}>

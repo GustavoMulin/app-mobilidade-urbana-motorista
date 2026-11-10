@@ -14,6 +14,7 @@ import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { enderecoCurto } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
+import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 // CODEX: 391 linhas adicionadas e 157 removidas no diff atual; aceita posição e rota fixas do simulador. Remover após validação/commit.
 import type {
@@ -60,9 +61,11 @@ import {
 } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import Animated, {
+  Easing,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -96,6 +99,11 @@ interface Props {
   // quanto o cartão do topo ocupa abaixo da área segura (os avisos do chat
   // aparecem logo embaixo dele, sem cobrir a manobra)
   onAlturaDoTopo?: (altura: number) => void;
+  // mensagem rápida de um toque depois do aceite
+  mensagensEnviadas?: string[];
+  // as frases da etapa "a caminho", das preferências do motorista
+  mensagensRapidas?: string[];
+  onEnviarMensagem?: (texto: string) => Promise<boolean>;
 }
 
 interface Passo {
@@ -224,6 +232,9 @@ export default function NavegacaoAtiva({
   onAbrirChat,
   onAlturaDoTopo,
   paradasDoGrupo = null,
+  mensagensEnviadas = [],
+  mensagensRapidas = [],
+  onEnviarMensagem,
 }: Props) {
   const passo = passoDoGrupo(
     passoDaNavegacao(status, totalParadas, paradasPendentes),
@@ -273,11 +284,34 @@ export default function NavegacaoAtiva({
   const topoDaFolha = useSharedValue(alturaTela);
   const indiceAnimado = useSharedValue(1);
   const alturaDaTela = useSharedValue(alturaTela);
+  // o painel de mensagem rápida empurra velocímetro e faixa para cima
+  const alturaMensagens = useSharedValue(0);
+  const aoMudarAlturaMensagens = useCallback(
+    (altura: number) => {
+      alturaMensagens.set(
+        withTiming(altura, { duration: 220, easing: Easing.out(Easing.quad) }),
+      );
+    },
+    [alturaMensagens],
+  );
+  const comMensagemACaminho = status === "aceita" && !!onEnviarMensagem;
+  useEffect(() => {
+    if (!comMensagemACaminho) alturaMensagens.set(0);
+  }, [comMensagemACaminho, alturaMensagens]);
   const estiloVelocidade = useAnimatedStyle(() => ({
-    bottom: Math.max(alturaDaTela.value - topoDaFolha.value, 0) + 84,
+    bottom:
+      Math.max(alturaDaTela.value - topoDaFolha.value, 0) +
+      84 +
+      alturaMensagens.value,
   }));
   const estiloPilula = useAnimatedStyle(() => ({
-    bottom: Math.max(alturaDaTela.value - topoDaFolha.value, 0) + 12,
+    bottom:
+      Math.max(alturaDaTela.value - topoDaFolha.value, 0) +
+      12 +
+      alturaMensagens.value,
+  }));
+  const estiloMensagens = useAnimatedStyle(() => ({
+    bottom: Math.max(alturaDaTela.value - topoDaFolha.value, 0),
   }));
   const estiloConteudo = useAnimatedStyle(() => ({
     opacity: interpolate(indiceAnimado.value, [0, 1], [0, 1], "clamp"),
@@ -750,6 +784,20 @@ export default function NavegacaoAtiva({
         </TouchableOpacity>
       </Animated.View>
 
+      {comMensagemACaminho ? (
+        <Animated.View
+          pointerEvents="box-none"
+          style={[styles.mensagemACaminho, estiloMensagens]}
+        >
+          <BaloesDaChegada
+            enviadas={mensagensEnviadas}
+            mensagens={mensagensRapidas}
+            onEnviar={onEnviarMensagem}
+            onAlturaChange={aoMudarAlturaMensagens}
+          />
+        </Animated.View>
+      ) : null}
+
       {/* FOLHA INFERIOR */}
       <BottomSheet
         ref={folhaRef}
@@ -887,6 +935,7 @@ export default function NavegacaoAtiva({
         transparent
         animationType="fade"
         statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={() => setSegurancaVisivel(false)}
       >
         <Pressable
@@ -1063,6 +1112,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
   },
+  mensagemACaminho: { position: "absolute", left: 0, right: 0 },
   velocidade: {
     position: "absolute",
     left: 12,
@@ -1194,7 +1244,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   chipPagamento: {
-    alignSelf: "flex-start",
+    alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
     gap: 8,

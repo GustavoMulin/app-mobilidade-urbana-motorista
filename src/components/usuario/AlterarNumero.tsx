@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import {
   Animated,
   BackHandler,
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -26,6 +28,7 @@ export default function AlterarNumero({
   duration = 200,
 }: props) {
   const insets = useSafeAreaInsets();
+  const espacoDoTeclado = useEspacoDoTeclado();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -94,6 +97,7 @@ export default function AlterarNumero({
         style={[
           styles.drawer,
           {
+            paddingBottom: espacoDoTeclado,
             transform: [{ translateX }],
           },
         ]}
@@ -112,7 +116,12 @@ export default function AlterarNumero({
         </View>
 
         {/* BODY */}
-        <View style={styles.body}>
+        <ScrollView
+          style={styles.rolagem}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           {/* Ilustração/Ícone central */}
           <View style={styles.illustrationContainer}>
             <View style={styles.iconCircle}>
@@ -171,7 +180,7 @@ export default function AlterarNumero({
               Próximo
             </Text>
           </TouchableOpacity>
-        </View>
+        </ScrollView>
       </Animated.View>
     </View>
   );
@@ -204,8 +213,9 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#111",
   },
+  rolagem: { flex: 1 },
   body: {
-    flex: 1,
+    flexGrow: 1,
     padding: 24,
     alignItems: "center",
   },

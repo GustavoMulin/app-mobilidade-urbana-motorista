@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import {
   Animated,
   BackHandler,
@@ -10,6 +11,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 
 const { width } = Dimensions.get("window");
@@ -26,6 +28,7 @@ export default function DefinirMetaGanhos({
   duration = 200,
 }: props) {
   const insets = useSafeAreaInsets();
+  const espacoDoTeclado = useEspacoDoTeclado();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -117,7 +120,12 @@ export default function DefinirMetaGanhos({
         </View>
 
         {/* BODY */}
-        <View style={styles.body}>
+        <ScrollView
+          style={styles.rolagem}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           <Text style={styles.title}>Definir meta de ganhos</Text>
           <Text style={styles.description}>
             Fica mais fácil atingir sua meta se ela estiver registrada
@@ -138,10 +146,15 @@ export default function DefinirMetaGanhos({
           <Text style={styles.lastWeekInfo}>
             Você ganhou R$415,33 na semana passada
           </Text>
-        </View>
+        </ScrollView>
 
         {/* FOOTER BUTTON */}
-        <View style={styles.footer}>
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: Math.max(35, espacoDoTeclado + 16) },
+          ]}
+        >
           <TouchableOpacity
             style={[
               styles.mainButton,
@@ -196,8 +209,9 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#111",
   },
+  rolagem: { flex: 1, backgroundColor: "#FFF" },
   body: {
-    flex: 1,
+    flexGrow: 1,
     padding: 20,
     backgroundColor: "#FFF",
   },

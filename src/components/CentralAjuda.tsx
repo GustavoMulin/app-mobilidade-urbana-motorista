@@ -265,6 +265,7 @@ export default function CentralAjuda({ visible, onClose }: Props) {
       animationType="slide"
       onRequestClose={voltar}
       statusBarTranslucent
+      navigationBarTranslucent
     >
       {conversa !== null ? (
         <ConversaAjuda pedidoId={conversa} onVoltar={fecharConversa} />

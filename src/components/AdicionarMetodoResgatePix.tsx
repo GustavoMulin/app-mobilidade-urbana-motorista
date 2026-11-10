@@ -2,6 +2,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
 import { Text, TextInput } from "@/components/common/Texto";
+import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import {
   ActivityIndicator,
   Animated,
@@ -12,6 +13,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  ScrollView,
 } from "react-native";
 import MetodoResgateAdicionado from "./MetodoResgateAdicionado";
 import {
@@ -41,6 +43,7 @@ export default function AdicionarMetodoResgate({
   onSalvo,
 }: props) {
   const insets = useSafeAreaInsets();
+  const espacoDoTeclado = useEspacoDoTeclado();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [slideConfirm] = useState(() => new Animated.Value(height));
@@ -286,7 +289,11 @@ export default function AdicionarMetodoResgate({
             </Pressable>
           )}
 
-          <View style={styles.body}>
+          <ScrollView
+            style={styles.body}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
             <View style={styles.divider} />
             <View style={styles.illustrationContainer}>
               <View style={styles.pixIconWrapper}>
@@ -387,9 +394,14 @@ export default function AdicionarMetodoResgate({
                 <Text style={styles.avisoCodigo}>{avisoCodigo}</Text>
               )}
             </View>
-          </View>
+          </ScrollView>
 
-          <View style={styles.footer}>
+          <View
+            style={[
+              styles.footer,
+              { paddingBottom: Math.max(35, espacoDoTeclado + 16) },
+            ]}
+          >
             <TouchableOpacity
               style={[
                 styles.btnAdicionar,

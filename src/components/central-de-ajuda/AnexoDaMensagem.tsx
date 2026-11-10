@@ -69,6 +69,7 @@ export default function AnexoDaMensagem({ anexo }: { anexo: AnexoDeAjuda }) {
         animationType="fade"
         onRequestClose={() => setAmpliada(false)}
         statusBarTranslucent
+        navigationBarTranslucent
       >
         <View style={styles.fundo}>
           <Image

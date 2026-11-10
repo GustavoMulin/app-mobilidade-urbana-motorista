@@ -8,6 +8,8 @@ import {
   useState,
 } from "react";
 
+import { adiantarCadastro } from "@/hooks/useCadastroMotorista";
+import { rotaDoMotorista } from "@/domain/rotaDoMotorista";
 import { removerAparelho } from "@/Services/push";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
@@ -147,6 +149,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     restoreSession();
   }, [limparSessaoLocal]);
 
+  // quem vai para a liberação continua na tela atual até os dados chegarem
+  const prepararEntrada = async (status?: string | null) => {
+    if (rotaDoMotorista(status) === "/liberacao") await adiantarCadastro();
+  };
+
   // =========================
   // LOGIN
   // =========================
@@ -166,6 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await SecureStore.setItemAsync("user", JSON.stringify(user));
 
       await SecureStore.setItemAsync("token", token);
+      await prepararEntrada(user.status);
       setUser(user);
       logoutEmAndamento.current = false;
     } catch (error: any) {
@@ -183,21 +191,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // sem setLoading: a tela do código fica na frente até a próxima tela estar pronta
   const loginComToken = async (userData: Usuario, token: string) => {
     try {
-      setLoading(true);
-
       await SecureStore.setItemAsync("user", JSON.stringify(userData));
 
       await SecureStore.setItemAsync("token", token);
+      await prepararEntrada(userData.status);
       setUser(userData);
       logoutEmAndamento.current = false;
     } catch (error) {
       console.error("Erro ao autenticar com token:", error);
 
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -303,6 +309,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await SecureStore.setItemAsync("user", JSON.stringify(user));
 
       await SecureStore.setItemAsync("token", token);
+      await prepararEntrada(user.status);
       setUser(user);
       logoutEmAndamento.current = false;
     } catch (error: any) {

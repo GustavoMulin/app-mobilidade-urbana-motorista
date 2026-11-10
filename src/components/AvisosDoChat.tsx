@@ -48,8 +48,8 @@ const fonte = (tamanho: number) => tamanho / FATOR_FONTE_GLOBAL;
 
 // tempo para ler e tocar numa resposta
 const VIDA_MS = 8000;
-// por enquanto só o "Ok." aparece no aviso
-const RESPOSTAS_NO_AVISO = ["Ok."];
+// por enquanto só o "Ok" aparece no aviso
+const RESPOSTAS_NO_AVISO = ["Ok"];
 const MAXIMO_NA_TELA = 3;
 
 function BarraDeVida() {
@@ -141,46 +141,57 @@ function CartaoDoAviso({
     >
       <GestureDetector gesture={arrastar}>
         <Animated.View style={[styles.cartao, estilo]}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Mensagem de ${aviso.autor}: ${aviso.conteudo}. Tocar para abrir a conversa`}
-            accessibilityHint="Arraste para o lado para dispensar"
-            accessibilityActions={[{ name: "dismiss", label: "Dispensar" }]}
-            onAccessibilityAction={() => onDispensar(aviso.id)}
-            onPress={onAbrir}
-            style={styles.toque}
-          >
-            <View style={styles.icone}>
-              <Ionicons name="chatbubble-ellipses" size={18} color="#111" />
+          <View style={styles.linha}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Mensagem de ${aviso.autor}: ${aviso.conteudo}. Tocar para abrir a conversa`}
+              accessibilityHint="Arraste para o lado para dispensar"
+              accessibilityActions={[{ name: "dismiss", label: "Dispensar" }]}
+              onAccessibilityAction={() => onDispensar(aviso.id)}
+              onPress={onAbrir}
+              style={styles.toque}
+            >
+              <View style={styles.icone}>
+                <Ionicons name="chatbubble-ellipses" size={18} color="#111" />
+              </View>
+              <View style={styles.textos}>
+                <Text style={styles.autor} numberOfLines={1}>
+                  {aviso.autor}
+                </Text>
+                <Text style={styles.conteudo} numberOfLines={2}>
+                  {aviso.conteudo}
+                </Text>
+              </View>
+            </Pressable>
+            <View style={styles.acoes}>
+              {respostas.length > 0 ? (
+                <View style={styles.respostas}>
+                  {respostas.map((resposta) => (
+                    <TouchableOpacity
+                      key={resposta}
+                      style={styles.resposta}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Responder: ${resposta}`}
+                      activeOpacity={0.7}
+                      onPress={() => responder(resposta)}
+                    >
+                      <Text style={styles.respostaTexto} numberOfLines={1}>
+                        {resposta}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Responder"
+                onPress={onAbrir}
+                style={styles.botaoResponder}
+              >
+                <Text style={styles.responder}>Responder</Text>
+              </Pressable>
             </View>
-            <View style={styles.textos}>
-              <Text style={styles.autor} numberOfLines={1}>
-                {aviso.autor}
-              </Text>
-              <Text style={styles.conteudo} numberOfLines={2}>
-                {aviso.conteudo}
-              </Text>
-            </View>
-            <Text style={styles.responder}>Responder</Text>
-          </Pressable>
-          {respostas.length > 0 ? (
-            <View style={styles.respostas}>
-              {respostas.map((resposta) => (
-                <TouchableOpacity
-                  key={resposta}
-                  style={styles.resposta}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Responder: ${resposta}`}
-                  activeOpacity={0.7}
-                  onPress={() => responder(resposta)}
-                >
-                  <Text style={styles.respostaTexto} numberOfLines={1}>
-                    {resposta}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+          </View>
           <BarraDeVida />
         </Animated.View>
       </GestureDetector>
@@ -317,25 +328,26 @@ export default function AvisosDoChat({
 }
 
 const styles = StyleSheet.create({
-  respostas: {
+  linha: { alignItems: "stretch" },
+  acoes: {
+    alignItems: "center",
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    paddingBottom: 10,
-    paddingLeft: 58,
+    paddingBottom: 4,
+    paddingLeft: 50,
+  },
+  respostas: { flexDirection: "row" },
+  resposta: {
+    justifyContent: "center",
+    minHeight: 44,
+    paddingHorizontal: 8,
+  },
+  botaoResponder: {
+    justifyContent: "center",
+    minHeight: 44,
+    paddingLeft: 8,
     paddingRight: 12,
   },
-  resposta: {
-    backgroundColor: "#FFF8D6",
-    borderColor: "#F2D45C",
-    borderRadius: 999,
-    borderWidth: 1,
-    justifyContent: "center",
-    maxWidth: "100%",
-    minHeight: 36,
-    paddingHorizontal: 14,
-  },
-  respostaTexto: { color: "#111", fontSize: fonte(14), fontWeight: "700" },
+  respostaTexto: { color: "#1C6FD1", fontSize: fonte(13), fontWeight: "700" },
   pilha: {
     position: "absolute",
     left: 12,
@@ -359,9 +371,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flexDirection: "row",
     gap: 10,
-    minHeight: 60,
+    paddingBottom: 2,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingTop: 10,
   },
   icone: {
     alignItems: "center",
