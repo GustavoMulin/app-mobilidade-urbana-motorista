@@ -144,7 +144,8 @@ export default function Map({
             interpolate(
               indice,
               [0, 1, 2],
-              [alturaTela * 0.18, alturaTela * 0.52, alturaTela * 0.92],
+              // fechada, a altura vem do rodapé (menu + alça ou ações)
+              [0, alturaTela * 0.34, alturaTela],
               Extrapolation.CLAMP,
             ),
             alturaMinimaRodape,
@@ -383,7 +384,7 @@ export default function Map({
     )
       return;
 
-    const fracaoOcupada = [0.18, 0.52, 0.92][bottomSheetIndex] ?? 0.18;
+    const fracaoOcupada = [0.13, 0.34, 1][bottomSheetIndex] ?? 0.13;
     const base = userInitialRegion.current;
     const latitudeDelta = base.latitudeDelta ?? 0.01;
     const novaRegiao: Region = {

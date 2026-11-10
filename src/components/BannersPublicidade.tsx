@@ -93,9 +93,9 @@ export default function BannersPublicidade({ banners }: Props) {
 }
 
 const styles = StyleSheet.create({
+  // o espaço em volta vem da faixa de recursos da folha
   container: {
     width: "100%",
-    marginTop: 14,
   },
   imagem: {
     aspectRatio: PROPORCAO,

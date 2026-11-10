@@ -1,5 +1,6 @@
 import { Text } from "@/components/common/Texto";
 import { Ionicons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { useState } from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,6 +13,10 @@ interface props {
   disponivel: boolean;
   emCorrida: boolean;
   ocupado: boolean;
+  // ações necessárias pendentes: o servidor recusaria o "Conectar", então o
+  // toque só avisa (a faixa da folha pisca em vermelho)
+  comPendencias?: boolean;
+  onConectarBloqueado?: () => void;
   onAlternarDisponibilidade: (proximoEstado: boolean) => void;
   onAlturaChange?: (altura: number) => void;
 }
@@ -21,6 +26,8 @@ export default function MenuInferiorMotorista({
   disponivel,
   emCorrida,
   ocupado,
+  comPendencias = false,
+  onConectarBloqueado,
   onAlternarDisponibilidade,
   onAlturaChange,
 }: props) {
@@ -32,6 +39,12 @@ export default function MenuInferiorMotorista({
 
   const alternar = () => {
     if (bloqueado) return;
+
+    if (comPendencias && !disponivel) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      onConectarBloqueado?.();
+      return;
+    }
 
     // online, um toque sem querer no "Buscando" tirava o motorista do ar:
     // como no 99, desconectar fica em Preferências › Desconectar
@@ -62,7 +75,7 @@ export default function MenuInferiorMotorista({
           elevation: 0,
         }
       : {
-          backgroundColor: emCorrida ? "#E0E0E0" : "#FFD600",
+          backgroundColor: bloqueado ? "#E0E0E0" : "#FFD600",
         },
   ];
 

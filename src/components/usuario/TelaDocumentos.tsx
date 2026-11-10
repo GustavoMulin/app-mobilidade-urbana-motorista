@@ -20,18 +20,13 @@ interface Props {
   onAtualizar?: () => Promise<void>;
   // o CRLV só entra na liberação; depois dela ele fica em "Meus veículos"
   comCrlv?: boolean;
-  // lista só o que precisa ser resolvido: "veiculo" é a falta de veículo
-  acoes?: string[];
-  onAbrirVeiculos?: () => void;
   aviso?: { titulo: string; texto: string; cor: string };
   children?: ReactNode;
 }
 
-const LINHA_VEICULO = { tipo: "veiculo", icone: "car-outline" } as const;
-type Linha = (typeof DOCUMENTOS)[number] | typeof LINHA_VEICULO;
+type Linha = (typeof DOCUMENTOS)[number];
 
-const TITULOS: Record<Linha["tipo"], string> = {
-  veiculo: "Veículo",
+const TITULOS: Record<TipoDocumento, string> = {
   cnh: "CNH (Motorista)",
   crlv: "CRLV (Veículo)",
   nada_consta: "Antecedentes Criminais",
@@ -53,8 +48,6 @@ export default function TelaDocumentos({
   onVoltar,
   onAtualizar,
   comCrlv = false,
-  acoes,
-  onAbrirVeiculos,
   aviso,
   children,
 }: Props) {
@@ -67,12 +60,9 @@ export default function TelaDocumentos({
 
   // sem veículo, só o cadastro dele cria o veículo quando a gestão aprova o CRLV
   const semVeiculo = cadastro?.veiculos === 0;
-  const documentos = DOCUMENTOS.filter((item) =>
-    acoes ? acoes.includes(item.tipo) : comCrlv || item.tipo !== "crlv",
+  const documentos = DOCUMENTOS.filter(
+    (item) => comCrlv || item.tipo !== "crlv",
   );
-  const linhas: Linha[] = acoes?.includes("veiculo")
-    ? [LINHA_VEICULO, ...documentos]
-    : documentos;
   const documentoDe = (tipo: TipoDocumento) =>
     cadastro?.documentos.find((doc) => doc.tipo_documento === tipo);
   // só não enviado, recusado ou vencido; o servidor recusa do mesmo jeito
@@ -108,17 +98,14 @@ export default function TelaDocumentos({
 
   const renderItem = ({ item }: { item: Linha }) => {
     const titulo = TITULOS[item.tipo];
-    const eVeiculo = item.tipo === "veiculo";
-    const enviado = eVeiculo ? undefined : documentoDe(item.tipo);
-    const status = eVeiculo
-      ? "Sem veículo"
-      : enviado?.vencido
-        ? "Vencido"
-        : enviado
-          ? (STATUS[enviado.status] ?? enviado.status)
-          : cadastro
-            ? "Não enviado"
-            : "";
+    const enviado = documentoDe(item.tipo);
+    const status = enviado?.vencido
+      ? "Vencido"
+      : enviado
+        ? (STATUS[enviado.status] ?? enviado.status)
+        : cadastro
+          ? "Não enviado"
+          : "";
     const getStatusColor = (valor: string) => {
       if (valor === "Aprovado") return "#10B981";
       if (valor === "Em análise") return "#F59E0B";
@@ -129,10 +116,8 @@ export default function TelaDocumentos({
     return (
       <TouchableOpacity
         style={styles.documentoLinha}
-        onPress={() =>
-          item.tipo === "veiculo" ? onAbrirVeiculos?.() : abrirEnvio(item.tipo)
-        }
-        disabled={item.tipo !== "veiculo" && !podeEnviar(item.tipo)}
+        onPress={() => abrirEnvio(item.tipo)}
+        disabled={!podeEnviar(item.tipo)}
         accessibilityRole="button"
         accessibilityLabel={`${titulo}, ${status}`}
       >
@@ -145,11 +130,9 @@ export default function TelaDocumentos({
         <View style={styles.infoContainer}>
           <Text style={styles.docTitle}>{titulo}</Text>
           <Text style={styles.docDate}>
-            {eVeiculo
-              ? "Toque para cadastrar"
-              : enviado && !enviado.vencido
-                ? dataEnvio(enviado.created_at)
-                : "Toque para enviar"}
+            {enviado && !enviado.vencido
+              ? dataEnvio(enviado.created_at)
+              : "Toque para enviar"}
           </Text>
         </View>
 
@@ -182,9 +165,7 @@ export default function TelaDocumentos({
           ) : (
             <View style={styles.headerEspaco} />
           )}
-          <Text style={styles.headerTitle}>
-            {acoes ? "Ações necessárias" : "Documentos enviados"}
-          </Text>
+          <Text style={styles.headerTitle}>Documentos enviados</Text>
           <View style={styles.headerEspaco} />
         </View>
       </View>
@@ -207,26 +188,19 @@ export default function TelaDocumentos({
             ) : null}
             <Text style={styles.descriptionText}>
               {aviso?.texto ??
-                (acoes
-                  ? "Resolva os itens abaixo para voltar a ficar online."
-                  : "Aqui você pode acompanhar o status de validação dos documentos que você enviou para a nossa plataforma.")}
+                "Aqui você pode acompanhar o status de validação dos documentos que você enviou para a nossa plataforma."}
             </Text>
           </View>
         </View>
 
         <FlatList
-          data={linhas}
+          data={documentos}
           keyExtractor={(item) => item.tipo}
           renderItem={renderItem}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
           refreshing={atualizando}
           onRefresh={onAtualizar ? () => void atualizar() : undefined}
-          ListEmptyComponent={
-            acoes && cadastro ? (
-              <Text style={styles.docDate}>Nada pendente por aqui.</Text>
-            ) : undefined
-          }
           ListFooterComponent={
             <>
               {erro ? (
@@ -239,27 +213,25 @@ export default function TelaDocumentos({
           }
         />
 
-        {!acoes && (
-          <TouchableOpacity
-            style={[styles.newDocButton, nadaAEnviar && styles.newDocInativo]}
-            onPress={() => abrirEnvio()}
-            disabled={nadaAEnviar}
+        <TouchableOpacity
+          style={[styles.newDocButton, nadaAEnviar && styles.newDocInativo]}
+          onPress={() => abrirEnvio()}
+          disabled={nadaAEnviar}
+        >
+          <Ionicons
+            name="add-circle-outline"
+            size={20}
+            color={nadaAEnviar ? "#CFCFD3" : "#111"}
+          />
+          <Text
+            style={[
+              styles.newDocText,
+              nadaAEnviar && styles.newDocTextoInativo,
+            ]}
           >
-            <Ionicons
-              name="add-circle-outline"
-              size={20}
-              color={nadaAEnviar ? "#CFCFD3" : "#111"}
-            />
-            <Text
-              style={[
-                styles.newDocText,
-                nadaAEnviar && styles.newDocTextoInativo,
-              ]}
-            >
-              Enviar novo documento
-            </Text>
-          </TouchableOpacity>
-        )}
+            Enviar novo documento
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {envio && (

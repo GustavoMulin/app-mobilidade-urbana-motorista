@@ -1,4 +1,5 @@
 import { api } from "@/Services/api";
+import { urlDeDesenvolvimento } from "@/Services/hostDev";
 import { comTempoLimite } from "@/domain/localizacao";
 import * as Location from "expo-location";
 import { useEffect, useState } from "react";
@@ -42,7 +43,16 @@ export function useBannersPublicidade() {
           { params: { cidade }, timeout: 10000 },
         );
 
-        if (!cancelado) setBanners(data?.data ?? []);
+        // em desenvolvimento a imagem vem do computador, como a API: o mesmo
+        // host que o celular já alcança (o IP da rede muda)
+        if (!cancelado) {
+          setBanners(
+            (data?.data ?? []).map((banner) => ({
+              ...banner,
+              url: urlDeDesenvolvimento(banner.url) ?? banner.url,
+            })),
+          );
+        }
       } catch {
         // sem banner nesta abertura; a tela continua igual
       }
