@@ -9,7 +9,6 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import MeusVeiculos from "./MeusVeiculos";
 import TelaDocumentos from "./TelaDocumentos";
 
 const { width } = Dimensions.get("window");
@@ -18,22 +17,18 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
-  // aberto pela faixa da home: lista só o que precisa ser resolvido
-  modoAcoes?: boolean;
 }
 
 export default function DocumentosEnviados({
   visible,
   onClose,
   duration = 200,
-  modoAcoes = false,
 }: props) {
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
   const [cadastro, setCadastro] = useState<CadastroMotorista | null>(null);
   const [erro, setErro] = useState(false);
-  const [veiculosAbertos, setVeiculosAbertos] = useState(false);
 
   const carregar = useCallback(async () => {
     try {
@@ -116,22 +111,8 @@ export default function DocumentosEnviados({
           erro={erro}
           onEnviado={() => void carregar()}
           onVoltar={onClose}
-          acoes={modoAcoes ? (cadastro?.acoes_necessarias ?? []) : undefined}
-          onAbrirVeiculos={() => setVeiculosAbertos(true)}
         />
       </Animated.View>
-
-      {modoAcoes && (
-        <MeusVeiculos
-          visible={veiculosAbertos}
-          onClose={() => {
-            setVeiculosAbertos(false);
-            void carregar();
-          }}
-          disponivel={false}
-          emCorrida={false}
-        />
-      )}
     </View>
   );
 }

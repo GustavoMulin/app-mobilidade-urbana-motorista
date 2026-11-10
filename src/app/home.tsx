@@ -1,62 +1,71 @@
 // app/home.tsx
 // CODEX: 168 linhas adicionadas e 68 removidas no diff atual; integra o simulador local ao fluxo do motorista. Remover após validação/commit.
-import Carregando3D from "@/components/common/Carregando3D";
+import { ouvirToqueNoChat } from "@/Services/push";
 import AvaliarPassageiro from "@/components/AvaliarPassageiro";
+import AvisosDoChat from "@/components/AvisosDoChat";
+import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
+import ChatDaCorrida from "@/components/ChatDaCorrida";
 import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import DinheiroRecebido from "@/components/DinheiroRecebido";
+import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
+import GanhoDiario from "@/components/GanhoDiario";
+import Map from "@/components/Map";
+import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
-import PedidoNovoDestino from "@/components/PedidoNovoDestino";
-import BotaoEmpilharNegociadas from "@/components/BotaoEmpilharNegociadas";
 import {
   AguardandoPagamentoNegocia,
   PropostaEnviadaAviso,
 } from "@/components/NegociaMotorista";
+import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
+import PedidoNovoDestino from "@/components/PedidoNovoDestino";
 import PilhaPropostasNegocia from "@/components/PilhaPropostasNegocia";
-import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
-import GanhoDiario from "@/components/GanhoDiario";
-import Map from "@/components/Map";
-import { ALTURA_COM_ACOES } from "@/components/AcoesNecessarias";
-import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
-import DocumentosEnviados from "@/components/usuario/DocumentosPendentes";
-import { useCadastroMotorista } from "@/hooks/useCadastroMotorista";
 import RecebendoChamada from "@/components/RecebendoChamada";
 import SideMenu from "@/components/SideMenu";
 import SolicitacoesCorrida from "@/components/SolicitacoesCorrida";
 import SolicitarCorrida from "@/components/SolicitarCorrida";
 import TopMenu from "@/components/TopMenu";
+import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
 import SimuladorCorridaMotorista from "@/components/desenvolvimento/SimuladorCorridaMotorista";
+import EnviarDocumentoMotorista, {
+  type TipoDocumento,
+} from "@/components/usuario/EnviarDocumentoMotorista";
+import MeusVeiculos from "@/components/usuario/MeusVeiculos";
 import { useAuth } from "@/context/AuthProvider";
+import { useToast } from "@/context/ToastContext";
+import { itensDasAcoes } from "@/domain/acoesNecessarias";
+import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
 import { useAvaliacaoPendente } from "@/hooks/useAvaliacaoPendente";
+import { useCadastroMotorista } from "@/hooks/useCadastroMotorista";
+import { ehMinha, useChatDaCorrida } from "@/hooks/useChatDaCorrida";
 import {
   type OfertaCorrida,
   useDespachoMotorista,
 } from "@/hooks/useDespachoMotorista";
 import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
+import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
+import { usePermissoesPendentes } from "@/hooks/usePermissoesPendentes";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
-import { ehMinha, useChatDaCorrida } from "@/hooks/useChatDaCorrida";
-import AvisosDoChat from "@/components/AvisosDoChat";
-import { ouvirToqueNoChat } from "@/Services/push";
-import ChatDaCorrida from "@/components/ChatDaCorrida";
-import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
-import OfertaNegociaMotorista from "@/components/OfertaNegociaMotorista";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
-import { proximoPontoDaCorrida } from "@/domain/rotaDaCorrida";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   Dimensions,
+  Modal,
   Pressable,
   StyleSheet,
   View,
   useColorScheme,
-  Modal,
 } from "react-native";
 import { Region } from "react-native-maps";
-import { useSharedValue } from "react-native-reanimated";
+import Reanimated, {
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+} from "react-native-reanimated";
 
 // altura aproximada da folha de corrida, pra rota não ser enquadrada atrás dela
 const ALTURA_FOLHA_CORRIDA = 330;
@@ -252,15 +261,32 @@ export default function Home() {
 
   // ✨ NOVO: Estado para armazenar o índice do BottomSheet
   const [bottomSheetIndex, setBottomSheetIndex] = useState<number>(0);
+  // aberta, a folha cobre o topo: menu e ganho do dia saem, como no 99
+  const folhaAberta =
+    bottomSheetIndex === 2 && ofertaExibida === null && corridaExibida === null;
   const [alturaMenuInferior, setAlturaMenuInferior] = useState(0);
   const { cadastro, recarregar: recarregarCadastro } = useCadastroMotorista();
-  const [documentosAbertos, setDocumentosAbertos] = useState(false);
+  const permissoes = usePermissoesPendentes();
+  const { mostrarToast } = useToast();
+  const [veiculosAbertos, setVeiculosAbertos] = useState(false);
+  const [envioDocumento, setEnvioDocumento] = useState<TipoDocumento | null>(
+    null,
+  );
+  const [alturaAcoes, setAlturaAcoes] = useState(0);
+  // toques no "Conectar" com ação pendente: cada um pisca a faixa da folha em vermelho
+  const [avisoBloqueio, setAvisoBloqueio] = useState(0);
+  // só estas o servidor recusa ao conectar; veículo em análise e permissão só avisam
+  const naoPodeFicarOnline = (cadastro?.acoes_necessarias ?? []).length > 0;
   // online ele já está rodando: a faixa explica por que não dá para conectar
   const acoesNecessarias = disponivelExibido
     ? []
-    : (cadastro?.acoes_necessarias ?? []);
-  const fecharDocumentos = () => {
-    setDocumentosAbertos(false);
+    : itensDasAcoes(cadastro, permissoes.faltando, {
+        documento: setEnvioDocumento,
+        veiculos: () => setVeiculosAbertos(true),
+        permissoes: () => void permissoes.ativar(),
+      });
+  const fecharVeiculos = () => {
+    setVeiculosAbertos(false);
     void recarregarCadastro();
   };
 
@@ -272,6 +298,13 @@ export default function Home() {
     return () => clearInterval(intervalo);
   }, [disponivelExibido, recarregarCadastro]);
   const bottomSheetAnimatedIndex = useSharedValue(0);
+  // arrastando a folha para cima, menu e ganho somem antes de o card "Recursos" descer
+  const comFolha = ofertaExibida === null && corridaExibida === null;
+  const topoDoMapa = useAnimatedStyle(() => ({
+    opacity: comFolha
+      ? interpolate(bottomSheetAnimatedIndex.get(), [1.4, 1.7], [1, 0], "clamp")
+      : 1,
+  }));
 
   // ✨ NOVO: Estado do modal de ganhos foi elevado para cá
   const [ganhoModalVisivel, setGanhoModalVisivel] = useState(false);
@@ -288,9 +321,11 @@ export default function Home() {
   }, [menuVisible, drawerWidth, translateX]);
 
   // 🔹 Função para fechar o menu
+  // pelo menu ele envia documentos e mexe nos veículos: volta com as ações em dia
   const closeMenu = useCallback(() => {
     setMenuVisible(false);
-  }, []);
+    void recarregarCadastro();
+  }, [recarregarCadastro]);
 
   // ✨ NOVA FUNÇÃO: Coordena abertura do menu e fechamento do modal
   const handleMenuOpen = () => {
@@ -376,7 +411,7 @@ export default function Home() {
           alturaMinimaRodape={
             corridaExibida === null
               ? alturaMenuInferior +
-                (acoesNecessarias.length > 0 ? ALTURA_COM_ACOES : 0) +
+                alturaAcoes +
                 (avisoNoRodape ? alturaDoAviso + 12 : 0)
               : 0
           }
@@ -642,24 +677,25 @@ export default function Home() {
         }}
       />
 
-      <GanhoDiario
-        visible={ganhoModalVisivel}
-        setVisible={setGanhoModalVisivel}
-        corridaAtivaId={corridaExibida?.id ?? null}
-        ocultarAtalho={telaDeEspera || chamadaNoMapa}
-      />
-      {/* com a chamada na tela o topo fica livre, como no 99 */}
-      {!statusComNavegacao && !telaDeEspera && !chamadaNoMapa && (
-        <TopMenu onMenuPress={handleMenuOpen} />
-      )}
+      <Reanimated.View
+        pointerEvents="box-none"
+        style={[styles.topoDoMapa, topoDoMapa]}
+      >
+        <GanhoDiario
+          visible={ganhoModalVisivel}
+          setVisible={setGanhoModalVisivel}
+          corridaAtivaId={corridaExibida?.id ?? null}
+          ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
+        />
+        {/* com a chamada na tela o topo fica livre, como no 99 */}
+        {!statusComNavegacao &&
+          !telaDeEspera &&
+          !chamadaNoMapa &&
+          !folhaAberta && <TopMenu onMenuPress={handleMenuOpen} />}
+      </Reanimated.View>
 
       {/* Backdrop para SideMenu */}
-      {menuVisible && (
-        <Pressable
-          style={styles.backdrop}
-          onPress={() => setMenuVisible(false)}
-        />
-      )}
+      {menuVisible && <Pressable style={styles.backdrop} onPress={closeMenu} />}
 
       {/* Side Menu - zIndex menor */}
       <SideMenu
@@ -672,35 +708,53 @@ export default function Home() {
       />
 
       <Modal
-        visible={documentosAbertos}
+        visible={veiculosAbertos}
         transparent
         statusBarTranslucent
         navigationBarTranslucent
-        onRequestClose={fecharDocumentos}
+        onRequestClose={fecharVeiculos}
       >
-        <DocumentosEnviados
-          modoAcoes
-          visible={documentosAbertos}
-          onClose={fecharDocumentos}
+        <MeusVeiculos
+          visible={veiculosAbertos}
+          onClose={fecharVeiculos}
+          disponivel={disponivelExibido}
+          emCorrida={corridaExibida !== null}
         />
       </Modal>
+
+      {envioDocumento && (
+        <EnviarDocumentoMotorista
+          tipoInicial={envioDocumento}
+          tipos={[envioDocumento]}
+          onClose={() => setEnvioDocumento(null)}
+          onEnviado={(tipo) => {
+            setEnvioDocumento(null);
+            void recarregarCadastro();
+            mostrarToast({
+              tipo: "success",
+              icone: "document-text",
+              translucido: true,
+              titulo: "Documento enviado para análise",
+              chave: `documento-enviado:${tipo}`,
+            });
+          }}
+        />
+      )}
 
       {/* FolhaInferior */}
       {ofertaExibida === null && corridaExibida === null && (
         <>
           {menuVisible && (
-            <Pressable
-              style={styles.backdrop}
-              onPress={() => setMenuVisible(false)}
-            />
+            <Pressable style={styles.backdrop} onPress={closeMenu} />
           )}
 
           <FolhaInferiorMotorista
             onSheetChange={onChangeBottomSheetMotorista}
             indiceAnimado={bottomSheetAnimatedIndex}
             alturaMenuInferior={alturaMenuInferior}
-            acoesNecessarias={acoesNecessarias}
-            onResolverAcoes={() => setDocumentosAbertos(true)}
+            aviso={avisoBloqueio}
+            acoes={acoesNecessarias}
+            onAlturaAcoes={setAlturaAcoes}
           />
 
           <SolicitarCorrida
@@ -731,6 +785,8 @@ export default function Home() {
             disponivel={disponivelExibido}
             emCorrida={corridaExibida !== null}
             ocupado={ocupadoExibido}
+            comPendencias={naoPodeFicarOnline}
+            onConectarBloqueado={() => setAvisoBloqueio((toques) => toques + 1)}
             onAlternarDisponibilidade={alternarDisponibilidade}
             onAlturaChange={setAlturaMenuInferior}
           />
@@ -779,6 +835,7 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  topoDoMapa: { position: "absolute", inset: 0, zIndex: 10 },
   backdrop: {
     position: "absolute",
     top: 0,
