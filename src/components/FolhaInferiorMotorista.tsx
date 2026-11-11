@@ -3,22 +3,17 @@ import type { ItemAcao } from "@/domain/acoesNecessarias";
 import BannersPublicidade from "@/components/BannersPublicidade";
 import { useBannersPublicidade } from "@/hooks/useBannersPublicidade";
 import TituloBloqueio from "@/components/TituloBloqueio";
-import { Text } from "@/components/common/Texto";
-import { Ionicons } from "@expo/vector-icons";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Dimensions, StyleSheet, TouchableOpacity, View } from "react-native";
-import Animated, {
-  interpolate,
-  useAnimatedStyle,
-  type SharedValue,
-} from "react-native-reanimated";
+import { Dimensions, StyleSheet, View } from "react-native";
+import type { SharedValue } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // alça da folha, acima do conteúdo
 const ALTURA_ALCA = 24;
-// linha "Recursos" do card que desce do topo com a folha aberta
-const ALTURA_CABECALHO = 52;
+// aberta, a folha para quase no topo: abaixo da barra de status e com um
+// pouco do mapa à vista
+const FOLGA_NO_TOPO = 12;
 
 // 🔹 Definição das props que o componente recebe
 interface DriverSearchProps {
@@ -72,23 +67,7 @@ export default function FolhaInferiorMotorista({
     ];
   }, [alturaFechada, alturaMenuInferior]);
   const sheetRef = useRef<BottomSheet>(null);
-
-  // como no 99: perto do topo, o card "Recursos" desce de cima (cobrindo a
-  // barra de status) e se encaixa na folha, que para com a alça embaixo dele
   const insets = useSafeAreaInsets();
-  const alturaCard = insets.top + ALTURA_CABECALHO;
-  const cardDoTopo = useAnimatedStyle(() => ({
-    transform: [
-      {
-        translateY: interpolate(
-          indiceAnimado.get(),
-          [1.7, 2],
-          [-alturaCard, 0],
-          "clamp",
-        ),
-      },
-    ],
-  }));
 
   // com a folha aberta o aviso ficaria fora da vista: ela volta a mostrar as ações
   useEffect(() => {
@@ -103,7 +82,7 @@ export default function FolhaInferiorMotorista({
         snapPoints={snapPoints}
         enableDynamicSizing={false}
         enablePanDownToClose={false}
-        topInset={alturaCard - ALTURA_ALCA}
+        topInset={insets.top + FOLGA_NO_TOPO}
         onChange={onSheetChange}
         // avisa já no início, para o menu do topo sair antes de a folha chegar
         onAnimate={(_, para) => onSheetChange(para)}
@@ -132,20 +111,6 @@ export default function FolhaInferiorMotorista({
           )}
         </BottomSheetScrollView>
       </BottomSheet>
-      <Animated.View
-        style={[styles.cardDoTopo, { paddingTop: insets.top }, cardDoTopo]}
-      >
-        <TouchableOpacity
-          style={styles.cabecalho}
-          onPress={() => sheetRef.current?.collapse()}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Recolher recursos"
-        >
-          <Ionicons name="chevron-down" size={24} color="#1F1F1F" />
-          <Text style={styles.cabecalhoTitulo}>Recursos</Text>
-        </TouchableOpacity>
-      </Animated.View>
     </View>
   );
 }
@@ -163,21 +128,4 @@ const styles = StyleSheet.create({
     paddingBottom: 32,
     backgroundColor: "#F2F3F5",
   },
-  cardDoTopo: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "#FFF",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(0,0,0,0.12)",
-  },
-  cabecalho: {
-    height: ALTURA_CABECALHO,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingHorizontal: 16,
-  },
-  cabecalhoTitulo: { fontSize: 20, fontWeight: "600", color: "#1F1F1F" },
 });
