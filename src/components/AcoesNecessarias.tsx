@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
     gap: 12,
     // anula o recuo da folha: a faixa vai de borda a borda
     marginHorizontal: -16,
-    marginTop: 12,
+    marginTop: 8,
     paddingLeft: 16,
     paddingRight: 20,
     paddingTop: 14,
