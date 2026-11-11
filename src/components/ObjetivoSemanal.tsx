@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { formatarValorHistorico as reais } from "@/domain/historicoCorridas";
 import DefinirMetaGanhos from "./DefinirMetaGanhos";
 
 const { width } = Dimensions.get("window");
@@ -19,6 +20,10 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
+  meta: number | null;
+  ganhosSemana: number;
+  ganhosSemanaPassada: number;
+  onSalvarMeta: (texto: string) => void;
 }
 
 const FeatureItem = ({
@@ -45,6 +50,10 @@ export default function ObjetivoSemanal({
   visible,
   onClose,
   duration = 200,
+  meta,
+  ganhosSemana,
+  ganhosSemanaPassada,
+  onSalvarMeta,
 }: props) {
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
@@ -165,13 +174,25 @@ export default function ObjetivoSemanal({
                   </View>
                   <Text style={styles.progressLabel}>Objetivo semanal</Text>
                   <Text style={styles.progressValues}>
-                    <Text style={styles.currentValue}>257,87</Text>
-                    <Text style={styles.totalValue}> / R$1.400,00</Text>
+                    <Text style={styles.currentValue}>
+                      {reais(ganhosSemana)}
+                    </Text>
+                    <Text style={styles.totalValue}>
+                      {" "}
+                      / {meta ? reais(meta) : "sem meta"}
+                    </Text>
                   </Text>
                 </View>
 
                 <View style={styles.progressBarBg}>
-                  <View style={[styles.progressBarFill, { width: "18%" }]} />
+                  <View
+                    style={[
+                      styles.progressBarFill,
+                      {
+                        width: `${meta ? Math.min(100, (ganhosSemana / meta) * 100) : 0}%`,
+                      },
+                    ]}
+                  />
                 </View>
 
                 <Text style={styles.continueText}>
@@ -202,6 +223,8 @@ export default function ObjetivoSemanal({
       <DefinirMetaGanhos
         visible={dialogDefinirMetaGanhos}
         onClose={() => setDialogDefinirMetaGanhos(false)}
+        ganhosSemanaPassada={ganhosSemanaPassada}
+        onSalvar={onSalvarMeta}
       />
     </>
   );
