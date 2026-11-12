@@ -21,6 +21,7 @@ import {
 import HistoricoCorridas from "./HistoricoCorridas";
 import MetodosResgate from "./MetodoResgate";
 import MeuSaldo from "./MeuSaldo";
+import SeusGanhos from "./SeusGanhos";
 const { width } = Dimensions.get("window");
 
 interface props {
@@ -40,6 +41,7 @@ export default function CentralGanhos({
   const [isMounted, setIsMounted] = useState(visible);
 
   const [historicoCorridas, setHistoricoCorridas] = useState(false);
+  const [seusGanhos, setSeusGanhos] = useState(false);
   const [meuSaldo, setMeuSaldo] = useState(false);
   // números reais vindos de /motorista/me/ganhos; "—" enquanto carrega ou sem rede
   const [ganhos, setGanhos] = useState<{
@@ -169,7 +171,7 @@ export default function CentralGanhos({
           <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
             {/* CARD PRINCIPAL - GANHOS DO DIA */}
             <TouchableOpacity
-              onPress={mostrarHistoricoCorridas}
+              onPress={() => setSeusGanhos(true)}
               style={styles.mainEarningCard}
             >
               <Text style={styles.earningLabel}>
@@ -293,6 +295,7 @@ export default function CentralGanhos({
         visible={historicoCorridas}
         onClose={() => setHistoricoCorridas(false)}
       />
+      <SeusGanhos visible={seusGanhos} onClose={() => setSeusGanhos(false)} />
       <MeuSaldo
         visible={meuSaldo}
         onClose={() => {

@@ -13,6 +13,7 @@ import {
   View,
   ScrollView,
 } from "react-native";
+import { formatarValorHistorico as reais } from "@/domain/historicoCorridas";
 
 const { width } = Dimensions.get("window");
 
@@ -20,12 +21,16 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
+  ganhosSemanaPassada: number;
+  onSalvar: (texto: string) => void;
 }
 
 export default function DefinirMetaGanhos({
   visible,
   onClose,
   duration = 200,
+  ganhosSemanaPassada,
+  onSalvar,
 }: props) {
   const insets = useSafeAreaInsets();
   const espacoDoTeclado = useEspacoDoTeclado();
@@ -137,14 +142,15 @@ export default function DefinirMetaGanhos({
               style={styles.input}
               placeholder="Inserir meta de ganhos"
               placeholderTextColor="#CCC"
-              keyboardType="numeric"
+              // só dígitos: a meta é em reais inteiros, sem confundir ponto e vírgula
+              keyboardType="number-pad"
               value={metaValue}
               onChangeText={setMetaValue}
               autoFocus
             />
           </View>
           <Text style={styles.lastWeekInfo}>
-            Você ganhou R$415,33 na semana passada
+            Você ganhou {reais(ganhosSemanaPassada)} na semana passada
           </Text>
         </ScrollView>
 
@@ -161,6 +167,11 @@ export default function DefinirMetaGanhos({
               { backgroundColor: metaValue ? "#111" : "#F3F3F3" },
             ]}
             disabled={!metaValue}
+            onPress={() => {
+              onSalvar(metaValue);
+              setMetaValue("");
+              onClose();
+            }}
           >
             <Text
               style={[
