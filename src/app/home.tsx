@@ -658,7 +658,7 @@ export default function Home() {
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar
           }
           onRecusar={
-            simuladorCorrida.ativa ? simuladorCorrida.encerrar : recusar
+            simuladorCorrida.ativa ? simuladorCorrida.recusar : recusar
           }
           onEditarValor={
             !simuladorCorrida.ativa && ofertaExibida.negociavel === true
@@ -855,6 +855,8 @@ export default function Home() {
         finalizada={simuladorCorrida.finalizada}
         bloqueado={corrida !== null || oferta !== null}
         onIniciar={simuladorCorrida.iniciar}
+        restantes={simuladorCorrida.restantes}
+        onReceberVarias={simuladorCorrida.receberVarias}
         onSelecionarEtapa={simuladorCorrida.selecionarEtapa}
         onFinalizar={simuladorCorrida.finalizar}
         onEncerrar={simuladorCorrida.encerrar}

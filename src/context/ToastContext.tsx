@@ -55,6 +55,7 @@ const TOASTS_PERMITIDOS = [
   /^veiculo-em-uso:\d+$/,
   /^veiculo-removido:\d+$/,
   /^documento-enviado:(cnh|crlv|nada_consta|seguro_obrigatorio)$/,
+  /^simulacao:sequencia$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;

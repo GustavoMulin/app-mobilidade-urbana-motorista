@@ -8,6 +8,7 @@ import type {
   PassageiroDaCorrida,
   ResultadoCancelamento,
 } from "@/hooks/useDespachoMotorista";
+import { useToast } from "@/context/ToastContext";
 import { useCallback, useMemo, useState } from "react";
 
 export const ETAPAS_SIMULACAO_MOTORISTA = [
@@ -98,13 +99,72 @@ const oferta: OfertaCorrida = {
   passageiro_corridas: passageiro.corridas,
 };
 
+// várias chamadas seguidas: uma aparece assim que a anterior é aceita ou
+// recusada, para treinar a sequência (inclusive pelo gesto)
+const variacoes: [string, string, number, number, number, number][] = [
+  // origem, destino, valor, km até a origem, km da corrida, nota
+  [ENDERECO_EMBARQUE, ENDERECO_DESTINO, 15.21, 1.1, 4.2, 4.86],
+  [
+    "Av. Sete de Setembro, 1200 - Centro, Porto Velho - RO",
+    "Aeroporto Internacional de Porto Velho - RO",
+    32.9,
+    2.4,
+    9.8,
+    4.95,
+  ],
+  [
+    "Rua Dom Pedro II, 637 - Caiari, Porto Velho - RO",
+    "Hospital de Base - Porto Velho, RO",
+    9.75,
+    0.6,
+    2.1,
+    4.7,
+  ],
+  [
+    "Av. Jorge Teixeira, 3500 - Embratel, Porto Velho - RO",
+    "Estrada de Ferro Madeira-Mamoré - Porto Velho, RO",
+    18.4,
+    3.2,
+    6.3,
+    4.55,
+  ],
+  [
+    "Rua Almirante Barroso, 1485 - Centro, Porto Velho - RO",
+    "Universidade Federal de Rondônia - Porto Velho, RO",
+    41.6,
+    1.8,
+    14.5,
+    4.99,
+  ],
+];
+const OFERTAS_EM_SEQUENCIA: OfertaCorrida[] = variacoes.map(
+  ([origem, destino, valor, ateOrigem, corridaKm, nota], indice) => ({
+    ...oferta,
+    corrida_id: -9_201 - indice,
+    codigo_corrida: `DEV-SEQUENCIA-${indice + 1}`,
+    origem,
+    destino,
+    valor_motorista: valor,
+    distancia_ate_origem_km: ateOrigem,
+    distancia_corrida_km: corridaKm,
+    passageiro_nota: nota,
+    passageiro_corridas: 12 + indice * 17,
+  }),
+);
+export const QUANTIDADE_EM_SEQUENCIA = OFERTAS_EM_SEQUENCIA.length;
+
 export function useSimuladorCorridaMotorista() {
+  const { mostrarToast } = useToast();
   const [etapa, setEtapa] = useState<EtapaSimulacaoMotorista | null>(null);
   const [finalizada, setFinalizada] = useState(false);
   const [inicioEspera, setInicioEspera] = useState<string | null>(null);
+  // as chamadas da sequência que faltam (a primeira é a que está na tela)
+  const [fila, setFila] = useState<OfertaCorrida[]>([]);
+  const [placar, setPlacar] = useState({ aceitas: 0, recusadas: 0 });
 
   const selecionarEtapa = useCallback((nova: EtapaSimulacaoMotorista) => {
     setFinalizada(false);
+    setFila([]);
     setEtapa(nova);
     setInicioEspera(
       nova === "motorista_chegou" ? new Date().toISOString() : null,
@@ -112,19 +172,60 @@ export function useSimuladorCorridaMotorista() {
   }, []);
 
   const iniciar = useCallback(() => selecionarEtapa("oferta"), [selecionarEtapa]);
-  const aceitar = useCallback(() => selecionarEtapa("aceita"), [selecionarEtapa]);
+
+  const receberVarias = useCallback(() => {
+    selecionarEtapa("oferta");
+    setFila(OFERTAS_EM_SEQUENCIA);
+    setPlacar({ aceitas: 0, recusadas: 0 });
+  }, [selecionarEtapa]);
 
   const finalizar = useCallback(() => {
     setEtapa(null);
     setInicioEspera(null);
+    setFila([]);
     setFinalizada(true);
   }, []);
 
   const encerrar = useCallback(() => {
     setEtapa(null);
     setInicioEspera(null);
+    setFila([]);
     setFinalizada(false);
   }, []);
+
+  // na sequência, a resposta só conta no placar e já chama a próxima
+  const responderNaSequencia = useCallback(
+    (resposta: "aceitas" | "recusadas") => {
+      const novo = { ...placar, [resposta]: placar[resposta] + 1 };
+      setPlacar(novo);
+      if (fila.length > 1) {
+        setFila(fila.slice(1));
+        return;
+      }
+      encerrar();
+      mostrarToast({
+        tipo: "info",
+        titulo: "Sequência simulada concluída",
+        mensagem: `${novo.aceitas} aceita(s) e ${novo.recusadas} recusada(s).`,
+        chave: "simulacao:sequencia",
+      });
+    },
+    [encerrar, fila, mostrarToast, placar],
+  );
+
+  const aceitar = useCallback(
+    () =>
+      fila.length > 0
+        ? responderNaSequencia("aceitas")
+        : selecionarEtapa("aceita"),
+    [fila.length, responderNaSequencia, selecionarEtapa],
+  );
+
+  // recusar, ou deixar o tempo da chamada acabar
+  const recusar = useCallback(
+    () => (fila.length > 0 ? responderNaSequencia("recusadas") : encerrar()),
+    [encerrar, fila.length, responderNaSequencia],
+  );
 
   const avancar = useCallback(
     (acao: "cheguei" | "iniciar" | "confirmar-parada" | "finalizar") => {
@@ -204,7 +305,7 @@ export function useSimuladorCorridaMotorista() {
         : null;
 
     return {
-      oferta: emOferta ? oferta : null,
+      oferta: emOferta ? (fila[0] ?? oferta) : null,
       corrida,
       chegada,
       espera,
@@ -217,15 +318,19 @@ export function useSimuladorCorridaMotorista() {
             ? ROTA_ATE_DESTINO
             : null,
     };
-  }, [etapa, inicioEspera]);
+  }, [etapa, fila, inicioEspera]);
 
   return {
     ativa: etapa !== null,
     etapa,
     finalizada,
+    // quantas chamadas da sequência faltam, contando a da tela (0: fora dela)
+    restantes: fila.length,
     dados,
     iniciar,
+    receberVarias,
     aceitar,
+    recusar,
     selecionarEtapa,
     avancar,
     cancelar,
