@@ -9,7 +9,12 @@ interface TopMenuProps {
 
 export default function TopMenu({ onMenuPress }: TopMenuProps) {
   return (
-    <SafeAreaView edges={["top"]} style={styles.topMenuWrapper}>
+    // a faixa cobre o topo inteiro: fora do botão, o toque passa para o ganho do dia
+    <SafeAreaView
+      edges={["top"]}
+      style={styles.topMenuWrapper}
+      pointerEvents="box-none"
+    >
       <View style={styles.topMenu}>
         <TouchableOpacity
           onPress={onMenuPress}
