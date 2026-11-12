@@ -89,7 +89,7 @@ export default function TituloBloqueio({ aviso }: { aviso: number }) {
 
 const styles = StyleSheet.create({
   // de borda a borda, como a faixa das ações logo abaixo
-  faixa: { height: 36, marginHorizontal: -16 },
+  faixa: { height: 28, marginHorizontal: -16 },
   camada: {
     position: "absolute",
     inset: 0,
@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
   vermelho: { backgroundColor: "#E8604C" },
   texto: {
     textAlign: "center",
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "700",
     color: "#111",
   },
