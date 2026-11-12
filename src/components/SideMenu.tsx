@@ -18,6 +18,7 @@ import {
 } from "react-native";
 import CentralAjuda from "./CentralAjuda";
 import CentralGanhos from "./CentralGanhos";
+import ConvidarMotorista from "./ConvidarMotorista";
 import HistoricoCorridas from "./HistoricoCorridas";
 import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
@@ -38,23 +39,21 @@ interface SideMenuProps {
 }
 
 interface MenuItem {
-  icon: string;
   label: string;
   onPress?: () => void;
   color?: string;
-  // ainda não existe: aparece com selo e não abre
-  emBreve?: boolean;
 }
 
 const defaultMenuItems: MenuItem[] = [
-  { icon: "time-outline", label: "Histórico de corridas" },
-  { icon: "cash-outline", label: "Ganhos" },
-  { icon: "chatbubble-outline", label: "Notificações" },
-  { icon: "shield-checkmark-outline", label: "Central de Ajuda" },
-  { icon: "car-outline", label: "Veículo" },
+  { label: "Histórico de corridas" },
+  { label: "Ganhos" },
+  { label: "Notificações" },
+  { label: "Central de Ajuda" },
+  { label: "Veículo" },
   // o servidor ainda não conta o tempo online (a tela mostrava 11:24 fixo)
-  { icon: "time-outline", label: "Horas dirigindo", emBreve: true },
-  { icon: "settings-outline", label: "Preferências" },
+  { label: "Horas dirigindo" },
+  { label: "Indique e ganhe" },
+  { label: "Preferências" },
 ];
 
 export default function SideMenu({
@@ -86,6 +85,7 @@ export default function SideMenu({
   const [showHorasDirigindo, setShowHorasDirigindo] = useState(false);
   const [showCentralGanhos, setShowCentralGanhos] = useState(false);
   const [showPreferencias, setShowPreferencias] = useState(false);
+  const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
 
   const handleDisconnect = () => {
     if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
@@ -142,6 +142,10 @@ export default function SideMenu({
   useEffect(() => {
     // Se o dialog estiver aberto, fecha
     const onBackPress = () => {
+      if (showConvidarMotorista) {
+        setShowConvidarMotorista(false);
+        return true;
+      }
       if (showPreferencias) {
         setShowPreferencias(false);
         return true;
@@ -188,6 +192,7 @@ export default function SideMenu({
   }, [
     visible,
     closeMenu,
+    showConvidarMotorista,
     showPreferencias,
     showCentralGanhos,
     showPerfilUsuario,
@@ -264,6 +269,9 @@ export default function SideMenu({
     if (item.label === "Ganhos") {
       setShowCentralGanhos(true);
     }
+    if (item.label === "Indique e ganhe") {
+      setShowConvidarMotorista(true);
+    }
     if (item.label === "Preferências") {
       setShowPreferencias(true);
     }
@@ -307,6 +315,10 @@ export default function SideMenu({
       <CentralGanhos
         visible={showCentralGanhos}
         onClose={() => setShowCentralGanhos(false)}
+      />
+      <ConvidarMotorista
+        visible={showConvidarMotorista}
+        onClose={() => setShowConvidarMotorista(false)}
       />
       <Preferencias
         visible={showPreferencias}
@@ -406,34 +418,17 @@ export default function SideMenu({
                   key={index}
                   style={styles.menuItem}
                   onPress={() => menuSelecionado(item)}
-                  disabled={item.emBreve}
                   accessibilityRole="button"
-                  accessibilityLabel={
-                    item.emBreve ? `${item.label}, em breve` : item.label
-                  }
-                  accessibilityState={{ disabled: item.emBreve === true }}
+                  accessibilityLabel={item.label}
                 >
-                  <Ionicons
-                    name={
-                      item.icon as React.ComponentProps<typeof Ionicons>["name"]
-                    }
-                    size={19}
-                    color={item.emBreve ? "#9CA3AF" : (item.color ?? "#333")}
-                  />
                   <Text
                     style={[
                       styles.menuText,
                       item.color && { color: item.color },
-                      item.emBreve && styles.menuTextoEmBreve,
                     ]}
                   >
                     {item.label}
                   </Text>
-                  {item.emBreve ? (
-                    <View style={styles.emBreve}>
-                      <Text style={styles.emBreveTexto}>Em breve</Text>
-                    </View>
-                  ) : null}
                 </TouchableOpacity>
               ))}
 
@@ -444,7 +439,6 @@ export default function SideMenu({
                   accessibilityRole="button"
                   accessibilityLabel="Sair da conta"
                 >
-                  <Ionicons name="log-out-outline" size={19} color="#FF4D4D" />
                   <Text style={[styles.menuText, styles.logoutText]}>Sair</Text>
                 </TouchableOpacity>
               )}
@@ -573,18 +567,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   menuText: {
-    fontSize: 18,
+    fontSize: 26,
     color: "#111",
     fontWeight: "500",
   },
-  menuTextoEmBreve: { color: "#6B7280" },
-  emBreve: {
-    borderRadius: 999,
-    backgroundColor: "#ECEDEF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  emBreveTexto: { fontSize: 11, fontWeight: "700", color: "#6B7280" },
   logoutText: {
     color: "#FF4D4D",
   },
