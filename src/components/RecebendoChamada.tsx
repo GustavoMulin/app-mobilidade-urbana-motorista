@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
-import React, { useEffect, useRef, useState } from "react";
+import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
@@ -25,6 +25,9 @@ import Reanimated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+// carregado só quando usado: a câmera nativa não existe no Expo Go
+const DetectorDeGesto = lazy(() => import("./DetectorDeGesto"));
 
 interface RecebendoChamadaProps {
   onAceitar: () => void;
@@ -55,6 +58,8 @@ interface RecebendoChamadaProps {
   onEditarValor?: () => void;
   // altura do card, para o mapa enquadrar a rota acima dele
   onAlturaChange?: (altura: number) => void;
+  // fechar a mão (pegar) aceita e abrir (soltar) recusa (câmera frontal)
+  aceitarPorGesto?: boolean;
 }
 
 const ICONE_PAGAMENTO: Record<
@@ -112,6 +117,7 @@ export default function RecebendoChamadas({
   compartilhada,
   onEditarValor,
   onAlturaChange,
+  aceitarPorGesto = false,
 }: RecebendoChamadaProps) {
   const insets = useSafeAreaInsets();
   const pagamento =
@@ -473,6 +479,16 @@ export default function RecebendoChamadas({
           <Text style={styles.fecharTexto}>Não afeta a TA</Text>
         ) : null}
       </TouchableOpacity>
+
+      {aceitarPorGesto ? (
+        <Suspense fallback={null}>
+          {/* o mesmo que os botões: tocar no card aceita, o X recusa */}
+          <DetectorDeGesto
+            onAceitar={() => acceptAndUnload()}
+            onRecusar={negociavel ? dispensar : closeAndUnload}
+          />
+        </Suspense>
+      ) : null}
 
       <View
         style={styles.cardArea}

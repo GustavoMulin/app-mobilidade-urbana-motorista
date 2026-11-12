@@ -50,6 +50,7 @@ const TOASTS_PERMITIDOS = [
   /^corrida:\d+:aceita$/,
   /^destino:\d+:(aceito|recusado)$/,
   /^empilhar-negociadas:(true|false)$/,
+  /^aceitar-por-gesto:(ligado|desligado|camera)$/,
   /^negocia:\d+:(recusada|outro)$/,
   /^veiculo-em-uso:\d+$/,
   /^veiculo-removido:\d+$/,
