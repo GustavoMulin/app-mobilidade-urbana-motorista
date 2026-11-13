@@ -18,6 +18,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import ConvidarMotorista from "./ConvidarMotorista";
 import HistoricoCorridas from "./HistoricoCorridas";
 import MetodosResgate from "./MetodoResgate";
 import MeuSaldo from "./MeuSaldo";
@@ -51,6 +52,8 @@ export default function CentralGanhos({
   } | null>(null);
 
   const [visibleMetodoResgate, setVisibleMetodoResgate] = useState(false);
+  const [visibleConvidarMotorista, setVisibleConvidarMotorista] =
+    useState(false);
 
   const mostrarMetodoResgate = () => {
     setVisibleMetodoResgate(true);
@@ -266,8 +269,28 @@ export default function CentralGanhos({
 
             <Text style={styles.sectionTitle}>Melhore seus ganhos</Text>
 
-            {/* RECOMPENSAS: ainda não existem. A indicação ficou escondida
-                (a tela prometia R$ 500 por convite que ninguém paga) */}
+            {/* INDICAÇÃO */}
+            <TouchableOpacity
+              onPress={() => setVisibleConvidarMotorista(true)}
+              style={styles.improvementItem}
+              accessibilityRole="button"
+              accessibilityLabel="Recompensa por Indicação"
+            >
+              <View style={[styles.row, styles.improvementConteudo]}>
+                <Ionicons name="megaphone-outline" size={24} color="#444" />
+                <View style={styles.improvementTextContent}>
+                  <Text style={styles.resourceName}>
+                    Recompensa por Indicação
+                  </Text>
+                  <Text style={styles.resourceSubtext}>
+                    Convide novos motoristas e aumente seus ganhos
+                  </Text>
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#CCC" />
+            </TouchableOpacity>
+
+            {/* RECOMPENSAS: ainda não existem */}
             <View
               style={styles.improvementItem}
               accessibilityLabel="Recompensas, em breve"
@@ -296,6 +319,10 @@ export default function CentralGanhos({
         onClose={() => setHistoricoCorridas(false)}
       />
       <SeusGanhos visible={seusGanhos} onClose={() => setSeusGanhos(false)} />
+      <ConvidarMotorista
+        visible={visibleConvidarMotorista}
+        onClose={() => setVisibleConvidarMotorista(false)}
+      />
       <MeuSaldo
         visible={meuSaldo}
         onClose={() => {

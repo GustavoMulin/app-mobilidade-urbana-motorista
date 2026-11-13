@@ -3,10 +3,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
+  inicialDoNome,
+  textoDeQuando,
+  type NotaDeAgradecimento,
+} from "@/domain/perfilMotorista";
+import {
   Animated,
   BackHandler,
   Dimensions,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,19 +20,11 @@ import {
 
 const { width } = Dimensions.get("window");
 
-interface ComentarioSelecionado {
-  id: string;
-  avatar: string;
-  autor: string;
-  comentario: string;
-  tempo: string;
-}
-
 interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
-  data: ComentarioSelecionado | null;
+  data: NotaDeAgradecimento | null;
 }
 
 export default function NotasAgradecimento({
@@ -94,7 +90,10 @@ export default function NotasAgradecimento({
     return (
       <View style={styles.stars}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Text key={i} style={styles.star}>
+          <Text
+            key={i}
+            style={[styles.star, i >= data.nota && styles.estrelaVazia]}
+          >
             ★
           </Text>
         ))}
@@ -135,19 +134,23 @@ export default function NotasAgradecimento({
             {/* TOP ROW: Quote and Avatar */}
             <View style={styles.cardTopRow}>
               <Text style={styles.quote}>“</Text>
-              <Image source={{ uri: data.avatar }} style={styles.avatar} />
+              <View style={[styles.avatar, styles.avatarInicial]}>
+                <Text style={styles.inicial}>{inicialDoNome(data.autor)}</Text>
+              </View>
             </View>
 
             {/* CONTENT */}
             <Text style={styles.text}>{data.comentario}</Text>
 
-            <Text style={styles.tags}>
-              {'"Pontual" "Educado" "Bom condutor" "Sabe o caminho"'}
-            </Text>
+            {data.elogios.length > 0 ? (
+              <Text style={styles.tags}>
+                {data.elogios.map((elogio) => `"${elogio}"`).join(" ")}
+              </Text>
+            ) : null}
 
             <View style={styles.footer}>
               <Text style={styles.author}>
-                {data.autor} • {data.tempo}
+                {data.autor} • {textoDeQuando(data.quando)}
               </Text>
               {renderStars()}
             </View>
@@ -248,4 +251,11 @@ const styles = StyleSheet.create({
     marginRight: 2,
     fontSize: 18,
   },
+  estrelaVazia: { color: "#DDD" },
+  avatarInicial: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFE9B8",
+  },
+  inicial: { fontSize: 22, fontWeight: "bold", color: "#B07A00" },
 });

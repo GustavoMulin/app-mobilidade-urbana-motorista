@@ -874,7 +874,11 @@ export default function NavegacaoAtiva({
                   {passageiro?.nome ?? "Passageiro"}
                 </Text>
                 <Text style={styles.passageiroApoio}>
-                  {reputacaoPassageiro(passageiro?.nota, passageiro?.corridas)}
+                  {reputacaoPassageiro(
+                    passageiro?.nota,
+                    passageiro?.corridas,
+                    passageiro?.novo,
+                  )}
                   {passageiro?.solicitante
                     ? ` · Pedido por ${passageiro.solicitante}`
                     : ""}

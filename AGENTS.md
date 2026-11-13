@@ -12,7 +12,7 @@
 - Reverb WebSocket: `10.199.53.233:8080`
 - Inicialização para evitar colisão com o app do passageiro:
   ```bash
-  REACT_NATIVE_PACKAGER_HOSTNAME=10.199.53.233 npx expo start --go --port 8082
+  REACT_NATIVE_PACKAGER_HOSTNAME=10.199.53.233 npm run start:go
   ```
 
 ## Validação

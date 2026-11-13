@@ -1,12 +1,19 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
+import {
+  inicialDoNome,
+  textoDeQuando,
+  type NotaDeAgradecimento,
+} from "@/domain/perfilMotorista";
+import { useDadosDaTela } from "@/hooks/useDadosDaTela";
+import { api } from "@/Services/api";
 import {
   Animated,
   BackHandler,
   Dimensions,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,6 +29,12 @@ interface props {
   duration?: number;
 }
 
+interface PaginaDeNotas {
+  data: NotaDeAgradecimento[];
+  current_page: number;
+  last_page: number;
+}
+
 export default function NotasAgradecimento({
   visible,
   onClose,
@@ -31,6 +44,31 @@ export default function NotasAgradecimento({
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+
+  // a primeira página vem ao abrir; as demais, no botão Carregar mais
+  const { dados, erro } = useDadosDaTela<PaginaDeNotas>(
+    visible,
+    "/motorista/me/notas-agradecimento",
+  );
+  const [extras, setExtras] = useState<NotaDeAgradecimento[]>([]);
+  const [proxima, setProxima] = useState(2);
+  const [carregandoMais, setCarregandoMais] = useState(false);
+  const itens = [...(dados?.data ?? []), ...extras];
+  const temMais = dados !== null && proxima <= dados.last_page;
+
+  const carregarMais = () => {
+    setCarregandoMais(true);
+    api
+      .get<PaginaDeNotas>("/motorista/me/notas-agradecimento", {
+        params: { page: proxima },
+      })
+      .then(({ data }) => {
+        setExtras((atuais) => [...atuais, ...data.data]);
+        setProxima((atual) => atual + 1);
+      })
+      .catch(() => undefined)
+      .finally(() => setCarregandoMais(false));
+  };
 
   useEffect(() => {
     const onBackPress = () => {
@@ -74,92 +112,56 @@ export default function NotasAgradecimento({
           duration: duration * 0.8,
           useNativeDriver: true,
         }),
-      ]).start(({ finished }) => finished && setIsMounted(false));
+      ]).start(({ finished }) => {
+        if (!finished) return;
+        setIsMounted(false);
+        setExtras([]);
+        setProxima(2);
+      });
     }
   }, [duration, overlayOpacity, translateX, visible]);
 
   if (!isMounted) return null;
 
-  const renderStars = () => {
-    return (
-      <View style={styles.stars}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Text key={i} style={styles.star}>
-            ★
-          </Text>
-        ))}
-      </View>
-    );
-  };
-
-  const renderCard = (item: any, index: number) => (
-    <View key={index} style={styles.card}>
-      {/* aspas */}
-      <Text style={styles.quote}>“</Text>
-
-      {/* avatar */}
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-
-      {/* texto */}
-      <Text style={styles.text}>{item.text}</Text>
-
-      {/* tags */}
-      <Text style={styles.tags}>{item.tags}</Text>
-
-      {/* autor */}
-      <Text style={styles.author}>
-        {item.name} • {item.time}
-      </Text>
-
-      {/* estrelas */}
-      {renderStars()}
+  const renderStars = (nota: number) => (
+    <View style={styles.stars}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Text key={i} style={[styles.star, i >= nota && styles.estrelaVazia]}>
+          ★
+        </Text>
+      ))}
     </View>
   );
 
-  const data = [
-    {
-      text: "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O excelente gosto musical do motorista tornou a viagem agradável. Parabéns!",
-      tags: `"Pontual" "Educado" "Bom condutor" "Sabe o caminho"`,
-      name: "Amanda",
-      time: "1 mês atrás",
-      avatar: "https://i.pravatar.cc/100?img=5",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-  ];
+  const renderCard = (item: NotaDeAgradecimento) => (
+    <View key={item.id} style={styles.card}>
+      {/* aspas */}
+      <Text style={styles.quote}>“</Text>
+
+      {/* avatar: a foto de quem avaliou não é exposta, só a inicial */}
+      <View style={[styles.avatar, styles.avatarInicial]}>
+        <Text style={styles.inicial}>{inicialDoNome(item.autor)}</Text>
+      </View>
+
+      {/* texto */}
+      <Text style={styles.text}>{item.comentario}</Text>
+
+      {/* elogios marcados */}
+      {item.elogios.length > 0 ? (
+        <Text style={styles.tags}>
+          {item.elogios.map((elogio) => `"${elogio}"`).join(" ")}
+        </Text>
+      ) : null}
+
+      {/* autor */}
+      <Text style={styles.author}>
+        {item.autor} • {textoDeQuando(item.quando)}
+      </Text>
+
+      {/* estrelas */}
+      {renderStars(item.nota)}
+    </View>
+  );
 
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
@@ -192,7 +194,32 @@ export default function NotasAgradecimento({
 
         {/* BODY */}
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          {data.map(renderCard)}
+          {itens.map(renderCard)}
+          {dados === null ? (
+            <View style={styles.centralizado}>
+              {erro ? (
+                <Text style={styles.vazio}>{erro}</Text>
+              ) : (
+                <Carregando3D tamanho={36} cor="#FFB800" />
+              )}
+            </View>
+          ) : itens.length === 0 ? (
+            <Text style={styles.vazio}>
+              Você ainda não recebeu notas de agradecimento.
+            </Text>
+          ) : null}
+          {temMais ? (
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={carregandoMais}
+              onPress={carregarMais}
+              style={styles.maisBotao}
+            >
+              <Text style={styles.maisTexto}>
+                {carregandoMais ? "Carregando..." : "Carregar mais"}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </Animated.View>
     </View>
@@ -288,4 +315,34 @@ const styles = StyleSheet.create({
     marginRight: 2,
     fontSize: 14,
   },
+
+  estrelaVazia: { color: "#DDD" },
+
+  avatarInicial: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFE9B8",
+  },
+
+  inicial: { fontSize: 18, fontWeight: "bold", color: "#B07A00" },
+
+  centralizado: { paddingVertical: 60, alignItems: "center" },
+
+  vazio: {
+    textAlign: "center",
+    color: "#777",
+    fontSize: 14,
+    paddingVertical: 40,
+  },
+
+  maisBotao: {
+    alignSelf: "center",
+    marginVertical: 16,
+    paddingHorizontal: 22,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: "#ECECEE",
+  },
+
+  maisTexto: { fontSize: 14, fontWeight: "600", color: "#333" },
 });
