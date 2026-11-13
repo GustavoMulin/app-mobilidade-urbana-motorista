@@ -17,7 +17,7 @@ import {
   tempoPorExtenso,
   type DetalheAceitacao,
 } from "@/domain/taxaFinalizacao";
-import { useDetalheDaTaxa } from "@/hooks/useDetalheDaTaxa";
+import { useDadosDaTela } from "@/hooks/useDadosDaTela";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
 
@@ -31,7 +31,7 @@ type ModoHistorico = "mensal" | "diaria";
 
 /** Tela Taxa de Aceitação: taxa do mês, dados diários, regras e histórico. */
 export default function TaxaAceitacao({ visible, onClose, duration }: Props) {
-  const { dados, erro } = useDetalheDaTaxa<DetalheAceitacao>(
+  const { dados, erro } = useDadosDaTela<DetalheAceitacao>(
     visible,
     "/motorista/me/taxa-aceitacao",
   );

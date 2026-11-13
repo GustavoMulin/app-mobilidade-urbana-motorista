@@ -629,6 +629,7 @@ export default function Home() {
           }
           notaPassageiro={ofertaExibida.passageiro_nota}
           corridasPassageiro={ofertaExibida.passageiro_corridas}
+          passageiroNovo={ofertaExibida.passageiro_novo}
           compartilhada={ofertaExibida.compartilhada}
           onAceitar={
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar

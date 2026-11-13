@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
  * Busca os números de uma tela de taxa toda vez que ela abre. Os dados
  * anteriores ficam na tela enquanto a nova resposta não chega.
  */
-export function useDetalheDaTaxa<T>(visible: boolean, rota: string) {
+export function useDadosDaTela<T>(visible: boolean, rota: string) {
   const [dados, setDados] = useState<T | null>(null);
   const [erro, setErro] = useState("");
 

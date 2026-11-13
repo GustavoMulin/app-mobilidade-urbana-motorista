@@ -1,3 +1,7 @@
+import {
+  textoDaNota,
+  textoDeCorridasDoPassageiro,
+} from "@/domain/reputacaoPassageiro";
 import { Ionicons } from "@expo/vector-icons";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
 import React, { useEffect, useRef, useState } from "react";
@@ -36,6 +40,7 @@ interface RecebendoChamadaProps {
   metodoPagamento?: string | null;
   notaPassageiro?: number | null;
   corridasPassageiro?: number;
+  passageiroNovo?: boolean;
   // viagem compartilhada: vários embarques numa viagem só, valor da viagem inteira
   compartilhada?: {
     passageiros: number;
@@ -98,6 +103,7 @@ export default function RecebendoChamadas({
   metodoPagamento,
   notaPassageiro,
   corridasPassageiro = 0,
+  passageiroNovo,
   compartilhada,
   onEditarValor,
   onAlturaChange,
@@ -243,12 +249,8 @@ export default function RecebendoChamadas({
     ? enderecoCurto(destino)
     : "Endereço de destino";
   const reputacao = [
-    typeof notaPassageiro === "number"
-      ? notaPassageiro.toFixed(2).replace(".", ",")
-      : null,
-    corridasPassageiro === 0
-      ? "Passageiro novo"
-      : `${corridasPassageiro} ${corridasPassageiro === 1 ? "corrida" : "corridas"}`,
+    textoDaNota(notaPassageiro),
+    textoDeCorridasDoPassageiro(corridasPassageiro, passageiroNovo),
   ]
     .filter(Boolean)
     .join(" · ");

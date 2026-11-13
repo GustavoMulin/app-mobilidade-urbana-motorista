@@ -18,7 +18,7 @@ import {
   textoDuracoes,
   type DetalheFinalizacao,
 } from "@/domain/taxaFinalizacao";
-import { useDetalheDaTaxa } from "@/hooks/useDetalheDaTaxa";
+import { useDadosDaTela } from "@/hooks/useDadosDaTela";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useCallback, useState } from "react";
 import { View } from "react-native";
@@ -33,7 +33,7 @@ type ModoHistorico = "janela" | "diaria";
 
 /** Tela Taxa de Finalização: medidor, dados diários, regras e histórico. */
 export default function TaxaFinalizacao({ visible, onClose, duration }: Props) {
-  const { dados, erro } = useDetalheDaTaxa<DetalheFinalizacao>(
+  const { dados, erro } = useDadosDaTela<DetalheFinalizacao>(
     visible,
     "/motorista/me/taxa-finalizacao",
   );

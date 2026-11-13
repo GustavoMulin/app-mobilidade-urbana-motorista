@@ -198,6 +198,7 @@ export default function MaisCorridaAtiva({
                     {reputacaoPassageiro(
                       passageiro?.nota,
                       passageiro?.corridas,
+                      passageiro?.novo,
                     )}
                   </Text>
                 </View>

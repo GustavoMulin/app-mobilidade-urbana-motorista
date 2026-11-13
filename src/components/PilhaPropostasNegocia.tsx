@@ -1,3 +1,4 @@
+import { textoDeCorridasDoPassageiro } from "@/domain/reputacaoPassageiro";
 import { Text } from "@/components/common/Texto";
 import { enderecoCurto } from "@/domain/endereco";
 import { emDistancia } from "@/domain/negocia";
@@ -127,10 +128,10 @@ function CartaoAguardando({
     typeof oferta.passageiro_nota === "number"
       ? `★${oferta.passageiro_nota.toFixed(1).replace(".", ",")} · `
       : "";
-  const corridas =
-    oferta.passageiro_corridas === 0
-      ? "Passageiro novo"
-      : `${oferta.passageiro_corridas} ${oferta.passageiro_corridas === 1 ? "corrida" : "corridas"}`;
+  const corridas = textoDeCorridasDoPassageiro(
+    oferta.passageiro_corridas,
+    oferta.passageiro_novo,
+  );
 
   return (
     <Animated.View

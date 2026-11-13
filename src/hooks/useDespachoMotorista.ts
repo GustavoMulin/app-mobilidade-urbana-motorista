@@ -67,6 +67,7 @@ export interface OfertaCorrida {
   minha_proposta?: PropostaEnviada | null;
   passageiro_nota: number | null;
   passageiro_corridas: number;
+  passageiro_novo?: boolean;
   recusada_localmente?: boolean;
   // viagem compartilhada: uma chamada para o grupo inteiro
   compartilhada?: {
@@ -168,6 +169,7 @@ export interface PassageiroDaCorrida {
   telefone: string | null;
   nota: number | null;
   corridas: number;
+  novo?: boolean;
 }
 
 // o cancelamento acontece dentro da tela Mais (um Modal), que cobre os

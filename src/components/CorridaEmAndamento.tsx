@@ -42,6 +42,8 @@ export interface PassageiroDaCorrida {
   telefone?: string | null;
   nota?: number | null;
   corridas?: number;
+  // conta nova: o app mostra o selo "Novo usuário"
+  novo?: boolean;
 }
 
 interface props {
@@ -211,7 +213,11 @@ export default function CorridaEmAndamento({
     Linking.openURL(`tel:${passageiro.telefone.replace(/\D/g, "")}`);
   };
 
-  const reputacao = reputacaoPassageiro(passageiro?.nota, passageiro?.corridas);
+  const reputacao = reputacaoPassageiro(
+    passageiro?.nota,
+    passageiro?.corridas,
+    passageiro?.novo,
+  );
 
   return (
     <>
