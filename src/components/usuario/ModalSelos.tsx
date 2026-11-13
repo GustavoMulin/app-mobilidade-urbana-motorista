@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useVoltarFecha } from "@/hooks/useVoltarFecha";
 import { Text } from "@/components/common/Texto";
-import type { Elogio } from "@/domain/perfilMotorista";
-import { Ionicons } from "@expo/vector-icons";
 import {
   Animated,
   Dimensions,
+  Image,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -14,12 +13,18 @@ import {
 
 const { height } = Dimensions.get("window");
 
+interface AvaliacaoPositiva {
+  id: string;
+  titulo: string;
+  subtitulo: string;
+  avatar: string;
+}
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   headerHeight: number;
-  // elogio que os passageiros marcaram ao avaliar o motorista
-  data: Elogio | null;
+  data: AvaliacaoPositiva | null;
 }
 
 export default function ModalSelos({
@@ -97,15 +102,9 @@ export default function ModalSelos({
       >
         <View style={styles.body}>
           <View style={styles.avatarSection}>
-            <View style={[styles.avatar, styles.icone]}>
-              <Ionicons name="thumbs-up" size={44} color="#B07A00" />
-            </View>
+            <Image source={{ uri: data?.avatar }} style={styles.avatar} />
             <Text style={styles.title}>{data?.titulo}</Text>
-            <Text style={styles.subtitle}>{data?.descricao}</Text>
-            <Text style={styles.subtitle}>
-              Marcado {data?.quantidade}{" "}
-              {data?.quantidade === 1 ? "vez" : "vezes"} pelos passageiros
-            </Text>
+            <Text style={styles.subtitle}>{data?.subtitulo}</Text>
           </View>
         </View>
 
@@ -145,11 +144,6 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     backgroundColor: "#f0f0f0",
-  },
-  icone: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF4D6",
   },
   title: {
     fontSize: 32,

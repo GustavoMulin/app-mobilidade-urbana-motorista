@@ -1,23 +1,7 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
-import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
-import { useAuth } from "@/context/AuthProvider";
-import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
-import {
-  coresDaFaixa,
-  larguraDaBarra,
-  tempoNaPlataforma,
-  textoDaMedia,
-  textoDasFaixas,
-  textoDeQuando,
-  totalDaDistribuicao,
-  type Elogio,
-  type NotaDeAgradecimento,
-  type PerfilMotorista,
-} from "@/domain/perfilMotorista";
-import { useDadosDaTela } from "@/hooks/useDadosDaTela";
 import {
   Animated,
   BackHandler,
@@ -76,26 +60,72 @@ export default function PerfilUsuario({
   const [showVerificacoesUsuario, setShowVerificacoesUsuario] = useState(false);
   const [showModalSelos, setShowModalSelos] = useState(false);
   const [headerHeight, setHeaderHeight] = useState(0);
-  const [seloSelecionado, setSeloSelecionado] = useState<Elogio | null>(null);
-  const [ComentarioSelecionado, setComentarioSelecionado] =
-    useState<NotaDeAgradecimento | null>(null);
+  const [seloSelecionado, setSeloSelecionado] = useState<any>(null);
+  const [ComentarioSelecionado, setComentarioSelecionado] = useState<any>(null);
   const [showDetalhesComentario, setShowDetalhesComentarioSelecionado] =
     useState(false);
   const [showDicasAvaliacao, setShowDicasAvaliacao] = useState(false);
 
-  // tudo vem da conta: nome, foto, nota, elogios, notas, selos e verificações
-  const { user } = useAuth();
-  const { dados: perfil, erro } = useDadosDaTela<PerfilMotorista>(
-    visible,
-    "/motorista/me/perfil",
-  );
-  const tempo = tempoNaPlataforma(perfil?.meses_na_plataforma ?? 0);
-  const totalDeAvaliacoes = perfil
-    ? totalDaDistribuicao(perfil.distribuicao)
-    : 0;
-  const elogiosRecebidos = (perfil?.elogios ?? []).filter(
-    (elogio) => elogio.quantidade > 0,
-  );
+  // Dados Mockados para as novas seções
+  const avaliacoesPositivas = [
+    {
+      id: "1",
+      titulo: "Bom contudor",
+      subtitulo:
+        "Obedece às regras de trânsito, dirige com habilidade e permanece atento (a)",
+      avatar: "https://i.pravatar.cc/150?img=1",
+    },
+    {
+      id: "2",
+      titulo: "Sabe o caminho",
+      subtitulo:
+        "Familiarizado(a) com as condições de trânsito e evita desvio de rota desnecessários",
+      avatar: "https://i.pravatar.cc/150?img=2",
+    },
+    {
+      id: "3",
+      titulo: "Veículo limpo",
+      subtitulo:
+        "Mantém o interior do veículo limpo e sem odores desagradáveis",
+      avatar: "https://i.pravatar.cc/150?img=3",
+    },
+    {
+      id: "4",
+      titulo: "Pontual",
+      subtitulo:
+        "Viagem feita dentro do horário prevista para embarque e desembarque",
+      avatar: "https://i.pravatar.cc/150?img=4",
+    },
+    {
+      id: "5",
+      titulo: "Educado",
+      subtitulo: "Respeitoso e atencioso",
+      avatar: "https://i.pravatar.cc/150?img=5",
+    },
+    {
+      id: "6",
+      titulo: "Simpático",
+      subtitulo: "",
+      avatar: "https://i.pravatar.cc/150?img=6",
+    },
+  ];
+
+  const notasAgradecimento = [
+    {
+      id: "1",
+      avatar: "https://i.pravatar.cc/150?img=1",
+      comentario: "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O...",
+      autor: "Amanda",
+      tempo: "1 mês atrás",
+    },
+    {
+      id: "2",
+      avatar: "https://i.pravatar.cc/150?img=2",
+      comentario: "Excelente motorista, muito educado e carro impecável.",
+      autor: "Deivison",
+      tempo: "5 meses atrás",
+    },
+  ];
 
   const dicasAvaliacao = [
     {
@@ -110,11 +140,11 @@ export default function PerfilUsuario({
     },
   ];
 
-  const mostrarAvaliacaoPositiva = (payload: Elogio) => {
+  const mostrarAvaliacaoPositiva = (payload: object) => {
     setSeloSelecionado(payload);
     setShowModalSelos(true);
   };
-  const mostrarDetalhesMensagem = (payload: NotaDeAgradecimento) => {
+  const mostrarDetalhesMensagem = (payload: object) => {
     setComentarioSelecionado(payload);
     setShowDetalhesComentarioSelecionado(true);
   };
@@ -206,278 +236,179 @@ export default function PerfilUsuario({
           >
             {/* USER INFO */}
             <View style={styles.profileSection}>
-              {perfil?.foto ? (
-                <Image
-                  source={{ uri: perfil.foto }}
-                  style={styles.mainAvatar}
-                />
-              ) : (
-                <View style={[styles.mainAvatar, styles.avatarVazio]}>
-                  <Ionicons name="person" size={44} color="#999" />
-                </View>
-              )}
-              <Text style={styles.userName}>
-                {perfil?.nome ?? user?.name ?? "Motorista"}
-              </Text>
-              {perfil?.novo ? (
-                <View style={styles.novoBadge}>
-                  <Ionicons name="sparkles" size={14} color="#B07A00" />
-                  <Text style={styles.novoBadgeText}>Novo usuário</Text>
-                </View>
-              ) : null}
+              <Image
+                source={{ uri: "https://i.pravatar.cc/150?img=12" }}
+                style={styles.mainAvatar}
+              />
+              <Text style={styles.userName}>Diogo</Text>
+              <TouchableOpacity style={styles.publicProfileBtn}>
+                <Text style={styles.publicProfileText}>Ver perfil público</Text>
+              </TouchableOpacity>
             </View>
 
-            {perfil ? (
-              <>
-                {/* STATS */}
-                <View style={styles.statsContainer}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{perfil.corridas}</Text>
-                    <Text style={styles.statLabel}>
-                      {perfil.corridas === 1 ? "Corrida" : "Corridas"}
-                    </Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>{tempo.valor}</Text>
-                    <Text style={styles.statLabel}>{tempo.rotulo}</Text>
-                  </View>
-                </View>
+            {/* STATS */}
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>8000+</Text>
+                <Text style={styles.statLabel}>Corridas</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>2+</Text>
+                <Text style={styles.statLabel}>Anos</Text>
+              </View>
+            </View>
 
-                {/* RATING SECTION */}
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.evaluationTitle}>
-                      Avaliação {textoDaNotaDoMotorista(perfil.nota)} ★
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => setShowDicasAvaliacao(true)}
-                    >
-                      <Text style={styles.linkText}>Como funciona {">"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.subInfoText}>{textoDaMedia(perfil)}</Text>
+            {/* RATING SECTION */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.evaluationTitle}>Avaliação 4.63 ★</Text>
+                <TouchableOpacity onPress={() => setShowDicasAvaliacao(true)}>
+                  <Text style={styles.linkText}>Como funciona {">"}</Text>
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.subInfoText}>
+                Média das 100 últimas avaliações de corridas
+              </Text>
 
-                  {/* classificação da nota, com os limites definidos pela plataforma */}
-                  <View
-                    style={[
-                      styles.faixaSelo,
-                      {
-                        backgroundColor: coresDaFaixa(perfil.faixa.chave).fundo,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.faixaTitulo,
-                        { color: coresDaFaixa(perfil.faixa.chave).texto },
-                      ]}
-                    >
-                      Faixa: {perfil.faixa.titulo}
-                    </Text>
-                    <Text style={styles.faixaLimites}>
-                      {textoDasFaixas(perfil.faixas)}
-                    </Text>
-                  </View>
+              <View style={styles.ratingGraph}>
+                <RatingRow stars={5} count={89} percentage={89} />
+                <RatingRow stars={4} count={0} percentage={0} />
+                <RatingRow stars={3} count={2} percentage={2} />
+                <RatingRow stars={2} count={3} percentage={3} />
+                <RatingRow stars={1} count={6} percentage={6} />
+              </View>
+            </View>
 
-                  {perfil.nota_base ? null : (
-                    <View style={styles.ratingGraph}>
-                      {[5, 4, 3, 2, 1].map((estrelas) => {
-                        const quantidade = perfil.distribuicao[estrelas] ?? 0;
-
-                        return (
-                          <RatingRow
-                            key={estrelas}
-                            stars={estrelas}
-                            count={quantidade}
-                            percentage={larguraDaBarra(
-                              quantidade,
-                              totalDeAvaliacoes,
-                            )}
+            {/* POSITIVE REVIEWS HORIZONTAL */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Minhas avaliações positivas
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  {avaliacoesPositivas.map((item) => (
+                    <View key={item.id} style={styles.badgeItem}>
+                      <View style={styles.avatarWrapper}>
+                        <TouchableOpacity
+                          onPress={() => mostrarAvaliacaoPositiva(item)}
+                        >
+                          <Image
+                            source={{ uri: item.avatar }}
+                            style={styles.avatarBadge}
                           />
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>
-
-                {/* ELOGIOS QUE OS PASSAGEIROS MARCARAM */}
-                {elogiosRecebidos.length > 0 ? (
-                  <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>
-                      Minhas avaliações positivas
-                    </Text>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.horizontalScroll}
-                    >
-                      <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                        {elogiosRecebidos.map((item) => (
-                          <View key={item.chave} style={styles.badgeItem}>
-                            <View style={styles.avatarWrapper}>
-                              <TouchableOpacity
-                                onPress={() => mostrarAvaliacaoPositiva(item)}
-                              >
-                                <View
-                                  style={[
-                                    styles.avatarBadge,
-                                    styles.elogioIcone,
-                                  ]}
-                                >
-                                  <Ionicons
-                                    name="thumbs-up"
-                                    size={28}
-                                    color="#B07A00"
-                                  />
-                                </View>
-                              </TouchableOpacity>
-                              <View style={styles.badgeCountContainer}>
-                                <Text style={styles.badgeCountText}>
-                                  {item.quantidade}
-                                </Text>
-                              </View>
-                            </View>
-                            <Text style={styles.badgeLabel}>{item.titulo}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    </ScrollView>
-                  </View>
-                ) : null}
-
-                {/* SEÇÃO: NOTAS DE AGRADECIMENTO */}
-                {perfil.notas_agradecimento.length > 0 ? (
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionTitle}>
-                        Notas de agradecimento
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => setShowNotasAgradecimentos(true)}
-                      >
-                        <Text style={styles.linkText}>Ver tudo {">"}</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.horizontalScroll}
-                    >
-                      {perfil.notas_agradecimento.map((item) => (
-                        <View key={item.id} style={styles.noteCard}>
-                          <TouchableOpacity
-                            onPress={() => mostrarDetalhesMensagem(item)}
-                          >
-                            <Text style={styles.noteText} numberOfLines={3}>
-                              {item.comentario}
-                            </Text>
-                            <Text style={styles.noteFooter}>
-                              {item.autor} • {textoDeQuando(item.quando)}
-                            </Text>
-                          </TouchableOpacity>
+                        </TouchableOpacity>
+                        <View style={styles.badgeCountContainer}>
+                          <Text style={styles.badgeCountText}>178</Text>
                         </View>
-                      ))}
-                    </ScrollView>
-                  </View>
-                ) : null}
-
-                {/* SEÇÃO: COMO TER MAIS AVALIAÇÕES */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>
-                    Como ter mais avaliações positivas?
-                  </Text>
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.horizontalScroll}
-                  >
-                    {dicasAvaliacao.map((item) => (
-                      <View key={item.id} style={styles.dicaCard}>
-                        <Text style={styles.dicaTitle}>{item.titulo}</Text>
-                        <Text style={styles.dicaSub}>{item.sub}</Text>
                       </View>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                {/* CONQUISTAS */}
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Selos de conquistas</Text>
-                  {perfil.selos.length === 0 ? (
-                    <Text style={styles.vazioTexto}>
-                      Finalize corridas e receba 5 estrelas para conquistar
-                      selos.
-                    </Text>
-                  ) : (
-                    <ScrollView
-                      horizontal
-                      showsHorizontalScrollIndicator={false}
-                      contentContainerStyle={styles.horizontalScroll}
-                    >
-                      {perfil.selos.map((selo) => (
-                        <View key={selo.chave} style={styles.conquestCard}>
-                          <Ionicons
-                            name={selo.icone as keyof typeof Ionicons.glyphMap}
-                            size={40}
-                            color="#FFB800"
-                          />
-                          <Text style={styles.conquestTitle}>
-                            {selo.titulo}
-                          </Text>
-                          <Text style={styles.conquestSub}>
-                            {selo.subtitulo}
-                          </Text>
-                        </View>
-                      ))}
-                    </ScrollView>
-                  )}
-                </View>
-
-                {/* VERIFICATIONS */}
-                <View style={[styles.section, { marginBottom: 40 }]}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Verificações</Text>
-                    <TouchableOpacity
-                      onPress={() => setShowVerificacoesUsuario(true)}
-                    >
-                      <Text style={styles.linkText}>Mais {">"}</Text>
-                    </TouchableOpacity>
-                  </View>
-                  {perfil.verificacoes.map((verificacao) => (
-                    <View
-                      key={verificacao.chave}
-                      style={styles.verificationRow}
-                    >
-                      <Ionicons
-                        name={
-                          verificacao.ok
-                            ? "checkmark-circle"
-                            : "ellipse-outline"
-                        }
-                        size={20}
-                        color={verificacao.ok ? "#28a745" : "#BBB"}
-                      />
-                      <Text
-                        style={[
-                          styles.verificationText,
-                          !verificacao.ok && styles.verificacaoPendente,
-                        ]}
-                      >
-                        {verificacao.titulo}
-                      </Text>
+                      <Text style={styles.badgeLabel}>{item.titulo}</Text>
                     </View>
                   ))}
                 </View>
-              </>
-            ) : (
-              <View style={styles.carregandoPerfil}>
-                {erro ? (
-                  <Text style={styles.vazioTexto}>{erro}</Text>
-                ) : (
-                  <Carregando3D tamanho={36} cor="#FFB800" />
-                )}
+              </ScrollView>
+            </View>
+
+            {/* SEÇÃO: NOTAS DE AGRADECIMENTO */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Notas de agradecimento</Text>
+                <TouchableOpacity
+                  onPress={() => setShowNotasAgradecimentos(true)}
+                >
+                  <Text style={styles.linkText}>Ver tudo {">"}</Text>
+                </TouchableOpacity>
               </View>
-            )}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                {notasAgradecimento.map((item) => (
+                  <View key={item.id} style={styles.noteCard}>
+                    <TouchableOpacity
+                      onPress={() => mostrarDetalhesMensagem(item)}
+                    >
+                      <Text style={styles.noteText} numberOfLines={3}>
+                        {item.comentario}
+                      </Text>
+                      <Text style={styles.noteFooter}>
+                        {item.autor} • {item.tempo}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* SEÇÃO: COMO TER MAIS AVALIAÇÕES */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>
+                Como ter mais avaliações positivas?
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                {dicasAvaliacao.map((item) => (
+                  <View key={item.id} style={styles.dicaCard}>
+                    <Text style={styles.dicaTitle}>{item.titulo}</Text>
+                    <Text style={styles.dicaSub}>{item.sub}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* CONQUESTS */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Selos de conquistas</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                <View style={styles.conquestCard}>
+                  <Ionicons name="ribbon" size={40} color="#FFD700" />
+                  <Text style={styles.conquestTitle}>
+                    5 estrelas 1000+ vezes
+                  </Text>
+                  <Text style={styles.conquestSub}>
+                    Preferido dos passageiros
+                  </Text>
+                </View>
+                <View style={styles.conquestCard}>
+                  <Ionicons name="medal" size={40} color="#C0C0C0" />
+                  <Text style={styles.conquestTitle}>2 anos na plataforma</Text>
+                  <Text style={styles.conquestSub}>Pioneiro nas ruas</Text>
+                </View>
+              </ScrollView>
+            </View>
+
+            {/* VERIFICATIONS */}
+            <View style={[styles.section, { marginBottom: 40 }]}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Verificações</Text>
+                <TouchableOpacity
+                  onPress={() => setShowVerificacoesUsuario(true)}
+                >
+                  <Text style={styles.linkText}>Mais {">"}</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.verificationRow}>
+                <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                <Text style={styles.verificationText}>
+                  Verificação de Antecedentes
+                </Text>
+              </View>
+              <View style={styles.verificationRow}>
+                <Ionicons name="checkmark-circle" size={20} color="#28a745" />
+                <Text style={styles.verificationText}>CNH verificada</Text>
+              </View>
+            </View>
           </ScrollView>
         </Animated.View>
 
@@ -498,7 +429,6 @@ export default function PerfilUsuario({
         <VerificacoesUsuario
           visible={showVerificacoesUsuario}
           onClose={() => setShowVerificacoesUsuario(false)}
-          verificacoes={perfil?.verificacoes ?? []}
         />
         <DetalhesComentario
           visible={showDetalhesComentario}
@@ -713,36 +643,4 @@ const styles = StyleSheet.create({
     color: "#333",
     fontWeight: "500",
   },
-  verificacaoPendente: { color: "#999" },
-  faixaSelo: {
-    alignSelf: "stretch",
-    padding: 12,
-    marginBottom: 14,
-    borderRadius: 12,
-  },
-  faixaTitulo: { fontSize: 15, fontWeight: "700" },
-  faixaLimites: { fontSize: 12, lineHeight: 17, color: "#666", marginTop: 4 },
-  avatarVazio: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#EEE",
-  },
-  novoBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 14,
-    backgroundColor: "#FFF4D6",
-  },
-  novoBadgeText: { fontSize: 13, fontWeight: "600", color: "#B07A00" },
-  elogioIcone: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF4D6",
-  },
-  vazioTexto: { fontSize: 14, lineHeight: 20, color: "#777", marginTop: 6 },
-  carregandoPerfil: { paddingVertical: 60, alignItems: "center" },
 });
