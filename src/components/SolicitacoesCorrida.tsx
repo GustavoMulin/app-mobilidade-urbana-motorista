@@ -1,3 +1,7 @@
+import {
+  textoDaNota,
+  textoDeCorridasDoPassageiro,
+} from "@/domain/reputacaoPassageiro";
 import Carregando3D from "@/components/common/Carregando3D";
 import { Text } from "@/components/common/Texto";
 import OfertaNegociaMotorista, {
@@ -271,11 +275,12 @@ export default function SolicitacoesCorrida({
                   <Ionicons name="person-circle" size={20} color="#6B7078" />
                   <Text style={styles.passageiroTexto}>
                     {typeof item.passageiro_nota === "number"
-                      ? `${item.passageiro_nota.toFixed(2).replace(".", ",")} · `
+                      ? `${textoDaNota(item.passageiro_nota)} · `
                       : ""}
-                    {item.passageiro_corridas === 0
-                      ? "Passageiro novo"
-                      : `${item.passageiro_corridas} ${item.passageiro_corridas === 1 ? "corrida" : "corridas"}`}
+                    {textoDeCorridasDoPassageiro(
+                      item.passageiro_corridas,
+                      item.passageiro_novo,
+                    )}
                   </Text>
                   {item.metodo_pagamento === "cartao" ? (
                     <>

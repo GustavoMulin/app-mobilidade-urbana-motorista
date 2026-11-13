@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import PreferenciaCompartilhada from "@/components/PreferenciaCompartilhada";
+import PreferenciasChat from "@/components/PreferenciasChat";
 import {
   Animated,
   BackHandler,
@@ -63,6 +64,7 @@ export default function Preferencias({
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+  const [chatAberto, setChatAberto] = useState(false);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -163,6 +165,26 @@ export default function Preferencias({
           <View style={styles.body}>
             <PreferenciaCompartilhada visivel={visible} />
             <View style={styles.cardGroup}>
+              <TouchableOpacity
+                style={styles.cardButton}
+                accessibilityRole="button"
+                accessibilityLabel="Mensagens do chat. Frases rápidas de cada etapa da corrida"
+                onPress={() => setChatAberto(true)}
+              >
+                <Ionicons
+                  name="chatbubbles-outline"
+                  size={26}
+                  color="#111"
+                  style={styles.icon}
+                />
+                <View style={styles.cardTextos}>
+                  <Text style={styles.cardTextoAtivo}>Mensagens do chat</Text>
+                  <Text style={styles.cardApoio}>
+                    Frases rápidas de cada etapa da corrida
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={22} color="#9CA3AF" />
+              </TouchableOpacity>
               {ITENS_EM_BREVE.map((item) => (
                 <View
                   key={item.titulo}
@@ -187,6 +209,11 @@ export default function Preferencias({
               ))}
             </View>
           </View>
+
+          <PreferenciasChat
+            visible={chatAberto}
+            onClose={() => setChatAberto(false)}
+          />
 
           {/* FOOTER */}
           {buscandoCorrida && (
@@ -280,6 +307,10 @@ const styles = StyleSheet.create({
   cardText: {
     fontSize: 17,
     color: "#6B7280",
+  },
+  cardTextoAtivo: {
+    fontSize: 17,
+    color: "#111",
   },
   cardApoio: {
     marginTop: 2,

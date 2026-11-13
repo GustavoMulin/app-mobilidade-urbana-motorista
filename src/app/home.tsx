@@ -527,6 +527,11 @@ export default function Home() {
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
           paradasDoGrupo={simuladorCorrida.ativa ? null : grupo?.paradas}
+          mensagensEnviadas={mensagensEnviadas}
+          mensagensRapidas={mensagensRapidas.daEtapa("aceita")}
+          onEnviarMensagem={
+            simuladorCorrida.ativa || !chat.podeEnviar ? undefined : chat.enviar
+          }
           onAlturaDoTopo={setAlturaDoTopo}
         />
       )}
@@ -563,7 +568,7 @@ export default function Home() {
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
           mensagensEnviadas={mensagensEnviadas}
-          mensagensPersonalizadas={mensagensRapidas.personalizadas}
+          mensagensRapidas={mensagensRapidas.daEtapa("motorista_chegou")}
           onEnviarMensagem={
             simuladorCorrida.ativa || !chat.podeEnviar ? undefined : chat.enviar
           }
@@ -653,6 +658,7 @@ export default function Home() {
           }
           notaPassageiro={ofertaExibida.passageiro_nota}
           corridasPassageiro={ofertaExibida.passageiro_corridas}
+          passageiroNovo={ofertaExibida.passageiro_novo}
           compartilhada={ofertaExibida.compartilhada}
           onAceitar={
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar

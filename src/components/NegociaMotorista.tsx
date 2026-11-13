@@ -188,7 +188,11 @@ export function AguardandoPagamentoNegocia({
                 {passageiro?.nome ?? "Passageiro"}
               </Text>
               <Text style={styles.passageiroApoio}>
-                {reputacaoPassageiro(passageiro?.nota, passageiro?.corridas)}
+                {reputacaoPassageiro(
+                  passageiro?.nota,
+                  passageiro?.corridas,
+                  passageiro?.novo,
+                )}
               </Text>
             </View>
 

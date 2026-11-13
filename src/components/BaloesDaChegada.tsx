@@ -1,8 +1,6 @@
 import { Text } from "@/components/common/Texto";
-import {
-  MENSAGENS_RAPIDAS_VISIVEIS,
-  mensagensRapidasEmOrdem,
-} from "@/domain/mensagensRapidas";
+import { useToast } from "@/context/ToastContext";
+import { MENSAGENS_RAPIDAS_VISIVEIS } from "@/domain/mensagensRapidas";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -67,18 +65,22 @@ const fecharPainel: EntryExitAnimationFunction = () => {
   };
 };
 
-// um tempo só para o painel inteiro: quando a barra esvazia, ele vira a pílula
-const EXIBICAO_MS = 20_000;
+// o painel espera um pouco para entrar, fica 10 s e some com o botão
+const ATRASO_MS = 3500;
+const EXIBICAO_MS = 10_000;
 
 // No embarque o motorista fica parado e o mapa não tem nada novo: o painel
 // ocupa esse espaço com as mensagens de um toque, sem abrir a conversa. Cada
 // uma sai do painel quando aparece na conversa (enviada por aqui ou pelo chat).
-// Fechado ou com o tempo esgotado, vira uma pílula que abre de novo.
+// Recolhido pelo motorista, vira uma pílula que abre de novo; com o tempo
+// esgotado, painel e pílula saem de vez.
 interface Props {
   enviadas: string[];
-  // as que o motorista criou no chat: passam na frente das padrão
-  personalizadas: string[];
+  // as frases da etapa, na ordem das preferências do motorista
+  mensagens: string[];
   onEnviar: (texto: string) => Promise<boolean>;
+  // quanto o painel (ou a pílula) ocupa acima da folha, 0 quando não aparece
+  onAlturaChange?: (altura: number) => void;
 }
 
 // monta a cada abertura do painel, sempre cheia
@@ -104,28 +106,48 @@ function BarraDoTempo() {
 
 export default function BaloesDaChegada({
   enviadas,
-  personalizadas,
+  mensagens,
   onEnviar,
+  onAlturaChange,
 }: Props) {
+  const { mostrarToast } = useToast();
   const { height: alturaTela } = useWindowDimensions();
   const compacto = alturaTela < 700;
-  const [aberto, setAberto] = useState(true);
+  const [fase, setFase] = useState<
+    "aguardando" | "aberto" | "recolhido" | "expirado"
+  >("aguardando");
   const [enviando, setEnviando] = useState<string | null>(null);
   const [falhou, setFalhou] = useState<string | null>(null);
   // trava na hora do toque: dois toques seguidos não mandam duas mensagens
   const travado = useRef(false);
 
   useEffect(() => {
-    if (!aberto) return;
-    const fim = setTimeout(() => setAberto(false), EXIBICAO_MS);
-    return () => clearTimeout(fim);
-  }, [aberto]);
+    if (fase === "aguardando") {
+      const entrada = setTimeout(() => setFase("aberto"), ATRASO_MS);
+      return () => clearTimeout(entrada);
+    }
+    if (fase === "aberto") {
+      const fim = setTimeout(() => setFase("expirado"), EXIBICAO_MS);
+      return () => clearTimeout(fim);
+    }
+  }, [fase]);
 
-  const pendentes = mensagensRapidasEmOrdem(personalizadas)
-    .filter((mensagem) => !enviadas.includes(mensagem))
-    .slice(0, MENSAGENS_RAPIDAS_VISIVEIS);
+  const candidatas = mensagens.slice(0, MENSAGENS_RAPIDAS_VISIVEIS);
+  const pendentes = candidatas;
+  // enviou qualquer uma (por aqui ou pelo chat): o painel inteiro some
+  const jaEnviou = candidatas.some((mensagem) => enviadas.includes(mensagem));
 
-  if (pendentes.length === 0) return null;
+  const visivel =
+    !jaEnviou &&
+    pendentes.length > 0 &&
+    fase !== "aguardando" &&
+    fase !== "expirado";
+
+  useEffect(() => {
+    if (!visivel) onAlturaChange?.(0);
+  }, [visivel, onAlturaChange]);
+
+  if (!visivel) return null;
 
   const enviar = async (mensagem: string) => {
     if (travado.current) return;
@@ -133,23 +155,39 @@ export default function BaloesDaChegada({
     setEnviando(mensagem);
     setFalhou(null);
     try {
-      if (!(await onEnviar(mensagem))) setFalhou(mensagem);
+      if (await onEnviar(mensagem)) {
+        setFase("expirado");
+        mostrarToast({
+          tipo: "success",
+          titulo: "Mensagem enviada",
+          chave: "mensagem-rapida:enviada",
+          duracaoMs: 1500,
+        });
+      } else {
+        setFalhou(mensagem);
+      }
     } finally {
       setEnviando(null);
       travado.current = false;
     }
   };
 
-  if (!aberto) {
+  if (fase === "recolhido") {
     return (
-      <View style={styles.lugarDaPilula} pointerEvents="box-none">
+      <View
+        style={styles.lugarDaPilula}
+        pointerEvents="box-none"
+        onLayout={({ nativeEvent }) =>
+          onAlturaChange?.(Math.ceil(nativeEvent.layout.height) + 10)
+        }
+      >
         <Animated.View entering={ZoomIn.springify().damping(16)}>
           <TouchableOpacity
             style={styles.pilula}
             activeOpacity={0.85}
             accessibilityRole="button"
             accessibilityLabel="Abrir mensagens rápidas para o passageiro"
-            onPress={() => setAberto(true)}
+            onPress={() => setFase("aberto")}
           >
             <Ionicons name="chatbubble-ellipses" size={18} color="#111" />
             <Text style={styles.pilulaTexto}>Mensagens rápidas</Text>
@@ -168,6 +206,9 @@ export default function BaloesDaChegada({
       exiting={fecharPainel}
       layout={LinearTransition.springify().damping(20)}
       style={styles.painel}
+      onLayout={({ nativeEvent }) =>
+        onAlturaChange?.(Math.ceil(nativeEvent.layout.height) + 10)
+      }
     >
       <View style={styles.cabecalho}>
         <View style={styles.iconeCabecalho}>
@@ -182,7 +223,7 @@ export default function BaloesDaChegada({
           accessibilityRole="button"
           accessibilityLabel="Recolher mensagens rápidas"
           hitSlop={8}
-          onPress={() => setAberto(false)}
+          onPress={() => setFase("recolhido")}
         >
           <Ionicons name="chevron-down" size={20} color="#444" />
         </TouchableOpacity>

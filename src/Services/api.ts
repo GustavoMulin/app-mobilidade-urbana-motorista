@@ -66,12 +66,28 @@ export const ehErroDeRede = (error: unknown) =>
   !(error as { response?: unknown }).response;
 
 export const mensagemDaApi = (error: unknown, padrao: string): string => {
-  const mensagem = (error as { response?: { data?: { message?: unknown } } })
-    ?.response?.data?.message;
+  const resposta = (
+    error as {
+      response?: {
+        status?: number;
+        data?: { message?: unknown; errors?: Record<string, unknown> };
+      };
+    }
+  )?.response;
+  const mensagem = resposta?.data?.message;
+  const primeiroErro = Object.values(resposta?.data?.errors ?? {})
+    .flat()
+    .find((item): item is string => typeof item === "string" && item !== "");
 
-  return typeof mensagem === "string" && mensagem.trim() !== ""
-    ? mensagem
-    : padrao;
+  const texto =
+    typeof mensagem === "string" && mensagem.trim() !== ""
+      ? mensagem
+      : (primeiroErro ?? padrao);
+
+  // Em desenvolvimento, mostra também o status HTTP para facilitar o diagnóstico.
+  return __DEV__ && resposta?.status
+    ? `${texto} (HTTP ${resposta.status})`
+    : texto;
 };
 
 let renovacaoEmAndamento: Promise<string | null> | null = null;

@@ -1,17 +1,15 @@
 import { Text, TextInput } from "@/components/common/Texto";
 import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
-import {
-  MENSAGENS_RAPIDAS_VISIVEIS,
-  TAMANHO_MAXIMO_MENSAGEM_RAPIDA,
-} from "@/domain/mensagensRapidas";
+import { MENSAGENS_RAPIDAS_VISIVEIS } from "@/domain/mensagensRapidas";
 import { ehMinha, type MensagemDaCorrida } from "@/hooks/useChatDaCorrida";
 import type { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import MensagensDoChat from "@/components/MensagensDoChat";
+import PreferenciasChat from "@/components/PreferenciasChat";
 import RespostasRapidas from "@/components/RespostasRapidas";
 import { sugerirRespostas } from "@/domain/respostasSugeridas";
 import { Ionicons } from "@expo/vector-icons";
 import { useRef, useState } from "react";
-import { Alert, Modal, StyleSheet, TouchableOpacity, View } from "react-native";
+import { Modal, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
@@ -24,8 +22,8 @@ interface Props {
   onReenviar: (mensagem: MensagemDaCorrida) => void;
   // etapa da corrida (status_corrida): muda as sugestões de resposta
   etapa?: string | null;
-  // as mensagens rápidas do motorista ficam na home: o painel do embarque usa
-  // a mesma lista
+  // as frases de cada etapa (editadas em Preferências) vêm da home: o painel
+  // do embarque usa a mesma lista
   mensagensRapidas: ReturnType<typeof useMensagensRapidas>;
 }
 
@@ -54,11 +52,8 @@ export default function ChatDaCorrida({
   const insets = useSafeAreaInsets();
   const espacoDoTeclado = useEspacoDoTeclado();
   const [texto, setTexto] = useState("");
-  // respostas de um toque: as fixas e as que o motorista criou aqui
-  const { personalizadas, adicionar, remover } = mensagensRapidas;
-  const [criando, setCriando] = useState(false);
-  const [novaRapida, setNovaRapida] = useState("");
-  const [erroRapida, setErroRapida] = useState<string | null>(null);
+  const [editandoFrases, setEditandoFrases] = useState(false);
+  const tecladoAberto = espacoDoTeclado > 0;
   const primeiroNome = nomeDoOutro.trim().split(/\s+/)[0] || "Passageiro";
 
   // mensagem rápida vai uma vez por corrida e some da fileira; o intervalo
@@ -67,7 +62,9 @@ export default function ChatDaCorrida({
   const jaEnviadas = new Set(
     mensagens.filter(ehMinha).map((item) => item.conteudo.trim()),
   );
-  // sugestões pela conversa e pela etapa, depois as criadas pelo motorista
+  // as frases da etapa, na ordem das preferências; se sobrar pouco, entram as
+  // sugestões pela conversa
+  const daEtapa = mensagensRapidas.daEtapa(etapa);
   const sugeridas = sugerirRespostas(
     "motorista",
     etapa,
@@ -76,13 +73,12 @@ export default function ChatDaCorrida({
       minha: ehMinha(item),
     })),
   );
-  // as do motorista vêm na frente; só duas cabem, sem rolar para o lado
   const rapidas = [
-    ...personalizadas,
-    ...sugeridas.filter((item) => !personalizadas.includes(item)),
+    ...daEtapa,
+    ...sugeridas.filter((item) => !daEtapa.includes(item)),
   ]
     .filter((resposta) => !jaEnviadas.has(resposta.trim()))
-    .slice(0, MENSAGENS_RAPIDAS_VISIVEIS);
+    .slice(0, Math.max(daEtapa.length, MENSAGENS_RAPIDAS_VISIVEIS));
   const enviarRapida = (resposta: string) => {
     if (passouIntervalo(ultimaRapida)) enviar(resposta);
   };
@@ -92,31 +88,6 @@ export default function ChatDaCorrida({
     onEnviar(conteudo);
     setTexto("");
   };
-
-  const fecharCriacao = () => {
-    setCriando(false);
-    setNovaRapida("");
-    setErroRapida(null);
-  };
-
-  const salvarRapida = () => {
-    const motivo = adicionar(novaRapida);
-    if (motivo !== null) {
-      setErroRapida(motivo);
-      return;
-    }
-    fecharCriacao();
-  };
-
-  const confirmarRemocao = (mensagem: string) =>
-    Alert.alert("Remover mensagem rápida?", `“${mensagem}” sai da sua lista.`, [
-      { text: "Cancelar", style: "cancel" },
-      {
-        text: "Remover",
-        style: "destructive",
-        onPress: () => remover(mensagem),
-      },
-    ]);
 
   return (
     <Modal
@@ -158,72 +129,17 @@ export default function ChatDaCorrida({
         <View
           style={[
             styles.rodape,
-            { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 10 },
+            {
+              paddingBottom: !podeEnviar
+                ? insets.bottom + 10
+                : tecladoAberto
+                  ? espacoDoTeclado
+                  : 0,
+            },
           ]}
         >
-          {podeEnviar && criando ? (
+          {podeEnviar ? (
             <>
-              <Text style={styles.criarTitulo}>Nova mensagem rápida</Text>
-              <View style={styles.composicao}>
-                <TextInput
-                  style={styles.campo}
-                  placeholder="Ex.: Estou no carro prata"
-                  placeholderTextColor="#8A8F98"
-                  autoFocus
-                  maxLength={TAMANHO_MAXIMO_MENSAGEM_RAPIDA}
-                  value={novaRapida}
-                  onChangeText={(valor) => {
-                    setNovaRapida(valor);
-                    setErroRapida(null);
-                  }}
-                  onSubmitEditing={salvarRapida}
-                  returnKeyType="done"
-                  accessibilityLabel="Texto da nova mensagem rápida"
-                />
-                <TouchableOpacity
-                  style={styles.cancelarCriacao}
-                  accessibilityRole="button"
-                  accessibilityLabel="Cancelar nova mensagem rápida"
-                  onPress={fecharCriacao}
-                >
-                  <Ionicons name="close" size={22} color="#111" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.enviar,
-                    novaRapida.trim() === "" && styles.enviarInativo,
-                  ]}
-                  disabled={novaRapida.trim() === ""}
-                  accessibilityRole="button"
-                  accessibilityLabel="Salvar mensagem rápida"
-                  onPress={salvarRapida}
-                >
-                  <Ionicons name="checkmark" size={22} color="#111" />
-                </TouchableOpacity>
-              </View>
-              <Text style={[styles.criarApoio, erroRapida && styles.criarErro]}>
-                {erroRapida ??
-                  "Fica salva neste celular para as próximas corridas."}
-              </Text>
-            </>
-          ) : podeEnviar ? (
-            <>
-              <RespostasRapidas
-                respostas={rapidas}
-                destacadas={personalizadas}
-                onEnviar={enviarRapida}
-                onSegurar={confirmarRemocao}
-                inicio={
-                  <TouchableOpacity
-                    style={[styles.rapida, styles.rapidaNova]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Criar mensagem rápida"
-                    onPress={() => setCriando(true)}
-                  >
-                    <Ionicons name="create-outline" size={18} color="#111" />
-                  </TouchableOpacity>
-                }
-              />
               <View style={styles.composicao}>
                 <TextInput
                   style={styles.campo}
@@ -248,6 +164,12 @@ export default function ChatDaCorrida({
                   <Ionicons name="send" size={20} color="#111" />
                 </TouchableOpacity>
               </View>
+              <RespostasRapidas
+                respostas={rapidas}
+                onEnviar={enviarRapida}
+                onEditar={() => setEditandoFrases(true)}
+                paddingInferior={tecladoAberto ? 0 : insets.bottom}
+              />
             </>
           ) : (
             <Text style={styles.encerrado}>
@@ -256,6 +178,13 @@ export default function ChatDaCorrida({
           )}
         </View>
       </View>
+      {editandoFrases ? (
+        <PreferenciasChat
+          visible
+          etapaInicial={etapa}
+          onClose={() => setEditandoFrases(false)}
+        />
+      ) : null}
     </Modal>
   );
 }
@@ -283,39 +212,15 @@ const styles = StyleSheet.create({
   rodape: {
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#E5E7EB",
-    paddingHorizontal: 12,
     paddingTop: 10,
-    gap: 8,
   },
-  rapida: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 36,
-    maxWidth: 260,
+  composicao: {
     flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
+    alignItems: "flex-end",
+    gap: 8,
+    paddingBottom: 10,
+    paddingHorizontal: 12,
   },
-  rapidaNova: {
-    borderStyle: "dashed",
-    borderColor: "#9CA3AF",
-    paddingHorizontal: 10,
-  },
-  criarTitulo: { fontSize: 14, fontWeight: "700", color: "#111" },
-  criarApoio: { fontSize: 12, color: "#6B7280" },
-  criarErro: { color: "#B42318", fontWeight: "600" },
-  cancelarCriacao: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "#F2F3F5",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  composicao: { flexDirection: "row", alignItems: "flex-end", gap: 8 },
   campo: {
     flex: 1,
     minHeight: 46,
@@ -341,6 +246,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 14,
     color: "#5F6368",
+    paddingHorizontal: 12,
     paddingVertical: 10,
   },
 });

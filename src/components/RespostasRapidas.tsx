@@ -1,82 +1,86 @@
 import { Text } from "@/components/common/Texto";
-import type { ReactNode } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { ScrollView, StyleSheet, TouchableOpacity } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
   LinearTransition,
 } from "react-native-reanimated";
 
-// Fileira de respostas de um toque do chat. Sem tempo de exibição: o efeito
-// de tempo acabando fica só nos balões do mapa, que disputam espaço com a
-// rota. Aqui a resposta enviada sai e as novas sugestões entram suavemente.
+// Lista de frases de um toque do chat, uma por linha, ocupando toda a largura
+// abaixo do campo de texto. Sem tempo de exibição: o efeito de tempo acabando
+// fica só no painel do mapa, que disputa espaço com a rota. A frase enviada
+// sai e as outras sobem.
 interface Props {
   respostas: string[];
   onEnviar: (texto: string) => void;
-  // antes das respostas (ex.: caneta para criar uma)
-  inicio?: ReactNode;
-  destacadas?: string[];
-  onSegurar?: (texto: string) => void;
+  // primeira linha: leva à tela onde as frases são adicionadas e editadas
+  onEditar?: () => void;
+  // espaço da barra de gestos/teclado, pintado da cor da lista
+  paddingInferior?: number;
 }
 
 export default function RespostasRapidas({
   respostas,
   onEnviar,
-  inicio,
-  destacadas = [],
-  onSegurar,
+  onEditar,
+  paddingInferior = 0,
 }: Props) {
-  if (!inicio && respostas.length === 0) return null;
+  if (respostas.length === 0 && !onEditar) return null;
 
   return (
-    <View style={styles.fileira}>
-      {inicio}
-      {respostas.map((resposta) => {
-        const destacada = destacadas.includes(resposta);
-        return (
-          <Animated.View
-            key={resposta}
-            entering={FadeIn.duration(180)}
-            exiting={FadeOut.duration(160)}
-            layout={LinearTransition.duration(200)}
+    <ScrollView
+      style={styles.lista}
+      contentContainerStyle={{ paddingBottom: paddingInferior }}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      {onEditar ? (
+        <TouchableOpacity
+          style={styles.resposta}
+          accessibilityRole="button"
+          accessibilityLabel="Adicionar ou editar frases rápidas"
+          activeOpacity={0.7}
+          onPress={onEditar}
+        >
+          <Ionicons name="add-circle-outline" size={22} color="#E8590C" />
+          <Text style={styles.editarTexto}>Adicionar/Editar frases</Text>
+        </TouchableOpacity>
+      ) : null}
+      {respostas.map((resposta) => (
+        <Animated.View
+          key={resposta}
+          entering={FadeIn.duration(180)}
+          exiting={FadeOut.duration(160)}
+          layout={LinearTransition.duration(200)}
+        >
+          <TouchableOpacity
+            style={styles.resposta}
+            accessibilityRole="button"
+            accessibilityHint="Toque para enviar."
+            activeOpacity={0.7}
+            onPress={() => onEnviar(resposta)}
           >
-            <TouchableOpacity
-              style={[styles.resposta, destacada && styles.respostaDestacada]}
-              accessibilityRole="button"
-              accessibilityHint={
-                onSegurar && destacada
-                  ? "Toque para enviar. Toque e segure para remover."
-                  : "Toque para enviar."
-              }
-              onPress={() => onEnviar(resposta)}
-              onLongPress={
-                onSegurar && destacada ? () => onSegurar(resposta) : undefined
-              }
-            >
-              <Text style={styles.respostaTexto} numberOfLines={1}>
-                {resposta}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        );
-      })}
-    </View>
+            <Text style={styles.respostaTexto}>{resposta}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  // duas respostas cabem na tela: toque único, sem rolar para o lado
-  fileira: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  lista: { maxHeight: 270, backgroundColor: "#F1F1F3" },
   resposta: {
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 36,
-    maxWidth: "100%",
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: "#F1F1F3",
+    borderBottomWidth: 2,
+    borderBottomColor: "#FFFFFF",
+    paddingHorizontal: 22,
+    paddingVertical: 16,
   },
-  respostaDestacada: { backgroundColor: "#FFF8D6", borderColor: "#F2D45C" },
-  respostaTexto: { fontSize: 13, color: "#111", fontWeight: "600" },
+  respostaTexto: { flex: 1, fontSize: 17, lineHeight: 23, color: "#111" },
+  editarTexto: { fontSize: 17, lineHeight: 23, color: "#E8590C" },
 });

@@ -42,6 +42,8 @@ export interface PassageiroDaCorrida {
   telefone?: string | null;
   nota?: number | null;
   corridas?: number;
+  // conta nova: o app mostra o selo "Novo usuário"
+  novo?: boolean;
 }
 
 interface props {
@@ -61,8 +63,9 @@ interface props {
   onAbrirChat?: () => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
+  // as frases da etapa "no embarque", das preferências do motorista
+  mensagensRapidas?: string[];
   // mensagens rápidas que o motorista criou no chat
-  mensagensPersonalizadas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
   // quanto a pílula do embarque ocupa abaixo da área segura (os avisos do
   // chat aparecem logo embaixo dela)
@@ -112,7 +115,7 @@ export default function CorridaEmAndamento({
   chatNaoLidas = 0,
   onAbrirChat,
   mensagensEnviadas = [],
-  mensagensPersonalizadas = [],
+  mensagensRapidas = [],
   onEnviarMensagem,
   onAlturaDoTopo,
   onAlturaChange,
@@ -210,7 +213,11 @@ export default function CorridaEmAndamento({
     Linking.openURL(`tel:${passageiro.telefone.replace(/\D/g, "")}`);
   };
 
-  const reputacao = reputacaoPassageiro(passageiro?.nota, passageiro?.corridas);
+  const reputacao = reputacaoPassageiro(
+    passageiro?.nota,
+    passageiro?.corridas,
+    passageiro?.novo,
+  );
 
   return (
     <>
@@ -236,7 +243,7 @@ export default function CorridaEmAndamento({
         {onEnviarMensagem ? (
           <BaloesDaChegada
             enviadas={mensagensEnviadas}
-            personalizadas={mensagensPersonalizadas}
+            mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
           />
         ) : null}

@@ -1,3 +1,7 @@
+import {
+  textoDaNota,
+  textoDeCorridasDoPassageiro,
+} from "@/domain/reputacaoPassageiro";
 import { Ionicons } from "@expo/vector-icons";
 import { AudioPlayer, createAudioPlayer } from "expo-audio";
 import React, { lazy, Suspense, useEffect, useRef, useState } from "react";
@@ -15,15 +19,6 @@ import {
   minutosEstimados,
   valoresSugeridos,
 } from "@/domain/negocia";
-import Reanimated, {
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withSpring,
-  withTiming,
-} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 // carregado só quando usado: a câmera nativa não existe no Expo Go
@@ -48,6 +43,7 @@ interface RecebendoChamadaProps {
   metodoPagamento?: string | null;
   notaPassageiro?: number | null;
   corridasPassageiro?: number;
+  passageiroNovo?: boolean;
   // viagem compartilhada: vários embarques numa viagem só, valor da viagem inteira
   compartilhada?: {
     passageiros: number;
@@ -78,8 +74,6 @@ const ICONE_PAGAMENTO: Record<
 };
 
 const DURACAO_OFERTA_MS = 20_000;
-const VIRADA_MS = 180;
-const CONFIRMACAO_MS = 260;
 
 const silenciar = (player: AudioPlayer | null) => {
   if (!player) return;
@@ -114,6 +108,7 @@ export default function RecebendoChamadas({
   metodoPagamento,
   notaPassageiro,
   corridasPassageiro = 0,
+  passageiroNovo,
   compartilhada,
   onEditarValor,
   onAlturaChange,
@@ -129,33 +124,6 @@ export default function RecebendoChamadas({
     onExpirarRef.current = onExpirar ?? onRecusar;
   }, [onExpirar, onRecusar]);
   const [progress] = useState(() => new Animated.Value(1));
-  const entrada = useSharedValue(0);
-  const virada = useSharedValue(0);
-  const confirmacao = useSharedValue(0);
-  const confirmando = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    entrada.set(withSpring(1, { damping: 15, stiffness: 120, mass: 0.9 }));
-  }, [entrada]);
-
-  const estiloDoCartao = useAnimatedStyle(() => ({
-    opacity: interpolate(entrada.value, [0, 0.35], [0, 1], Extrapolation.CLAMP),
-    transform: [
-      { perspective: 900 },
-      { translateY: (1 - entrada.value) * 70 },
-      { rotateX: `${(1 - entrada.value) * 50}deg` },
-      { rotateY: `${virada.value * 90}deg` },
-    ],
-  }));
-
-  const estiloDoVerso = useAnimatedStyle(() => ({
-    opacity: confirmacao.value > 0 ? 1 : 0,
-    transform: [
-      { perspective: 900 },
-      { rotateY: `${(1 - confirmacao.value) * -90}deg` },
-      { scale: 0.94 + confirmacao.value * 0.06 },
-    ],
-  }));
   const closedRef = useRef(false); // evita múltiplas chamadas de fechamento
 
   useEffect(() => {
@@ -206,7 +174,6 @@ export default function RecebendoChamadas({
     return () => {
       closedRef.current = true;
       clearTimeout(expiracao);
-      if (confirmando.current) clearTimeout(confirmando.current);
       animacao.stop();
 
       silenciar(player); // para e descarrega o player
@@ -234,28 +201,17 @@ export default function RecebendoChamadas({
   };
 
   const acceptAndUnload = (valorProposto?: number) => {
-    if (closedRef.current) return;
-    closedRef.current = true;
+    // chamado ao aceitar
+    if (!closedRef.current) closedRef.current = true;
+
+    try {
+      if (negociavel && onPropor) onPropor(valorProposto);
+      else onAceitar();
+    } catch {
+      // swallow
+    }
 
     pararSom();
-    progress.stopAnimation();
-
-    virada.set(withTiming(1, { duration: VIRADA_MS }));
-    confirmacao.set(
-      withDelay(VIRADA_MS, withTiming(1, { duration: CONFIRMACAO_MS })),
-    );
-
-    confirmando.current = setTimeout(
-      () => {
-        try {
-          if (negociavel && onPropor) onPropor(valorProposto);
-          else onAceitar();
-        } catch {
-          // swallow
-        }
-      },
-      VIRADA_MS + CONFIRMACAO_MS + 120,
-    );
   };
 
   // o X da tela: no Negocia só some (não conta como recusa); na corrida
@@ -299,12 +255,8 @@ export default function RecebendoChamadas({
     ? enderecoCurto(destino)
     : "Endereço de destino";
   const reputacao = [
-    typeof notaPassageiro === "number"
-      ? notaPassageiro.toFixed(2).replace(".", ",")
-      : null,
-    corridasPassageiro === 0
-      ? "Passageiro novo"
-      : `${corridasPassageiro} ${corridasPassageiro === 1 ? "corrida" : "corridas"}`,
+    textoDaNota(notaPassageiro),
+    textoDeCorridasDoPassageiro(corridasPassageiro, passageiroNovo),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -498,36 +450,21 @@ export default function RecebendoChamadas({
           )
         }
       >
-        <View>
-          <Reanimated.View style={estiloDoCartao}>
-            {negociavel ? (
-              <View style={styles.card}>{conteudo}</View>
-            ) : (
-              // corrida normal: o card inteiro é o botão de aceitar, como no 99
-              <TouchableOpacity
-                style={styles.card}
-                activeOpacity={0.9}
-                accessibilityRole="button"
-                accessibilityLabel={`Aceitar corrida de ${emReais(valor)}`}
-                accessibilityHint="Toque no cartão para aceitar"
-                onPress={() => acceptAndUnload()}
-              >
-                {conteudo}
-              </TouchableOpacity>
-            )}
-          </Reanimated.View>
-          <Reanimated.View
-            pointerEvents="none"
-            style={[styles.verso, estiloDoVerso]}
+        {negociavel ? (
+          <View style={styles.card}>{conteudo}</View>
+        ) : (
+          // corrida normal: o card inteiro é o botão de aceitar, como no 99
+          <TouchableOpacity
+            style={styles.card}
+            activeOpacity={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={`Aceitar corrida de ${emReais(valor)}`}
+            accessibilityHint="Toque no cartão para aceitar"
+            onPress={() => acceptAndUnload()}
           >
-            <View style={styles.versoIcone}>
-              <Ionicons name="checkmark" size={38} color="#111" />
-            </View>
-            <Text style={styles.versoTexto}>
-              {negociavel ? "Proposta enviada" : "Corrida aceita"}
-            </Text>
-          </Reanimated.View>
-        </View>
+            {conteudo}
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -558,23 +495,6 @@ const styles = StyleSheet.create({
   fecharNegocia: { height: 44, borderRadius: 22, paddingHorizontal: 16 },
   fecharTexto: { color: "#FFF", fontSize: 15, fontWeight: "600" },
   cardArea: { paddingHorizontal: 12 },
-  verso: {
-    ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-    borderRadius: 16,
-    backgroundColor: "#FFD400",
-  },
-  versoIcone: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.55)",
-  },
-  versoTexto: { color: "#111", fontSize: 22, fontWeight: "800" },
   card: {
     backgroundColor: "#1F1F1F",
     borderRadius: 16,
