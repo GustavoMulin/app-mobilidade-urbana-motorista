@@ -6,6 +6,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import {
+  avisoDaSituacaoTaxa,
+  type SituacaoTaxa,
+} from "@/domain/taxaFinalizacao";
+import {
   Animated,
   BackHandler,
   Image,
@@ -22,6 +26,7 @@ import ConvidarMotorista from "./ConvidarMotorista";
 import HistoricoCorridas from "./HistoricoCorridas";
 import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
+import TaxaFinalizacao from "./TaxaFinalizacao";
 import HorasDirigindo from "./usuario/HorasDirigindo";
 import MeusVeiculos from "./usuario/MeusVeiculos";
 import PerfilUsuario from "./usuario/PerfilUsuario";
@@ -44,44 +49,11 @@ interface MenuItem {
   color?: string;
 }
 
-// restrição de corridas por taxa de finalização baixa (ciclo mensal)
-interface SituacaoTaxa {
-  estado: "em_dia" | "alerta" | "restrito";
-  prazo_ate: string | null;
-  restricao_ate: string | null;
-  faltam_corridas: number | null;
-}
-
 interface Estatisticas {
   taxa_aceitacao: number | null;
   taxa_finalizacao: number | null;
   taxa_finalizacao_minima?: number;
   situacao_taxa?: SituacaoTaxa;
-}
-
-const diaEMes = (iso: string) =>
-  new Date(iso).toLocaleDateString("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-  });
-
-// texto do aviso no menu; sem alerta nem restrição não há o que mostrar
-function avisoDaSituacaoTaxa(situacao?: SituacaoTaxa): string | null {
-  if (situacao?.estado === "restrito" && situacao.restricao_ate) {
-    return `Sua conta está com restrição de corridas até ${diaEMes(situacao.restricao_ate)}.`;
-  }
-
-  if (situacao?.estado === "alerta" && situacao.prazo_ate) {
-    const faltam = situacao.faltam_corridas;
-    const quanto =
-      faltam && faltam > 0
-        ? ` Faltam ${faltam} ${faltam === 1 ? "corrida finalizada" : "corridas finalizadas"}.`
-        : "";
-
-    return `Taxa de finalização abaixo do mínimo. Recupere até ${diaEMes(situacao.prazo_ate)} para evitar a restrição de corridas.${quanto}`;
-  }
-
-  return null;
 }
 
 const defaultMenuItems: MenuItem[] = [
@@ -126,6 +98,7 @@ export default function SideMenu({
   const [showCentralGanhos, setShowCentralGanhos] = useState(false);
   const [showPreferencias, setShowPreferencias] = useState(false);
   const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
+  const [showTaxaFinalizacao, setShowTaxaFinalizacao] = useState(false);
 
   const handleDisconnect = () => {
     if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
@@ -182,6 +155,8 @@ export default function SideMenu({
   useEffect(() => {
     // Se o dialog estiver aberto, fecha
     const onBackPress = () => {
+      // a tela da taxa decide sozinha: do Histórico volta ao resumo, do resumo fecha
+      if (showTaxaFinalizacao) return false;
       if (showConvidarMotorista) {
         setShowConvidarMotorista(false);
         return true;
@@ -232,6 +207,7 @@ export default function SideMenu({
   }, [
     visible,
     closeMenu,
+    showTaxaFinalizacao,
     showConvidarMotorista,
     showPreferencias,
     showCentralGanhos,
@@ -356,6 +332,10 @@ export default function SideMenu({
         visible={showCentralGanhos}
         onClose={() => setShowCentralGanhos(false)}
       />
+      <TaxaFinalizacao
+        visible={showTaxaFinalizacao}
+        onClose={() => setShowTaxaFinalizacao(false)}
+      />
       <ConvidarMotorista
         visible={showConvidarMotorista}
         onClose={() => setShowConvidarMotorista(false)}
@@ -441,7 +421,13 @@ export default function SideMenu({
                   <Text style={styles.statLabel}>Taxa de Aceitação</Text>
                 </View>
                 <View style={styles.statDivider} />
-                <View style={styles.statBox}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir a taxa de finalização"
+                  activeOpacity={0.6}
+                  onPress={() => setShowTaxaFinalizacao(true)}
+                  style={styles.statBox}
+                >
                   <Text
                     style={[
                       styles.statValue,
@@ -453,7 +439,7 @@ export default function SideMenu({
                       : `${estatisticas.taxa_finalizacao}%`}
                   </Text>
                   <Text style={styles.statLabel}>Taxa de Finalização</Text>
-                </View>
+                </TouchableOpacity>
               </View>
               {avisoDaTaxa ? (
                 <View style={styles.avisoTaxa}>
