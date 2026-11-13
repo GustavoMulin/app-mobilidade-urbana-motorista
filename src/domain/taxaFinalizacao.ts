@@ -35,6 +35,43 @@ export interface DetalheFinalizacao {
   regras: { prazo_dia: number; duracoes_dias: number[] };
 }
 
+// ---- taxa de aceitação (mês corrente) ----
+
+export interface DiaDaAceitacao {
+  data: string;
+  aceitas: number;
+  recusadas: number;
+  taxa: number | null; // null: nenhuma chamada no dia
+}
+
+export interface MesDaAceitacao {
+  mes: string; // AAAA-MM
+  de: string;
+  ate: string;
+  taxa: number;
+  aceitas: number;
+  recusadas: number;
+}
+
+export interface DetalheAceitacao {
+  periodo: { de: string; ate: string };
+  taxa: number;
+  aceitas: number;
+  recusadas: number;
+  diario: DiaDaAceitacao[]; // últimos 30 dias, do mais antigo para hoje
+  historico: MesDaAceitacao[]; // do mês corrente para trás
+  regras: {
+    cancelamento_passageiro_segundos: number;
+    duplicada_janela_minutos: number;
+  };
+}
+
+/** Ponto do gráfico diário, comum às duas taxas. */
+export interface PontoDiario {
+  data: string;
+  taxa: number | null;
+}
+
 export const COR_ABAIXO = "#FF4444";
 export const COR_TRANSICAO = "#FFA000";
 export const COR_ACIMA = "#18C27A";
@@ -90,6 +127,16 @@ export const textoDuracoes = (dias: number[]) => {
   if (dias.length === 1) return `${dias[0]} dias`;
 
   return `${dias.slice(0, -1).join(", ")} ou ${dias[dias.length - 1]} dias`;
+};
+
+/** 120 -> "2 minutos"; 90 -> "90 segundos" */
+export const tempoPorExtenso = (segundos: number) => {
+  if (segundos >= 60 && segundos % 60 === 0) {
+    const minutos = segundos / 60;
+    return `${minutos} ${minutos === 1 ? "minuto" : "minutos"}`;
+  }
+
+  return `${segundos} ${segundos === 1 ? "segundo" : "segundos"}`;
 };
 
 /** Aviso mostrado no menu e na tela; sem alerta nem restrição não há o que dizer. */

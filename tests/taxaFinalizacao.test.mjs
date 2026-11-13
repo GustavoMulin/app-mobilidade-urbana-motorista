@@ -9,8 +9,16 @@ import {
   rotuloDia,
   rotuloDiaCurto,
   rotuloPeriodo,
+  tempoPorExtenso,
   textoDuracoes,
 } from "../src/domain/taxaFinalizacao.ts";
+
+test("escreve o tempo em minutos quando é redondo e em segundos nos demais casos", () => {
+  assert.equal(tempoPorExtenso(120), "2 minutos");
+  assert.equal(tempoPorExtenso(60), "1 minuto");
+  assert.equal(tempoPorExtenso(90), "90 segundos");
+  assert.equal(tempoPorExtenso(1), "1 segundo");
+});
 
 test("o medidor vai de 150° (0%) a 390° (100%) e limita valores fora da faixa", () => {
   assert.equal(anguloDoValor(0), 150);

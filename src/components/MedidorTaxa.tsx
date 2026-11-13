@@ -13,7 +13,9 @@ import { StyleSheet, View } from "react-native";
 
 interface Props {
   taxa: number;
-  minima: number;
+  // com mínimo o arco é vermelho/laranja/verde e leva a seta do mínimo; sem
+  // mínimo (aceitação) o arco é de progresso: verde até a taxa, cinza depois
+  minima?: number | null;
 }
 
 // o desenho é feito num quadro fixo e escalado para a largura da tela
@@ -30,6 +32,7 @@ const PASSO_ARCO = 2;
 const PASSO_TRILHO = 3;
 // faixa laranja de transição centrada no mínimo, em pontos percentuais
 const FOLGA_DA_FAIXA = 2;
+const COR_VAZIA = "#E8E8E8";
 
 interface Peca {
   chave: string;
@@ -74,22 +77,23 @@ function pecasDoArco(
 }
 
 /**
- * Medidor da taxa de finalização: arco vermelho até o mínimo, uma faixa
- * laranja no mínimo e arco verde acima, com a seta do mínimo por fora e o
- * ponteiro da taxa atual por dentro.
+ * Medidor de taxa (finalização e aceitação): arco grosso, anel interno fino e
+ * o ponteiro da taxa atual por dentro. Com mínimo, a seta do mínimo por fora.
  */
-export default function MedidorTaxaFinalizacao({ taxa, minima }: Props) {
+export default function MedidorTaxa({ taxa, minima = null }: Props) {
   const [largura, setLargura] = useState(0);
   const escala = largura / LARGURA;
+  const comMinima = minima !== null;
 
   const arco = useMemo(
     () =>
       pecasDoArco(RAIO, ESPESSURA, PASSO_ARCO, (valor) => {
+        if (minima === null) return valor <= taxa ? COR_ACIMA : COR_VAZIA;
         if (valor < minima - FOLGA_DA_FAIXA) return COR_ABAIXO;
         if (valor <= minima + FOLGA_DA_FAIXA) return COR_TRANSICAO;
         return COR_ACIMA;
       }),
-    [minima],
+    [minima, taxa],
   );
   const trilho = useMemo(
     () =>
@@ -102,12 +106,19 @@ export default function MedidorTaxaFinalizacao({ taxa, minima }: Props) {
     [],
   );
 
-  const aMinimo = anguloDoValor(minima);
   const aTaxa = anguloDoValor(taxa);
-
   const pontaDoArco = polar(CX, CY, RAIO, anguloDoValor(0));
   const fimDoArco = polar(CX, CY, RAIO, anguloDoValor(100));
+  const corDaPontaInicial = comMinima
+    ? COR_ABAIXO
+    : taxa > 0
+      ? COR_ACIMA
+      : COR_VAZIA;
+  const corDaPontaFinal = comMinima || taxa >= 100 ? COR_ACIMA : COR_VAZIA;
   const ponteiro = polar(CX, CY, RAIO_INTERNO - 2, aTaxa);
+
+  // seta do mínimo: haste por fora do arco e a ponta apontando para a faixa
+  const aMinimo = comMinima ? anguloDoValor(minima) : 0;
   const haste = polar(CX, CY, RAIO + 30, aMinimo);
   const ponta = polar(CX, CY, RAIO + 19, aMinimo);
   const rotulo = polar(CX, CY, RAIO + 42, aMinimo);
@@ -117,7 +128,9 @@ export default function MedidorTaxaFinalizacao({ taxa, minima }: Props) {
     <View
       accessible
       accessibilityRole="image"
-      accessibilityLabel={`Taxa de finalização ${taxa}%, mínimo ${minima}%`}
+      accessibilityLabel={
+        comMinima ? `Taxa de ${taxa}%, mínimo ${minima}%` : `Taxa de ${taxa}%`
+      }
       onLayout={(evento) => setLargura(evento.nativeEvent.layout.width)}
       style={styles.caixa}
     >
@@ -165,7 +178,7 @@ export default function MedidorTaxaFinalizacao({ taxa, minima }: Props) {
               {
                 left: pontaDoArco.x - ESPESSURA / 2,
                 top: pontaDoArco.y - ESPESSURA / 2,
-                backgroundColor: COR_ABAIXO,
+                backgroundColor: corDaPontaInicial,
               },
             ]}
           />
@@ -175,49 +188,52 @@ export default function MedidorTaxaFinalizacao({ taxa, minima }: Props) {
               {
                 left: fimDoArco.x - ESPESSURA / 2,
                 top: fimDoArco.y - ESPESSURA / 2,
-                backgroundColor: COR_ACIMA,
+                backgroundColor: corDaPontaFinal,
               },
             ]}
           />
 
-          {/* seta do mínimo: haste por fora e a ponta apontando para a faixa */}
-          <View
-            style={[
-              styles.haste,
-              {
-                left: haste.x - 1.5,
-                top: haste.y - 9,
-                transform: [{ rotate: `${aMinimo + 90}deg` }],
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.triangulo,
-              {
-                left: ponta.x - 7,
-                top: ponta.y - 8,
-                // a ponta do triângulo aponta para dentro do arco
-                transform: [{ rotate: `${aMinimo - 90}deg` }],
-              },
-            ]}
-          />
-          <View
-            style={[
-              styles.rotulo,
-              rotuloNaEsquerda
-                ? { left: rotulo.x - 80, alignItems: "flex-end" }
-                : {
-                    // o texto cresce para a direita: não deixa sair do quadro
-                    left: Math.min(rotulo.x, LARGURA - 64),
-                    alignItems: "flex-start",
+          {comMinima ? (
+            <>
+              <View
+                style={[
+                  styles.haste,
+                  {
+                    left: haste.x - 1.5,
+                    top: haste.y - 9,
+                    transform: [{ rotate: `${aMinimo + 90}deg` }],
                   },
-              { top: rotulo.y - 18 },
-            ]}
-          >
-            <Text style={styles.rotuloTexto}>Mínimo</Text>
-            <Text style={styles.rotuloTexto}>{minima}%</Text>
-          </View>
+                ]}
+              />
+              <View
+                style={[
+                  styles.triangulo,
+                  {
+                    left: ponta.x - 7,
+                    top: ponta.y - 8,
+                    // a ponta do triângulo aponta para dentro do arco
+                    transform: [{ rotate: `${aMinimo - 90}deg` }],
+                  },
+                ]}
+              />
+              <View
+                style={[
+                  styles.rotulo,
+                  rotuloNaEsquerda
+                    ? { left: rotulo.x - 80, alignItems: "flex-end" }
+                    : {
+                        // o texto cresce para a direita: não deixa sair do quadro
+                        left: Math.min(rotulo.x, LARGURA - 64),
+                        alignItems: "flex-start",
+                      },
+                  { top: rotulo.y - 18 },
+                ]}
+              >
+                <Text style={styles.rotuloTexto}>Mínimo</Text>
+                <Text style={styles.rotuloTexto}>{minima}%</Text>
+              </View>
+            </>
+          ) : null}
 
           {/* ponteiro da taxa atual, no anel interno apontando para o arco */}
           <View

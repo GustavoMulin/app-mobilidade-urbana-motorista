@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
 import {
   avisoDaSituacaoTaxa,
   type SituacaoTaxa,
@@ -26,6 +27,7 @@ import ConvidarMotorista from "./ConvidarMotorista";
 import HistoricoCorridas from "./HistoricoCorridas";
 import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
+import TaxaAceitacao from "./TaxaAceitacao";
 import TaxaFinalizacao from "./TaxaFinalizacao";
 import HorasDirigindo from "./usuario/HorasDirigindo";
 import MeusVeiculos from "./usuario/MeusVeiculos";
@@ -54,6 +56,8 @@ interface Estatisticas {
   taxa_finalizacao: number | null;
   taxa_finalizacao_minima?: number;
   situacao_taxa?: SituacaoTaxa;
+  // média das notas dos passageiros; null enquanto não houver avaliação
+  nota_motorista?: number | null;
 }
 
 const defaultMenuItems: MenuItem[] = [
@@ -99,6 +103,7 @@ export default function SideMenu({
   const [showPreferencias, setShowPreferencias] = useState(false);
   const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
   const [showTaxaFinalizacao, setShowTaxaFinalizacao] = useState(false);
+  const [showTaxaAceitacao, setShowTaxaAceitacao] = useState(false);
 
   const handleDisconnect = () => {
     if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
@@ -108,9 +113,8 @@ export default function SideMenu({
     closeAnimation(onClose);
   }, [closeAnimation, onClose]);
 
-  // veículo e números vêm da conta toda vez que o menu abre, para refletir
-  // um veículo cadastrado agora ou corridas finalizadas há pouco
-  const [veiculoPrincipal, setVeiculoPrincipal] = useState<string | null>(null);
+  // nota e taxas vêm da conta toda vez que o menu abre, para refletir
+  // avaliações e corridas finalizadas há pouco
   const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
 
   const finalizacaoAbaixoDaMinima =
@@ -123,25 +127,11 @@ export default function SideMenu({
     if (!visible) return;
 
     let ativo = true;
-    Promise.all([
-      api.get<{
-        veiculo_ativo_id: number | null;
-        data: { id: number; marca?: string; modelo?: string; placa?: string }[];
-      }>("/motorista/me/veiculos"),
-      api.get<Estatisticas>("/motorista/me/estatisticas"),
-    ])
-      .then(([veiculos, numeros]) => {
+    api
+      .get<Estatisticas>("/motorista/me/estatisticas")
+      .then(({ data }) => {
         if (!ativo) return;
-        const primeiro = veiculos.data.data?.find(
-          (veiculo) => veiculo.id === veiculos.data.veiculo_ativo_id,
-        );
-        setVeiculoPrincipal(
-          primeiro
-            ? // a placa vem primeiro: se o nome do modelo for longo, ela não some
-              [primeiro.placa, primeiro.modelo].filter(Boolean).join(" · ")
-            : null,
-        );
-        setEstatisticas(numeros.data);
+        setEstatisticas(data);
       })
       .catch(() => {
         // sem rede o menu segue abrindo; os campos ficam como estavam
@@ -155,8 +145,8 @@ export default function SideMenu({
   useEffect(() => {
     // Se o dialog estiver aberto, fecha
     const onBackPress = () => {
-      // a tela da taxa decide sozinha: do Histórico volta ao resumo, do resumo fecha
-      if (showTaxaFinalizacao) return false;
+      // as telas das taxas decidem sozinhas: do Histórico voltam ao resumo, do resumo fecham
+      if (showTaxaFinalizacao || showTaxaAceitacao) return false;
       if (showConvidarMotorista) {
         setShowConvidarMotorista(false);
         return true;
@@ -208,6 +198,7 @@ export default function SideMenu({
     visible,
     closeMenu,
     showTaxaFinalizacao,
+    showTaxaAceitacao,
     showConvidarMotorista,
     showPreferencias,
     showCentralGanhos,
@@ -318,11 +309,6 @@ export default function SideMenu({
         onClose={() => setShowMeusVeiculos(false)}
         disponivel={disponivel}
         emCorrida={emCorrida}
-        onVeiculoSelecionado={(veiculo) =>
-          setVeiculoPrincipal(
-            [veiculo.placa, veiculo.modelo].filter(Boolean).join(" · "),
-          )
-        }
       />
       <HorasDirigindo
         visible={showHorasDirigindo}
@@ -335,6 +321,10 @@ export default function SideMenu({
       <TaxaFinalizacao
         visible={showTaxaFinalizacao}
         onClose={() => setShowTaxaFinalizacao(false)}
+      />
+      <TaxaAceitacao
+        visible={showTaxaAceitacao}
+        onClose={() => setShowTaxaAceitacao(false)}
       />
       <ConvidarMotorista
         visible={showConvidarMotorista}
@@ -393,33 +383,38 @@ export default function SideMenu({
                 {emCorrida ? "Em corrida" : disponivel ? "Online" : "Offline"}
               </Text>
 
-              <TouchableOpacity
+              <View
                 style={styles.statusBadge}
-                accessibilityRole="button"
-                onPress={() => setShowMeusVeiculos(true)}
+                accessible
+                accessibilityLabel={
+                  typeof estatisticas?.nota_motorista === "number"
+                    ? `Sua avaliação é ${textoDaNotaDoMotorista(estatisticas.nota_motorista)} estrelas`
+                    : "Você ainda não tem avaliações"
+                }
               >
                 <View style={styles.badgeContent}>
-                  <Ionicons name="shield-checkmark" size={14} color="#FFF" />
+                  <Ionicons name="star" size={14} color="#FFC107" />
                   <Text style={styles.statusText} numberOfLines={1}>
-                    {veiculoPrincipal ?? "Cadastrar veículo"}
+                    {textoDaNotaDoMotorista(estatisticas?.nota_motorista)}
                   </Text>
-                  <Ionicons name="chevron-forward" size={14} color="#FFF" />
                 </View>
-                {/* o aviso é para cadastrar: com veículo não há o que avisar */}
-                {veiculoPrincipal ? null : (
-                  <View style={styles.notificationDot} />
-                )}
-              </TouchableOpacity>
+              </View>
 
               <View style={styles.statsRow}>
-                <View style={styles.statBox}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir a taxa de aceitação"
+                  activeOpacity={0.6}
+                  onPress={() => setShowTaxaAceitacao(true)}
+                  style={styles.statBox}
+                >
                   <Text style={styles.statValue}>
                     {estatisticas?.taxa_aceitacao == null
                       ? "—"
                       : `${estatisticas.taxa_aceitacao}%`}
                   </Text>
                   <Text style={styles.statLabel}>Taxa de Aceitação</Text>
-                </View>
+                </TouchableOpacity>
                 <View style={styles.statDivider} />
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -553,17 +548,6 @@ const styles = StyleSheet.create({
     color: "#FFF",
     fontSize: 14,
     fontWeight: "600",
-  },
-  notificationDot: {
-    position: "absolute",
-    top: -2,
-    right: 0,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#FF4D4D",
-    borderWidth: 1,
-    borderColor: "#FFF",
   },
   statsRow: {
     flexDirection: "row",
