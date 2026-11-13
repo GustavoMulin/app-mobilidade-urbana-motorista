@@ -47,10 +47,6 @@ interface DadosCadastro {
   telefone?: string;
 }
 
-// este app cadastra motorista; sem o perfil o backend cria só o usuário e
-// todo endpoint do motorista responde 403
-const PERFIL_DESTE_APP = "motorista";
-
 interface AtualizarFotoPayload {
   foto: string;
 }
@@ -162,10 +158,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
-      const response = await api.post<AuthResponse>("/auth/login", {
+      // login próprio do motorista: o token do app do passageiro não vale aqui
+      const response = await api.post<AuthResponse>("/motorista/auth/login", {
         email,
         password,
-        perfil: PERFIL_DESTE_APP,
       });
 
       const { user, token } = response.data;
@@ -218,7 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const token = await SecureStore.getItemAsync("token");
       // o aparelho para de receber o push desta conta (precisa do token ainda)
       if (token) await removerAparelho();
-      if (token) await api.post("/auth/logout");
+      if (token) await api.post("/motorista/auth/logout");
     } catch {
       // Token expirado ou rede indisponível não impedem a saída local.
     } finally {
@@ -235,7 +231,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setUnauthorizedHandler(async () => {
       if (logoutEmAndamento.current) return;
       logoutEmAndamento.current = true;
-      // token já é inválido (401): só limpa localmente, não chama /auth/logout
+      // token já é inválido (401): só limpa localmente, não chama o logout
       await limparSessaoLocal();
 
       router.replace({
@@ -299,10 +295,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       setLoading(true);
 
-      const response = await api.post<AuthResponse>("/auth/register", {
-        ...dadosCadastro,
-        perfil: PERFIL_DESTE_APP,
-      });
+      const response = await api.post<AuthResponse>(
+        "/motorista/auth/register",
+        dadosCadastro,
+      );
 
       const { user, token } = response.data;
 

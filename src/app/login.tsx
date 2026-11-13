@@ -70,15 +70,13 @@ export default function Login() {
 
       const telefone = phone.replace(/\D/g, "");
 
-      const response = await api.get("/auth/verifica-se-conta-existe", {
-        params: { telefone },
-      });
+      const response = await api.get(
+        "/motorista/auth/verifica-se-conta-existe",
+        { params: { telefone } },
+      );
 
       if (response.data.contaExiste) {
-        await api.post("/auth/enviar-codigo", {
-          telefone,
-          perfil: "motorista",
-        });
+        await api.post("/motorista/auth/enviar-codigo", { telefone });
         setShowCodigoVerificacao(true);
 
         return;

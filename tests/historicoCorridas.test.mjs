@@ -19,9 +19,7 @@ const corridaBase = {
   valor_estimado_inicial: "20.00",
   produto: { nome: "Pop" },
   motorista: null,
-  passageiro: {
-    user: { name: "Ana Passageira", foto: null },
-  },
+  passageiro: { name: "Ana Passageira", foto: null },
   veiculo: null,
   corrida_financeiro: {
     valor_pago_passageiro: "22.00",
@@ -87,9 +85,7 @@ test("motorista vê os dados persistidos da corrida finalizada", () => {
       motivo_cancelamento: null,
       tempo_inicio: "2026-09-18T12:40:00.000Z",
       tempo_final: "2026-09-18T13:08:00.000Z",
-      motorista: {
-        user: { name: "Carlos Motorista", foto: null },
-      },
+      motorista: { name: "Carlos Motorista", foto: null },
       veiculo: {
         modelo: "Onix",
         cor: "Prata",
@@ -117,9 +113,7 @@ test("passageiro vê motorista e veículo quando houve atribuição", () => {
     {
       ...corridaBase,
       status_corrida: "aceita",
-      motorista: {
-        user: { name: "Carlos Motorista", foto: null },
-      },
+      motorista: { name: "Carlos Motorista", foto: null },
       veiculo: {
         modelo: "Onix",
         cor: "Prata",

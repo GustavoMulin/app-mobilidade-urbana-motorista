@@ -12,7 +12,7 @@ export interface CorridaParaAvaliar {
   codigo_corrida: string;
   distancia_total?: string | number | null;
   convidado_nome?: string | null;
-  passageiro?: { user?: { name?: string | null } | null } | null;
+  passageiro?: { name?: string | null } | null;
   metodo_pagamento?: string | null;
   corrida_financeiro?: {
     valor_motorista?: string | number | null;
