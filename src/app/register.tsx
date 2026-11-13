@@ -237,7 +237,7 @@ export default function Cadastro() {
 
     try {
       await api.post(
-        "/auth/valida-email-cadastro",
+        "/motorista/auth/valida-email-cadastro",
         { email },
         { signal: verificacao.signal },
       );

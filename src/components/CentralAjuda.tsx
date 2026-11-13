@@ -39,7 +39,7 @@ const TOPICOS: { motivo: Motivo; icone: keyof typeof Ionicons.glyphMap }[] = [
 
 interface CorridaResumo {
   id: number;
-  motorista?: { user_id?: number | null } | null;
+  motorista_id?: number | null;
   codigo_corrida: string;
   status_corrida: string;
   tempo_solicitacao: string;
@@ -185,13 +185,13 @@ export default function CentralAjuda({ visible, onClose }: Props) {
     api
       .get<{ data: CorridaResumo[] }>("/corridas", { params: { per_page: 20 } })
       .then(({ data }) => {
-        // a mesma conta pode ser passageira: só as corridas em que dirigiu
+        // só as corridas em que este motorista dirigiu
         if (ativo)
           setCorridas(
             data.data
               .filter(
                 (corrida) =>
-                  String(corrida.motorista?.user_id ?? "") === String(user?.id),
+                  String(corrida.motorista_id ?? "") === String(user?.id),
               )
               .slice(0, 10),
           );

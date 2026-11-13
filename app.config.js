@@ -54,6 +54,10 @@ module.exports = {
   ios: {
     ...(iosAppBundleId ? { bundleIdentifier: iosAppBundleId } : {}),
     supportsTablet: true,
+    infoPlist: {
+      NSCameraUsageDescription:
+        "A câmera frontal reconhece o gesto da mão para aceitar ou recusar corridas, quando você ativa essa opção.",
+    },
   },
 
   android: {
@@ -66,6 +70,8 @@ module.exports = {
       monochromeImage: "./assets/images/android-icon-monochrome.png",
     },
     predictiveBackGestureEnabled: false,
+    // aceitar e recusar corrida pelo gesto da mão (câmera frontal)
+    permissions: ["android.permission.CAMERA"],
     config: {
       googleMaps: { apiKey: googleMapsAndroidKey },
     },
@@ -117,10 +123,19 @@ module.exports = {
     ["expo-image-picker", { photosPermission: "Permitir selecionar fotos dos seus documentos para análise." }],
     "expo-asset",
     "expo-secure-store",
+    // shader Vulkan do resizer da câmera (aceitar por gesto)
+    "./plugins/withShaderDoResizer",
 
-    ...(ehDesenvolvimento
-      ? [["expo-build-properties", { android: { usesCleartextTraffic: true } }]]
-      : []),
+    [
+      "expo-build-properties",
+      {
+        android: {
+          // o resizer da câmera do aceitar por gesto exige Android 8.0+
+          minSdkVersion: 26,
+          ...(ehDesenvolvimento ? { usesCleartextTraffic: true } : {}),
+        },
+      },
+    ],
   ],
 
   experiments: {

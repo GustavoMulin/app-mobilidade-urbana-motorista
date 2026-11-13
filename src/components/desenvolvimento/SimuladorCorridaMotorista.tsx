@@ -2,6 +2,7 @@
 import { Text } from "@/components/common/Texto";
 import {
   ETAPAS_SIMULACAO_MOTORISTA,
+  QUANTIDADE_EM_SEQUENCIA,
   type EtapaSimulacaoMotorista,
 } from "@/hooks/useSimuladorCorridaMotorista";
 import { Ionicons } from "@expo/vector-icons";
@@ -22,6 +23,9 @@ interface Props {
   finalizada: boolean;
   bloqueado: boolean;
   onIniciar: () => void;
+  // chamadas da sequência que faltam (0: fora dela)
+  restantes: number;
+  onReceberVarias: () => void;
   onSelecionarEtapa: (etapa: EtapaSimulacaoMotorista) => void;
   onFinalizar: () => void;
   onEncerrar: () => void;
@@ -40,12 +44,19 @@ export default function SimuladorCorridaMotorista({
   finalizada,
   bloqueado,
   onIniciar,
+  restantes,
+  onReceberVarias,
   onSelecionarEtapa,
   onFinalizar,
   onEncerrar,
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const insets = useSafeAreaInsets();
+  // escolher uma opção já fecha o painel, para ver o resultado na hora
+  const escolher = (acao: () => void) => () => {
+    setAberto(false);
+    acao();
+  };
 
   if (!__DEV__) return null;
 
@@ -121,11 +132,9 @@ export default function SimuladorCorridaMotorista({
                       etapa === item && styles.etapaAtiva,
                       desabilitada && styles.desabilitada,
                     ]}
-                    onPress={() =>
-                      item === "oferta"
-                        ? onIniciar()
-                        : onSelecionarEtapa(item)
-                    }
+                    onPress={escolher(() =>
+                      item === "oferta" ? onIniciar() : onSelecionarEtapa(item),
+                    )}
                   >
                     <Text
                       style={[
@@ -148,9 +157,36 @@ export default function SimuladorCorridaMotorista({
 
               <TouchableOpacity
                 accessibilityRole="button"
+                disabled={bloqueado && !ativa}
+                style={[
+                  styles.etapa,
+                  restantes > 0 && styles.etapaAtiva,
+                  bloqueado && !ativa && styles.desabilitada,
+                ]}
+                onPress={escolher(onReceberVarias)}
+              >
+                <Text
+                  style={[
+                    styles.etapaTexto,
+                    restantes > 0 && styles.etapaTextoAtiva,
+                  ]}
+                >
+                  {restantes > 0
+                    ? `Corridas seguidas: faltam ${restantes}`
+                    : `Receber ${QUANTIDADE_EM_SEQUENCIA} corridas seguidas`}
+                </Text>
+                <Ionicons
+                  name="layers-outline"
+                  size={20}
+                  color={restantes > 0 ? "#FFFFFF" : "#1E293B"}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                accessibilityRole="button"
                 disabled={!ativa}
                 style={[styles.finalizar, !ativa && styles.desabilitada]}
-                onPress={onFinalizar}
+                onPress={escolher(onFinalizar)}
               >
                 <Text style={styles.finalizarTexto}>
                   Finalizar corrida simulada
@@ -161,7 +197,7 @@ export default function SimuladorCorridaMotorista({
                 <TouchableOpacity
                   accessibilityRole="button"
                   style={styles.limpar}
-                  onPress={onEncerrar}
+                  onPress={escolher(onEncerrar)}
                 >
                   <Text style={styles.limparTexto}>
                     {finalizada ? "Limpar resultado" : "Encerrar simulação"}
