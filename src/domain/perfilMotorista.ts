@@ -32,6 +32,17 @@ export interface Verificacao {
   ok: boolean;
 }
 
+/** Classificação da nota; os limites são definidos na gestão. */
+export interface FaixaDaNota {
+  chave: "excelente" | "atencao" | "alto_risco";
+  titulo: string;
+}
+
+export interface LimitesDasFaixas {
+  excelente_acima: number;
+  alto_risco_abaixo: number;
+}
+
 export interface PerfilMotorista {
   nome: string | null;
   foto: string | null;
@@ -42,6 +53,8 @@ export interface PerfilMotorista {
   novo: boolean;
   corridas_para_deixar_de_ser_novo: number;
   janela_da_media: number;
+  faixa: FaixaDaNota;
+  faixas: LimitesDasFaixas;
   desde: string | null;
   meses_na_plataforma: number;
   distribuicao: Record<string, number>;
@@ -51,6 +64,22 @@ export interface PerfilMotorista {
   selos: Selo[];
   verificacoes: Verificacao[];
 }
+
+/** Cores do selo da faixa: verde, âmbar e vermelho. */
+export const coresDaFaixa = (chave: FaixaDaNota["chave"]) =>
+  chave === "excelente"
+    ? { fundo: "#E3F6EC", texto: "#18794E" }
+    : chave === "atencao"
+      ? { fundo: "#FFF3D6", texto: "#9A6700" }
+      : { fundo: "#FDECEA", texto: "#B3261E" };
+
+const notaComVirgula = (nota: number) => nota.toFixed(2).replace(".", ",");
+
+/** "Excelente: acima de 4,85 · Atenção: de 4,51 a 4,85 · Alto risco: abaixo de 4,51" */
+export const textoDasFaixas = (limites: LimitesDasFaixas) =>
+  `Excelente: acima de ${notaComVirgula(limites.excelente_acima)} · ` +
+  `Atenção: de ${notaComVirgula(limites.alto_risco_abaixo)} a ${notaComVirgula(limites.excelente_acima)} · ` +
+  `Alto risco: abaixo de ${notaComVirgula(limites.alto_risco_abaixo)}`;
 
 /** Largura (%) da barra de uma nota no gráfico de estrelas. */
 export const larguraDaBarra = (quantidade: number, total: number) =>

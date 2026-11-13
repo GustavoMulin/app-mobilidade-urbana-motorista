@@ -2,13 +2,32 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  coresDaFaixa,
   inicialDoNome,
   larguraDaBarra,
   tempoNaPlataforma,
   textoDaMedia,
+  textoDasFaixas,
   textoDeQuando,
   totalDaDistribuicao,
 } from "../src/domain/perfilMotorista.ts";
+
+test("explica as faixas da nota com os limites definidos na gestão", () => {
+  assert.equal(
+    textoDasFaixas({ excelente_acima: 4.85, alto_risco_abaixo: 4.51 }),
+    "Excelente: acima de 4,85 · Atenção: de 4,51 a 4,85 · Alto risco: abaixo de 4,51",
+  );
+  assert.equal(
+    textoDasFaixas({ excelente_acima: 4.9, alto_risco_abaixo: 4 }),
+    "Excelente: acima de 4,90 · Atenção: de 4,00 a 4,90 · Alto risco: abaixo de 4,00",
+  );
+});
+
+test("cada faixa tem a sua cor: verde, âmbar e vermelho", () => {
+  assert.equal(coresDaFaixa("excelente").texto, "#18794E");
+  assert.equal(coresDaFaixa("atencao").texto, "#9A6700");
+  assert.equal(coresDaFaixa("alto_risco").texto, "#B3261E");
+});
 
 test("a largura da barra é a fatia de cada nota e não quebra sem avaliações", () => {
   assert.equal(larguraDaBarra(89, 100), 89);

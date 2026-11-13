@@ -6,9 +6,11 @@ import { Text } from "@/components/common/Texto";
 import { useAuth } from "@/context/AuthProvider";
 import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
 import {
+  coresDaFaixa,
   larguraDaBarra,
   tempoNaPlataforma,
   textoDaMedia,
+  textoDasFaixas,
   textoDeQuando,
   totalDaDistribuicao,
   type Elogio,
@@ -254,6 +256,28 @@ export default function PerfilUsuario({
                     </TouchableOpacity>
                   </View>
                   <Text style={styles.subInfoText}>{textoDaMedia(perfil)}</Text>
+
+                  {/* classificação da nota, com os limites definidos pela plataforma */}
+                  <View
+                    style={[
+                      styles.faixaSelo,
+                      {
+                        backgroundColor: coresDaFaixa(perfil.faixa.chave).fundo,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.faixaTitulo,
+                        { color: coresDaFaixa(perfil.faixa.chave).texto },
+                      ]}
+                    >
+                      Faixa: {perfil.faixa.titulo}
+                    </Text>
+                    <Text style={styles.faixaLimites}>
+                      {textoDasFaixas(perfil.faixas)}
+                    </Text>
+                  </View>
 
                   {perfil.nota_base ? null : (
                     <View style={styles.ratingGraph}>
@@ -690,6 +714,14 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   verificacaoPendente: { color: "#999" },
+  faixaSelo: {
+    alignSelf: "stretch",
+    padding: 12,
+    marginBottom: 14,
+    borderRadius: 12,
+  },
+  faixaTitulo: { fontSize: 15, fontWeight: "700" },
+  faixaLimites: { fontSize: 12, lineHeight: 17, color: "#666", marginTop: 4 },
   avatarVazio: {
     alignItems: "center",
     justifyContent: "center",
