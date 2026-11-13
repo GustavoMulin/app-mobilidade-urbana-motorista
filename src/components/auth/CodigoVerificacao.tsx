@@ -73,7 +73,7 @@ export default function CodigoVerificacao({
     setIsLoading(true);
 
     try {
-      const response = await api.post("auth/verificar-codigo", {
+      const response = await api.post("/motorista/auth/verificar-codigo", {
         telefone,
         codigo,
       });
@@ -101,7 +101,9 @@ export default function CodigoVerificacao({
     setRecebendoCodigo(true);
 
     try {
-      const response = await api.post("auth/enviar-codigo", { telefone });
+      const response = await api.post("/motorista/auth/enviar-codigo", {
+        telefone,
+      });
 
       const codigo = String(response.data.codigo || "")
         .replace(/\D/g, "")

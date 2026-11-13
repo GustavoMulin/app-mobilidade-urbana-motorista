@@ -54,7 +54,7 @@ export default function AvaliarPassageiro({
     corrida.corrida_financeiro?.valor_pago_passageiro,
   );
   const distancia = formatarKm(corrida.distancia_total);
-  const passageiro = corrida.convidado_nome || corrida.passageiro?.user?.name;
+  const passageiro = corrida.convidado_nome || corrida.passageiro?.name;
 
   const destino = corrida.corrida_destinos?.find(
     (ponto) => ponto.tipo === "destino",
