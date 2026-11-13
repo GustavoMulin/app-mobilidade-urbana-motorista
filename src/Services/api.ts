@@ -18,7 +18,6 @@ export const api = create({
   headers: {
     Accept: "application/json",
     "Content-Type": "application/json",
-    "X-Perfil": "motorista",
   },
 });
 
@@ -101,14 +100,13 @@ const renovarToken = (): Promise<string | null> => {
       if (!token) return null;
 
       const { data } = await axios.post<{ token?: string }>(
-        `${baseURL}/auth/refresh`,
+        `${baseURL}/motorista/auth/refresh`,
         {},
         {
           timeout: 10000,
           headers: {
             Accept: "application/json",
             Authorization: `Bearer ${token}`,
-            "X-Perfil": "motorista",
           },
         },
       );
@@ -138,7 +136,7 @@ api.interceptors.response.use(
     if (
       error?.response?.status === 401 &&
       tinhaToken &&
-      config?.url !== "/auth/logout"
+      config?.url !== "/motorista/auth/logout"
     ) {
       if (!config.__jaTentouRenovar) {
         config.__jaTentouRenovar = true;

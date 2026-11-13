@@ -43,6 +43,10 @@ import {
   useDespachoMotorista,
 } from "@/hooks/useDespachoMotorista";
 import { useEmpilharNegociadas } from "@/hooks/useEmpilharNegociadas";
+import {
+  gestosDisponiveis,
+  useAceitarPorGesto,
+} from "@/hooks/useAceitarPorGesto";
 import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import { usePermissoesPendentes } from "@/hooks/usePermissoesPendentes";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
@@ -50,7 +54,15 @@ import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
 import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Animated,
   Dimensions,
@@ -67,6 +79,11 @@ import Reanimated, {
   useSharedValue,
 } from "react-native-reanimated";
 
+// a câmera nativa não existe no Expo Go: o botão só é carregado fora dele
+const BotaoAceitarPorGesto = lazy(
+  () => import("@/components/BotaoAceitarPorGesto"),
+);
+
 // altura aproximada da folha de corrida, pra rota não ser enquadrada atrás dela
 const ALTURA_FOLHA_CORRIDA = 330;
 const ALTURA_FOLHA_ESPERA = 340;
@@ -81,6 +98,8 @@ export default function Home() {
   const [solicitacoesCorrida, setSolicitacoesCorrida] = useState(false);
   const simuladorCorrida = useSimuladorCorridaMotorista();
   const { empilhar, alternar: alternarEmpilhar } = useEmpilharNegociadas();
+  const { ativo: aceitarPorGesto, definir: definirAceitarPorGesto } =
+    useAceitarPorGesto();
   const {
     disponivel,
     oferta,
@@ -439,10 +458,20 @@ export default function Home() {
           }
           botaoAcima={
             corridaExibida === null && !chamadaNoMapa ? (
-              <BotaoEmpilharNegociadas
-                ativo={empilhar}
-                onAlternar={alternarEmpilhar}
-              />
+              <>
+                {gestosDisponiveis ? (
+                  <Suspense fallback={null}>
+                    <BotaoAceitarPorGesto
+                      ativo={aceitarPorGesto}
+                      onDefinir={definirAceitarPorGesto}
+                    />
+                  </Suspense>
+                ) : null}
+                <BotaoEmpilharNegociadas
+                  ativo={empilhar}
+                  onAlternar={alternarEmpilhar}
+                />
+              </>
             ) : undefined
           }
         />
@@ -635,7 +664,7 @@ export default function Home() {
             simuladorCorrida.ativa ? simuladorCorrida.aceitar : aceitar
           }
           onRecusar={
-            simuladorCorrida.ativa ? simuladorCorrida.encerrar : recusar
+            simuladorCorrida.ativa ? simuladorCorrida.recusar : recusar
           }
           onEditarValor={
             !simuladorCorrida.ativa && ofertaExibida.negociavel === true
@@ -643,6 +672,7 @@ export default function Home() {
               : undefined
           }
           onAlturaChange={setAlturaDaChamada}
+          aceitarPorGesto={gestosDisponiveis && aceitarPorGesto}
         />
       )}
 
@@ -831,6 +861,8 @@ export default function Home() {
         finalizada={simuladorCorrida.finalizada}
         bloqueado={corrida !== null || oferta !== null}
         onIniciar={simuladorCorrida.iniciar}
+        restantes={simuladorCorrida.restantes}
+        onReceberVarias={simuladorCorrida.receberVarias}
         onSelecionarEtapa={simuladorCorrida.selecionarEtapa}
         onFinalizar={simuladorCorrida.finalizar}
         onEncerrar={simuladorCorrida.encerrar}

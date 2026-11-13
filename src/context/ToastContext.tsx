@@ -52,10 +52,12 @@ const TOASTS_PERMITIDOS = [
   /^mensagem-rapida:enviada$/,
   /^destino:\d+:(aceito|recusado)$/,
   /^empilhar-negociadas:(true|false)$/,
+  /^aceitar-por-gesto:(ligado|desligado|camera)$/,
   /^negocia:\d+:(recusada|outro)$/,
   /^veiculo-em-uso:\d+$/,
   /^veiculo-removido:\d+$/,
   /^documento-enviado:(cnh|crlv|nada_consta|seguro_obrigatorio)$/,
+  /^simulacao:sequencia$/,
 ];
 
 const DURACAO_ENTRADA_MS = 220;
