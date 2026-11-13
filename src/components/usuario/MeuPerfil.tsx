@@ -1,22 +1,29 @@
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useEffect, useState } from "react";
+import { api, mensagemDaApi } from "@/Services/api";
 import { Text } from "@/components/common/Texto";
+import { useAuth } from "@/context/AuthProvider";
+import { formatarTelefone } from "@/domain/perfilMotorista";
 import {
+  ActivityIndicator,
+  Alert,
   Animated,
   BackHandler,
   Dimensions,
   Image,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
-import AlterarEmail from "./AlterarEmail";
-import AlterarNumero from "./AlterarNumero";
+import AlterarContato from "./AlterarContato";
 import AlterarSenha from "./AlterarSenha";
 import DocumentosPendentes from "./DocumentosPendentes";
+import EscolherCidade from "./EscolherCidade";
 import GestaoDispositivos from "./GestaoDispositivos";
 
 const { width } = Dimensions.get("window");
@@ -32,8 +39,12 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
-  const [showAlterarNumero, setShowAlterarNumero] = useState(false);
-  const [showAlterarEmail, setShowAlterarEmail] = useState(false);
+  const { user, atualizarUsuario } = useAuth();
+  // o contato que está sendo trocado (a tela fica montada para animar a saída)
+  const [contato, setContato] = useState<"telefone" | "email">("telefone");
+  const [showAlterarContato, setShowAlterarContato] = useState(false);
+  const [showEscolherCidade, setShowEscolherCidade] = useState(false);
+  const [enviandoFoto, setEnviandoFoto] = useState(false);
   const [showAlterarSenha, setShowAlterarSenha] = useState(false);
   const [showDocumentosPendentes, setShowDocumentosPendentes] = useState(false);
   const [showGestaoDispositivos, setShowGestaoDispositivos] = useState(false);
@@ -85,6 +96,80 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
   }, [duration, overlayOpacity, translateX, visible]);
 
   if (!isMounted) return null;
+
+  const abrirContato = (campo: "telefone" | "email") => {
+    setContato(campo);
+    setShowAlterarContato(true);
+  };
+
+  const enviarFoto = async (camera: boolean) => {
+    if (!user) return;
+    try {
+      const permissao = camera
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissao.granted) {
+        Alert.alert(
+          camera ? "Acesso à câmera" : "Acesso às fotos",
+          "Permita o acesso nas configurações do aparelho para trocar a foto.",
+          [
+            { text: "Agora não", style: "cancel" },
+            {
+              text: "Abrir configurações",
+              onPress: () => void Linking.openSettings(),
+            },
+          ],
+        );
+        return;
+      }
+      const opcoes: ImagePicker.ImagePickerOptions = {
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.7,
+      };
+      const resultado = camera
+        ? await ImagePicker.launchCameraAsync({
+            ...opcoes,
+            cameraType: ImagePicker.CameraType.front,
+          })
+        : await ImagePicker.launchImageLibraryAsync(opcoes);
+      const foto = resultado.canceled ? null : resultado.assets[0];
+      if (!foto) return;
+
+      setEnviandoFoto(true);
+      const formulario = new FormData();
+      formulario.append("image", {
+        uri: foto.uri,
+        name: foto.fileName || "foto.jpg",
+        type: foto.mimeType || "image/jpeg",
+      } as any);
+      const { data } = await api.put(
+        `/usuario-alterar-foto-perfil/${user.id}`,
+        formulario,
+        { headers: { "Content-Type": "multipart/form-data" } },
+      );
+      await atualizarUsuario({ foto: data.user.foto });
+    } catch (error) {
+      Alert.alert(
+        "Foto de perfil",
+        mensagemDaApi(error, "Não foi possível trocar a foto. Tente de novo."),
+      );
+    } finally {
+      setEnviandoFoto(false);
+    }
+  };
+
+  const trocarFoto = () =>
+    Alert.alert(
+      "Foto de perfil",
+      "Uma foto real sua ajuda o passageiro a reconhecer você no embarque.",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { text: "Galeria", onPress: () => void enviarFoto(false) },
+        { text: "Tirar foto", onPress: () => void enviarFoto(true) },
+      ],
+    );
 
   const renderItem = (
     icon: any,
@@ -147,35 +232,53 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
 
               {/* PROFILE INFO */}
               <View style={styles.profileCard}>
-                <View style={styles.avatarWrapper}>
-                  <Image
-                    source={{ uri: "https://i.pravatar.cc/150?img=12" }}
-                    style={styles.avatar}
-                  />
-                  <TouchableOpacity style={styles.editBadge}>
+                <TouchableOpacity
+                  style={styles.avatarWrapper}
+                  onPress={trocarFoto}
+                  disabled={enviandoFoto}
+                  accessibilityRole="button"
+                  accessibilityLabel="Trocar foto de perfil"
+                >
+                  {user?.foto ? (
+                    <Image source={{ uri: user.foto }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.semFoto]}>
+                      <Ionicons name="person" size={48} color="#BDBDBD" />
+                    </View>
+                  )}
+                  {enviandoFoto && (
+                    <View style={[styles.avatar, styles.enviandoFoto]}>
+                      <ActivityIndicator color="#fff" />
+                    </View>
+                  )}
+                  <View style={styles.editBadge}>
                     <Ionicons name="camera" size={16} color="#fff" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.userName}>Diogo</Text>
-                {/* <Text style={styles.userEmail}>diogo.dev@exemplo.com</Text>
-              <Text style={styles.userPhone}>(69) 99999-9999</Text> */}
+                  </View>
+                </TouchableOpacity>
+                <Text style={styles.userName}>
+                  {user?.name?.split(" ")[0]}
+                </Text>
               </View>
 
               <View>
-                {/* {renderItem("", "Foto de perfil", undefined, true)} */}
                 {renderItem(
                   "call-outline",
                   "Número de telefone",
-                  "+5569981400661",
-                  () => setShowAlterarNumero(true),
+                  user?.telefone ? formatarTelefone(user.telefone) : "Adicionar",
+                  () => abrirContato("telefone"),
+                )}
+                {renderItem("mail-outline", "E-mail", user?.email ?? "", () =>
+                  abrirContato("email"),
                 )}
                 {renderItem(
-                  "mail-outline",
-                  "E-mail",
-                  "diogoguimaraes.br@gmail.com",
-                  () => setShowAlterarEmail(true),
+                  "location-outline",
+                  "Cidade",
+                  // o mesmo nome existe em mais de um estado ("Bom Jesus")
+                  user?.cidade
+                    ? `${user.cidade.nome} - ${user.cidade.uf}`
+                    : "Escolher cidade",
+                  () => setShowEscolherCidade(true),
                 )}
-                {renderItem("location-outline", "Cidade", "Porto Velho")}
                 {renderItem("key-outline", "Senha", "", () =>
                   setShowAlterarSenha(true),
                 )}
@@ -202,13 +305,14 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
           </ScrollView>
         </Animated.View>
       </View>
-      <AlterarNumero
-        visible={showAlterarNumero}
-        onClose={() => setShowAlterarNumero(false)}
+      <AlterarContato
+        visible={showAlterarContato}
+        campo={contato}
+        onClose={() => setShowAlterarContato(false)}
       />
-      <AlterarEmail
-        visible={showAlterarEmail}
-        onClose={() => setShowAlterarEmail(false)}
+      <EscolherCidade
+        visible={showEscolherCidade}
+        onClose={() => setShowEscolherCidade(false)}
       />
       <AlterarSenha
         visible={showAlterarSenha}
@@ -311,6 +415,17 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     borderWidth: 3,
     borderColor: "#f0f0f0",
+  },
+  semFoto: {
+    backgroundColor: "#EEEEEE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  enviandoFoto: {
+    position: "absolute",
+    backgroundColor: "rgba(0,0,0,0.4)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   editBadge: {
     position: "absolute",

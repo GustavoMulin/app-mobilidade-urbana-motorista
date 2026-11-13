@@ -148,3 +148,30 @@ export const textoDaMedia = (
 /** Primeira letra do nome, para o avatar de quem avaliou (a foto do passageiro não é exposta). */
 export const inicialDoNome = (nome: string) =>
   nome.trim().charAt(0).toUpperCase() || "?";
+
+/** "(69) 99999-0001" (celular) ou "(69) 9999-0001" (fixo); serve de máscara enquanto digita. */
+export const formatarTelefone = (texto: string) => {
+  const numeros = texto.replace(/\D/g, "").slice(0, 11);
+  if (numeros.length <= 2) return numeros;
+
+  const ddd = numeros.slice(0, 2);
+  const resto = numeros.slice(2);
+  const corte = numeros.length === 11 ? 5 : 4;
+
+  return resto.length <= corte
+    ? `(${ddd}) ${resto}`
+    : `(${ddd}) ${resto.slice(0, corte)}-${resto.slice(corte)}`;
+};
+
+const semAcento = (texto: string) =>
+  texto
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .trim();
+
+/** Busca da lista de estados e cidades: "sao joao" acha "São João"; vazio acha tudo. */
+export const combinaComBusca = (busca: string, ...textos: string[]) => {
+  const termo = semAcento(busca);
+  return termo === "" || textos.some((texto) => semAcento(texto).includes(termo));
+};

@@ -3,6 +3,8 @@ import test from "node:test";
 
 import {
   coresDaFaixa,
+  combinaComBusca,
+  formatarTelefone,
   inicialDoNome,
   larguraDaBarra,
   tempoNaPlataforma,
@@ -82,4 +84,25 @@ test("o avatar de quem avaliou usa a inicial do nome", () => {
   assert.equal(inicialDoNome("amanda"), "A");
   assert.equal(inicialDoNome("  deivison"), "D");
   assert.equal(inicialDoNome(""), "?");
+});
+
+test("o telefone aparece com DDD e traço, também enquanto é digitado", () => {
+  assert.equal(formatarTelefone("69999990001"), "(69) 99999-0001");
+  assert.equal(formatarTelefone("6932210001"), "(69) 3221-0001");
+  assert.equal(formatarTelefone("(69) 99999-0001"), "(69) 99999-0001");
+  assert.equal(formatarTelefone("69"), "69");
+  assert.equal(formatarTelefone("699"), "(69) 9");
+  // o formato de celular só entra no 11º dígito
+  assert.equal(formatarTelefone("6999999"), "(69) 9999-9");
+  assert.equal(formatarTelefone("699999900019"), "(69) 99999-0001");
+  assert.equal(formatarTelefone(""), "");
+});
+
+test("a busca de estado e cidade ignora acento e maiúscula", () => {
+  assert.equal(combinaComBusca("rondonia", "Rondônia", "RO"), true);
+  assert.equal(combinaComBusca("ro", "Rondônia", "RO"), true);
+  assert.equal(combinaComBusca(" SAO JOAO ", "São João del Rei"), true);
+  assert.equal(combinaComBusca("velho", "Porto Velho"), true);
+  assert.equal(combinaComBusca("ariquemes", "Porto Velho"), false);
+  assert.equal(combinaComBusca("", "Porto Velho"), true);
 });

@@ -32,6 +32,8 @@ interface Usuario {
   foto: string;
   perfil: "motorista";
   status?: string | null;
+  // a cidade onde roda, escolhida no perfil
+  cidade?: { id: number; nome: string; uf: string; uf_id: number } | null;
 }
 
 interface AuthResponse {
@@ -47,10 +49,6 @@ interface DadosCadastro {
   telefone?: string;
 }
 
-interface AtualizarFotoPayload {
-  foto: string;
-}
-
 interface AuthContextType {
   user: Usuario | null;
 
@@ -64,7 +62,8 @@ interface AuthContextType {
 
   register: (dados: DadosCadastro) => Promise<void>;
 
-  atualizarFotoUsuario: (dados: AtualizarFotoPayload) => Promise<void>;
+  // foto, telefone, e-mail ou cidade trocados no perfil
+  atualizarUsuario: (dados: Partial<Usuario>) => Promise<void>;
 
   sessaoValida: () => Promise<boolean>;
 }
@@ -86,7 +85,7 @@ const AuthContext = createContext<AuthContextType>({
 
   register: async (dados: DadosCadastro) => {},
 
-  atualizarFotoUsuario: async (dados: AtualizarFotoPayload) => {},
+  atualizarUsuario: async (dados: Partial<Usuario>) => {},
 
   sessaoValida: async () => true,
 });
@@ -319,15 +318,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // =========================
-  // ATUALIZAR FOTO USUÁRIO
+  // ATUALIZAR USUÁRIO
   // =========================
 
-  const atualizarFotoUsuario = async ({ foto }: AtualizarFotoPayload) => {
+  const atualizarUsuario = async (dados: Partial<Usuario>) => {
     if (!user) return;
 
     const usuarioAtualizado = {
       ...user,
-      foto,
+      ...dados,
     };
 
     setUser(usuarioAtualizado);
@@ -348,7 +347,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         loginComToken,
         logout,
         register,
-        atualizarFotoUsuario,
+        atualizarUsuario,
         sessaoValida,
       }}
     >
