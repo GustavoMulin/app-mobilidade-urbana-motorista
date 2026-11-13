@@ -44,6 +44,46 @@ interface MenuItem {
   color?: string;
 }
 
+// restrição de corridas por taxa de finalização baixa (ciclo mensal)
+interface SituacaoTaxa {
+  estado: "em_dia" | "alerta" | "restrito";
+  prazo_ate: string | null;
+  restricao_ate: string | null;
+  faltam_corridas: number | null;
+}
+
+interface Estatisticas {
+  taxa_aceitacao: number | null;
+  taxa_finalizacao: number | null;
+  taxa_finalizacao_minima?: number;
+  situacao_taxa?: SituacaoTaxa;
+}
+
+const diaEMes = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+  });
+
+// texto do aviso no menu; sem alerta nem restrição não há o que mostrar
+function avisoDaSituacaoTaxa(situacao?: SituacaoTaxa): string | null {
+  if (situacao?.estado === "restrito" && situacao.restricao_ate) {
+    return `Sua conta está com restrição de corridas até ${diaEMes(situacao.restricao_ate)}.`;
+  }
+
+  if (situacao?.estado === "alerta" && situacao.prazo_ate) {
+    const faltam = situacao.faltam_corridas;
+    const quanto =
+      faltam && faltam > 0
+        ? ` Faltam ${faltam} ${faltam === 1 ? "corrida finalizada" : "corridas finalizadas"}.`
+        : "";
+
+    return `Taxa de finalização abaixo do mínimo. Recupere até ${diaEMes(situacao.prazo_ate)} para evitar a restrição de corridas.${quanto}`;
+  }
+
+  return null;
+}
+
 const defaultMenuItems: MenuItem[] = [
   { label: "Histórico de corridas" },
   { label: "Ganhos" },
@@ -98,10 +138,13 @@ export default function SideMenu({
   // veículo e números vêm da conta toda vez que o menu abre, para refletir
   // um veículo cadastrado agora ou corridas finalizadas há pouco
   const [veiculoPrincipal, setVeiculoPrincipal] = useState<string | null>(null);
-  const [estatisticas, setEstatisticas] = useState<{
-    taxa_aceitacao: number | null;
-    taxa_finalizacao: number | null;
-  } | null>(null);
+  const [estatisticas, setEstatisticas] = useState<Estatisticas | null>(null);
+
+  const finalizacaoAbaixoDaMinima =
+    estatisticas?.taxa_finalizacao != null &&
+    estatisticas.taxa_finalizacao_minima != null &&
+    estatisticas.taxa_finalizacao < estatisticas.taxa_finalizacao_minima;
+  const avisoDaTaxa = avisoDaSituacaoTaxa(estatisticas?.situacao_taxa);
 
   useEffect(() => {
     if (!visible) return;
@@ -112,10 +155,7 @@ export default function SideMenu({
         veiculo_ativo_id: number | null;
         data: { id: number; marca?: string; modelo?: string; placa?: string }[];
       }>("/motorista/me/veiculos"),
-      api.get<{
-        taxa_aceitacao: number | null;
-        taxa_finalizacao: number | null;
-      }>("/motorista/me/estatisticas"),
+      api.get<Estatisticas>("/motorista/me/estatisticas"),
     ])
       .then(([veiculos, numeros]) => {
         if (!ativo) return;
@@ -402,7 +442,12 @@ export default function SideMenu({
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statBox}>
-                  <Text style={styles.statValue}>
+                  <Text
+                    style={[
+                      styles.statValue,
+                      finalizacaoAbaixoDaMinima && styles.statValueAbaixo,
+                    ]}
+                  >
                     {estatisticas?.taxa_finalizacao == null
                       ? "—"
                       : `${estatisticas.taxa_finalizacao}%`}
@@ -410,6 +455,12 @@ export default function SideMenu({
                   <Text style={styles.statLabel}>Taxa de Finalização</Text>
                 </View>
               </View>
+              {avisoDaTaxa ? (
+                <View style={styles.avisoTaxa}>
+                  <Ionicons name="warning" size={16} color="#B3261E" />
+                  <Text style={styles.avisoTaxaTexto}>{avisoDaTaxa}</Text>
+                </View>
+              ) : null}
             </View>
 
             <View style={styles.menuList}>
@@ -545,10 +596,30 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#111",
   },
+  // abaixo da taxa mínima de finalização definida pela plataforma
+  statValueAbaixo: {
+    color: "#D93025",
+  },
   statLabel: {
     fontSize: 12,
     color: "#666",
     marginTop: 2,
+  },
+  // alerta de restrição por taxa de finalização baixa
+  avisoTaxa: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "#FDECEA",
+  },
+  avisoTaxaTexto: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 17,
+    color: "#B3261E",
   },
   statDivider: {
     width: 1,

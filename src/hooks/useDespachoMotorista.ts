@@ -173,8 +173,7 @@ export interface PassageiroDaCorrida {
 // o cancelamento acontece dentro da tela Mais (um Modal), que cobre os
 // toasts: quem chama mostra a mensagem de erro ali mesmo
 export type ResultadoCancelamento =
-  | { ok: true }
-  | { ok: false; mensagem: string };
+  { ok: true } | { ok: false; mensagem: string };
 
 export interface ChegadaEstimada {
   minutos: number;
@@ -814,6 +813,20 @@ export function useDespachoMotorista(pausado = false) {
       carregarCorridaAtual,
     ],
   );
+
+  // a chamada só pesa na taxa de aceitação depois de aparecer na tela; o
+  // backend guarda o primeiro toque, então a mesma corrida avisa uma vez
+  const toquesAvisados = useRef<Set<number>>(new Set());
+  const corridaDaChamada = oferta?.corrida_id;
+  useEffect(() => {
+    if (pausado || corridaDaChamada === undefined) return;
+    if (toquesAvisados.current.has(corridaDaChamada)) return;
+
+    toquesAvisados.current.add(corridaDaChamada);
+    void api
+      .post(`/motorista/corridas/${corridaDaChamada}/tocou`)
+      .catch(() => toquesAvisados.current.delete(corridaDaChamada));
+  }, [corridaDaChamada, pausado]);
 
   const recusar = useCallback(
     (corridaId?: number) => {
