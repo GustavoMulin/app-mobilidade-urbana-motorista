@@ -2,7 +2,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
-import type { Verificacao } from "@/domain/perfilMotorista";
 import {
   Animated,
   BackHandler,
@@ -20,15 +19,12 @@ interface props {
   visible: boolean;
   onClose: () => void;
   duration?: number;
-  // o que a plataforma já conferiu do motorista, vindo do servidor
-  verificacoes: Verificacao[];
 }
 
 export default function VerificacoesUsuario({
   visible,
   onClose,
   duration = 200,
-  verificacoes,
 }: props) {
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
@@ -83,33 +79,62 @@ export default function VerificacoesUsuario({
 
   if (!isMounted) return null;
 
-  const renderItem = (item: Verificacao) => (
-    <View key={item.chave} style={styles.item}>
+  const data = [
+    {
+      title: "Verificação de Antecedentes",
+      description:
+        "A plataforma verifica os antecedentes dos motoristas antes de aceitar seu cadastro na plataforma",
+      icon: "person-outline",
+    },
+    {
+      title: "CNH verificada",
+      description:
+        "Todo motorista deve enviar foto de sua carteira de habilitação para se cadastrar na plataforma",
+      icon: "card-outline",
+    },
+    {
+      title: "CRLV verificado",
+      description:
+        "O motorista enviou foto dos documentos do veículo para cadastrá-lo na plataforma",
+      icon: "car-outline",
+    },
+    {
+      title: "Foto com a CNH",
+      description:
+        "A plataforma verifica que a foto da carteira de habilitação confere com o rosto do motorista",
+      icon: "camera-outline",
+    },
+    {
+      title: "Foto de perfil",
+      description: "Todo motorista deve ter uma foto de perfil atualizada",
+      icon: "image-outline",
+    },
+    {
+      title: "Reconhecimento Facial",
+      description:
+        "O motorista passou por reconhecimento facial para confirmar sua identidade",
+      icon: "scan-outline",
+    },
+  ];
+
+  const renderItem = (item: any, index: number) => (
+    <View key={index} style={styles.item}>
       {/* Ícone com check */}
       <View style={styles.iconWrapper}>
         <View style={styles.iconCircle}>
-          <Ionicons
-            name={item.icone as keyof typeof Ionicons.glyphMap}
-            size={22}
-            color="#555"
-          />
+          <Ionicons name={item.icon} size={22} color="#555" />
         </View>
 
-        {/* o check só aparece no que a plataforma já conferiu */}
-        {item.ok ? (
-          <View style={styles.check}>
-            <Ionicons name="checkmark" size={10} color="#fff" />
-          </View>
-        ) : null}
+        {/* CHECK AJUSTADO */}
+        <View style={styles.check}>
+          <Ionicons name="checkmark" size={10} color="#fff" />
+        </View>
       </View>
 
       {/* Conteúdo */}
       <View style={styles.textContainer}>
-        <Text style={styles.title}>{item.titulo}</Text>
-        <Text style={styles.description}>{item.descricao}</Text>
-        {item.ok ? null : (
-          <Text style={styles.pendente}>Ainda não verificado</Text>
-        )}
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.description}>{item.description}</Text>
       </View>
     </View>
   );
@@ -145,7 +170,7 @@ export default function VerificacoesUsuario({
 
         {/* BODY */}
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          {verificacoes.map(renderItem)}
+          {data.map(renderItem)}
         </ScrollView>
       </Animated.View>
     </View>
@@ -236,11 +261,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#777",
     lineHeight: 18,
-  },
-  pendente: {
-    marginTop: 4,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#B07A00",
   },
 });
