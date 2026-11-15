@@ -1,5 +1,5 @@
 import { Text } from "@/components/common/Texto";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Image } from "react-native";
 
 interface Props {
@@ -14,18 +14,16 @@ interface Props {
  * ou se ela não carregar, mostra o emoji.
  */
 export default function IconeDoSelo({ imagem, icone, tamanho = 24 }: Props) {
-  const [falhou, setFalhou] = useState(false);
+  // guarda QUAL endereço falhou: se a gestão trocar a imagem, a nova é tentada
+  const [enderecoComFalha, setEnderecoComFalha] = useState<string | null>(null);
 
-  // trocou a imagem (gestão atualizou): tenta de novo
-  useEffect(() => setFalhou(false), [imagem]);
-
-  if (imagem && !falhou) {
+  if (imagem && imagem !== enderecoComFalha) {
     return (
       <Image
         source={{ uri: imagem }}
         style={{ width: tamanho, height: tamanho }}
         resizeMode="contain"
-        onError={() => setFalhou(true)}
+        onError={() => setEnderecoComFalha(imagem)}
         accessibilityIgnoresInvertColors
       />
     );

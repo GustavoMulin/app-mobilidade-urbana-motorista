@@ -136,6 +136,8 @@ export const ESTILO_MAPA_ESCURO = [
   },
 ];
 
+const ESTILO_MAPA_CLARO: typeof ESTILO_MAPA_ESCURO = [];
+
 interface ContextoDoTema {
   modo: Modo;
   escuro: boolean;
@@ -145,7 +147,7 @@ interface ContextoDoTema {
   /** props prontas para o `MapView` */
   mapa: {
     userInterfaceStyle: "light" | "dark";
-    customMapStyle: typeof ESTILO_MAPA_ESCURO | undefined;
+    customMapStyle: typeof ESTILO_MAPA_ESCURO;
   };
 }
 
@@ -189,7 +191,9 @@ export function TemaProvider({ children }: { children: ReactNode }) {
       definir,
       mapa: {
         userInterfaceStyle: escuro ? "dark" : "light",
-        customMapStyle: escuro ? ESTILO_MAPA_ESCURO : undefined,
+        // lista vazia (e não undefined): no Android, tirar o estilo escuro com
+        // undefined não volta o mapa ao padrão; o estilo vazio força o claro
+        customMapStyle: escuro ? ESTILO_MAPA_ESCURO : ESTILO_MAPA_CLARO,
       },
     };
   }, [modo, alternar, definir]);
