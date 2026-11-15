@@ -4,8 +4,19 @@
 export interface Elogio {
   chave: string;
   titulo: string;
-  descricao: string;
+  descricao: string | null;
+  // emoji do selo, definido na gestão
+  icone: string;
+  // imagem do selo (arquivo enviado ou URL); nula = só o emoji
+  imagem: string | null;
   quantidade: number;
+}
+
+/** Dica de "Como ter mais avaliações positivas?", cadastrada na gestão. */
+export interface DicaDeAvaliacao {
+  id: number;
+  titulo: string;
+  texto: string;
 }
 
 export interface NotaDeAgradecimento {
@@ -59,6 +70,7 @@ export interface PerfilMotorista {
   meses_na_plataforma: number;
   distribuicao: Record<string, number>;
   elogios: Elogio[];
+  dicas: DicaDeAvaliacao[];
   notas_agradecimento: NotaDeAgradecimento[];
   total_notas_agradecimento: number;
   selos: Selo[];

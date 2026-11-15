@@ -13,6 +13,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
+import { useDadosDaTela } from "@/hooks/useDadosDaTela";
+import { textoDeQuando, type PerfilMotorista } from "@/domain/perfilMotorista";
 import DetalhesComentario from "./DetalhesComentario";
 import DicasAvaliacao from "./DicasAvaliacao";
 import PerfilPublico from "./PerfilPublico";
@@ -68,79 +71,14 @@ export default function PerfilUsuario({
   const [showDicasAvaliacao, setShowDicasAvaliacao] = useState(false);
   const [showPerfilPublico, setShowPerfilPublico] = useState(false);
 
-  // Dados Mockados para as novas seções
-  const avaliacoesPositivas = [
-    {
-      id: "1",
-      titulo: "Bom contudor",
-      subtitulo:
-        "Obedece às regras de trânsito, dirige com habilidade e permanece atento (a)",
-      avatar: "https://i.pravatar.cc/150?img=1",
-    },
-    {
-      id: "2",
-      titulo: "Sabe o caminho",
-      subtitulo:
-        "Familiarizado(a) com as condições de trânsito e evita desvio de rota desnecessários",
-      avatar: "https://i.pravatar.cc/150?img=2",
-    },
-    {
-      id: "3",
-      titulo: "Veículo limpo",
-      subtitulo:
-        "Mantém o interior do veículo limpo e sem odores desagradáveis",
-      avatar: "https://i.pravatar.cc/150?img=3",
-    },
-    {
-      id: "4",
-      titulo: "Pontual",
-      subtitulo:
-        "Viagem feita dentro do horário prevista para embarque e desembarque",
-      avatar: "https://i.pravatar.cc/150?img=4",
-    },
-    {
-      id: "5",
-      titulo: "Educado",
-      subtitulo: "Respeitoso e atencioso",
-      avatar: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: "6",
-      titulo: "Simpático",
-      subtitulo: "",
-      avatar: "https://i.pravatar.cc/150?img=6",
-    },
-  ];
-
-  const notasAgradecimento = [
-    {
-      id: "1",
-      avatar: "https://i.pravatar.cc/150?img=1",
-      comentario: "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O...",
-      autor: "Amanda",
-      tempo: "1 mês atrás",
-    },
-    {
-      id: "2",
-      avatar: "https://i.pravatar.cc/150?img=2",
-      comentario: "Excelente motorista, muito educado e carro impecável.",
-      autor: "Deivison",
-      tempo: "5 meses atrás",
-    },
-  ];
-
-  const dicasAvaliacao = [
-    {
-      id: "1",
-      titulo: "Cuide do seu veículo",
-      sub: "Veículo limpo e manutenção em dia ajudam na avaliação.",
-    },
-    {
-      id: "2",
-      titulo: "Mantenha a calma",
-      sub: "Respeite as leis de trânsito para uma viagem segura.",
-    },
-  ];
+  // selos, notas de agradecimento e dicas vêm do servidor; conta nova começa sem selos nem notas
+  const { dados: perfil } = useDadosDaTela<PerfilMotorista>(
+    visible,
+    "/motorista/me/perfil",
+  );
+  const avaliacoesPositivas = perfil?.elogios ?? [];
+  const notasAgradecimento = perfil?.notas_agradecimento ?? [];
+  const dicasAvaliacao = perfil?.dicas ?? [];
 
   const mostrarAvaliacaoPositiva = (payload: object) => {
     setSeloSelecionado(payload);
@@ -295,19 +233,35 @@ export default function PerfilUsuario({
                 contentContainerStyle={styles.horizontalScroll}
               >
                 <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  {avaliacoesPositivas.length === 0 && (
+                    <Text style={styles.semDados}>
+                      Você ainda não recebeu selos. Eles aparecem aqui quando os
+                      passageiros elogiarem suas corridas.
+                    </Text>
+                  )}
                   {avaliacoesPositivas.map((item) => (
-                    <View key={item.id} style={styles.badgeItem}>
+                    <View key={item.chave} style={styles.badgeItem}>
                       <View style={styles.avatarWrapper}>
                         <TouchableOpacity
-                          onPress={() => mostrarAvaliacaoPositiva(item)}
+                          onPress={() =>
+                            mostrarAvaliacaoPositiva({
+                              titulo: item.titulo,
+                              subtitulo: item.descricao ?? "",
+                              icone: item.icone,
+                              imagem: item.imagem,
+                            })
+                          }
                         >
-                          <Image
-                            source={{ uri: item.avatar }}
-                            style={styles.avatarBadge}
-                          />
+                          <View style={styles.avatarEmoji}>
+                            <IconeDoSelo
+                              imagem={item.imagem}
+                              icone={item.icone}
+                              tamanho={64}
+                            />
+                          </View>
                         </TouchableOpacity>
                         <View style={styles.badgeCountContainer}>
-                          <Text style={styles.badgeCountText}>178</Text>
+                          <Text style={styles.badgeCountText}>{item.quantidade}</Text>
                         </View>
                       </View>
                       <Text style={styles.badgeLabel}>{item.titulo}</Text>
@@ -332,16 +286,30 @@ export default function PerfilUsuario({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
+                {notasAgradecimento.length === 0 && (
+                  <Text style={styles.semDados}>
+                    Ainda não há notas de agradecimento. Os comentários que os
+                    passageiros deixarem ao avaliar você aparecem aqui.
+                  </Text>
+                )}
                 {notasAgradecimento.map((item) => (
                   <View key={item.id} style={styles.noteCard}>
                     <TouchableOpacity
-                      onPress={() => mostrarDetalhesMensagem(item)}
+                      onPress={() =>
+                        mostrarDetalhesMensagem({
+                          autor: item.autor,
+                          comentario: item.comentario,
+                          tempo: textoDeQuando(item.quando),
+                          elogios: item.elogios,
+                          nota: item.nota,
+                        })
+                      }
                     >
                       <Text style={styles.noteText} numberOfLines={3}>
                         {item.comentario}
                       </Text>
                       <Text style={styles.noteFooter}>
-                        {item.autor} • {item.tempo}
+                        {item.autor} • {textoDeQuando(item.quando)}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -359,10 +327,13 @@ export default function PerfilUsuario({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
+                {dicasAvaliacao.length === 0 && (
+                  <Text style={styles.semDados}>Nenhuma dica cadastrada por enquanto.</Text>
+                )}
                 {dicasAvaliacao.map((item) => (
                   <View key={item.id} style={styles.dicaCard}>
                     <Text style={styles.dicaTitle}>{item.titulo}</Text>
-                    <Text style={styles.dicaSub}>{item.sub}</Text>
+                    <Text style={styles.dicaSub}>{item.texto}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -548,6 +519,16 @@ const styles = StyleSheet.create({
     height: 60,
     position: "relative",
   },
+  avatarEmoji: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarEmojiTexto: { fontSize: 30 },
+  semDados: { fontSize: 14, color: "#777", lineHeight: 20, paddingRight: 16 },
   avatarBadge: {
     width: 60,
     height: 60,

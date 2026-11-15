@@ -1,16 +1,21 @@
+import SelosParaEscolher from "@/components/avaliacao/SelosParaEscolher";
+import { alternarSelo, podeEscolherSelos } from "@/domain/avaliacao";
 import { enderecoCurto } from "@/domain/endereco";
-import { useEspacoDoTeclado } from "@/hooks/useEspacoDoTeclado";
 import { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
+import { useSelosAvaliacao } from "@/hooks/useSelosAvaliacao";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Text, TextInput } from "@/components/common/Texto";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Text } from "@/components/common/Texto";
+import { ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
   corrida: CorridaParaAvaliar;
   enviando: boolean;
-  onAvaliar: (nota: number, comentario?: string) => void;
+  // o motorista avalia com nota e selos; só o passageiro escreve comentário
+  onAvaliar: (nota: number, elogios: string[]) => void;
+  // bloqueia o passageiro; devolve se deu certo
+  onBloquear: () => Promise<boolean>;
   onDispensar: () => void;
 }
 
@@ -40,14 +45,26 @@ export default function AvaliarPassageiro({
   corrida,
   enviando,
   onAvaliar,
+  onBloquear,
   onDispensar,
 }: Props) {
   const insets = useSafeAreaInsets();
-  // o teclado cobre o comentário se o cartão não subir junto
-  const espacoDoTeclado = useEspacoDoTeclado();
+  const selos = useSelosAvaliacao(true);
 
   const [nota, setNota] = useState(0);
-  const [comentario, setComentario] = useState("");
+  const [escolhidos, setEscolhidos] = useState<string[]>([]);
+  // bloquear pede confirmação: o passageiro nunca mais toca nas chamadas
+  const [confirmandoBloqueio, setConfirmandoBloqueio] = useState(false);
+  const [bloqueando, setBloqueando] = useState(false);
+  const [bloqueado, setBloqueado] = useState(false);
+
+  const bloquear = async () => {
+    setBloqueando(true);
+    const ok = await onBloquear();
+    setBloqueando(false);
+    setConfirmandoBloqueio(false);
+    if (ok) setBloqueado(true);
+  };
 
   const ganho = formatarValor(corrida.corrida_financeiro?.valor_motorista);
   const cobrarEmDinheiro = formatarValor(
@@ -66,9 +83,13 @@ export default function AvaliarPassageiro({
       <View
         style={[
           styles.cartao,
-          { paddingBottom: Math.max(insets.bottom, espacoDoTeclado) + 20 },
+          { paddingBottom: insets.bottom + 20, maxHeight: "92%" },
         ]}
       >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
         <Text style={styles.titulo}>
           {grupo ? "Viagem compartilhada finalizada" : "Corrida finalizada"}
         </Text>
@@ -134,27 +155,77 @@ export default function AvaliarPassageiro({
           ))}
         </View>
 
-        {nota > 0 && nota <= 3 && (
-          <TextInput
-            style={styles.comentario}
-            placeholder="O que aconteceu? (opcional)"
-            placeholderTextColor="#999"
-            value={comentario}
-            onChangeText={setComentario}
-            multiline
-            editable={!enviando}
-          />
+        {/* selos (opcionais): só para notas boas e quando a gestão cadastrou algum */}
+        {podeEscolherSelos(nota) && selos.length > 0 && (
+          <View style={styles.selos}>
+            <Text style={styles.selosTitulo}>
+              Quer deixar um selo? (opcional)
+            </Text>
+            <SelosParaEscolher
+              selos={selos}
+              escolhidos={escolhidos}
+              onAlternar={(chave) =>
+                setEscolhidos((atuais) => alternarSelo(atuais, chave))
+              }
+              desabilitado={enviando}
+            />
+          </View>
         )}
 
         <TouchableOpacity
           style={[styles.botao, nota === 0 && styles.botaoDesativado]}
           disabled={nota === 0 || enviando}
-          onPress={() => onAvaliar(nota, comentario.trim() || undefined)}
+          onPress={() =>
+            onAvaliar(nota, podeEscolherSelos(nota) ? escolhidos : [])
+          }
         >
           <Text style={styles.textoBotao}>
             {enviando ? "Enviando..." : "Enviar e continuar"}
           </Text>
         </TouchableOpacity>
+
+        {bloqueado ? (
+          <View style={styles.bloqueado}>
+            <Ionicons name="ban" size={16} color="#B3261E" />
+            <Text style={styles.bloqueadoTexto}>
+              Passageiro bloqueado: você não receberá mais chamadas dele
+            </Text>
+          </View>
+        ) : confirmandoBloqueio ? (
+          <View style={styles.confirmacao}>
+            <Text style={styles.confirmacaoTexto}>
+              Bloquear {passageiro ?? "este passageiro"}? Você não receberá mais
+              chamadas dele.
+            </Text>
+            <View style={styles.confirmacaoBotoes}>
+              <TouchableOpacity
+                style={styles.confirmacaoCancelar}
+                disabled={bloqueando}
+                onPress={() => setConfirmandoBloqueio(false)}
+              >
+                <Text style={styles.confirmacaoCancelarTexto}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.confirmacaoBloquear}
+                disabled={bloqueando}
+                onPress={() => void bloquear()}
+              >
+                <Text style={styles.confirmacaoBloquearTexto}>
+                  {bloqueando ? "Bloqueando..." : "Bloquear"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.botaoBloquear}
+            disabled={enviando}
+            onPress={() => setConfirmandoBloqueio(true)}
+          >
+            <Ionicons name="ban-outline" size={16} color="#B3261E" />
+            <Text style={styles.textoBloquear}>Bloquear usuário</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={styles.botaoPular}
@@ -163,6 +234,7 @@ export default function AvaliarPassageiro({
         >
           <Text style={styles.textoPular}>Lembrar depois</Text>
         </TouchableOpacity>
+        </ScrollView>
       </View>
     </View>
   );
@@ -236,17 +308,57 @@ const styles = StyleSheet.create({
   estrela: {
     paddingHorizontal: 6,
   },
-  comentario: {
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: "#E5E5E5",
-    borderRadius: 12,
-    padding: 12,
-    minHeight: 70,
-    fontSize: 14,
-    color: "#111",
-    textAlignVertical: "top",
+  selos: { marginTop: 16 },
+  selosTitulo: {
+    fontSize: 13,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 10,
   },
+  botaoBloquear: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 8,
+    paddingVertical: 10,
+  },
+  textoBloquear: { fontSize: 14, color: "#B3261E", fontWeight: "600" },
+  bloqueado: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: "#FDECEA",
+  },
+  bloqueadoTexto: { flex: 1, fontSize: 13, color: "#B3261E" },
+  confirmacao: {
+    marginTop: 10,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: "#FDECEA",
+  },
+  confirmacaoTexto: { fontSize: 14, color: "#5C1A15", lineHeight: 19 },
+  confirmacaoBotoes: { flexDirection: "row", gap: 10, marginTop: 10 },
+  confirmacaoCancelar: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#FFF",
+  },
+  confirmacaoCancelarTexto: { fontSize: 14, color: "#444", fontWeight: "600" },
+  confirmacaoBloquear: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: "#B3261E",
+  },
+  confirmacaoBloquearTexto: { fontSize: 14, color: "#FFF", fontWeight: "700" },
   botao: {
     marginTop: 18,
     backgroundColor: "#fbc02d",

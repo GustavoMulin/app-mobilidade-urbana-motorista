@@ -30,6 +30,7 @@ import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
 import TaxaAceitacao from "./TaxaAceitacao";
 import TaxaFinalizacao from "./TaxaFinalizacao";
+import UsuariosBloqueados from "./UsuariosBloqueados";
 import HorasDirigindo from "./usuario/HorasDirigindo";
 import MeusVeiculos from "./usuario/MeusVeiculos";
 import PerfilUsuario from "./usuario/PerfilUsuario";
@@ -70,6 +71,7 @@ const defaultMenuItems: MenuItem[] = [
   // o servidor ainda não conta o tempo online (a tela mostrava 11:24 fixo)
   { label: "Horas dirigindo" },
   { label: "Indique e ganhe" },
+  { label: "Usuários bloqueados" },
   { label: "Preferências" },
 ];
 
@@ -106,6 +108,7 @@ export default function SideMenu({
   const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
   const [showTaxaFinalizacao, setShowTaxaFinalizacao] = useState(false);
   const [showTaxaAceitacao, setShowTaxaAceitacao] = useState(false);
+  const [showUsuariosBloqueados, setShowUsuariosBloqueados] = useState(false);
 
   const handleDisconnect = () => {
     if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
@@ -151,6 +154,10 @@ export default function SideMenu({
       if (showTaxaFinalizacao || showTaxaAceitacao) return false;
       if (showConvidarMotorista) {
         setShowConvidarMotorista(false);
+        return true;
+      }
+      if (showUsuariosBloqueados) {
+        setShowUsuariosBloqueados(false);
         return true;
       }
       if (showPreferencias) {
@@ -203,6 +210,7 @@ export default function SideMenu({
     showTaxaAceitacao,
     showConvidarMotorista,
     showPreferencias,
+    showUsuariosBloqueados,
     showCentralGanhos,
     showPerfilUsuario,
     showHorasDirigindo,
@@ -281,6 +289,9 @@ export default function SideMenu({
     if (item.label === "Indique e ganhe") {
       setShowConvidarMotorista(true);
     }
+    if (item.label === "Usuários bloqueados") {
+      setShowUsuariosBloqueados(true);
+    }
     if (item.label === "Preferências") {
       setShowPreferencias(true);
     }
@@ -331,6 +342,10 @@ export default function SideMenu({
       <ConvidarMotorista
         visible={showConvidarMotorista}
         onClose={() => setShowConvidarMotorista(false)}
+      />
+      <UsuariosBloqueados
+        visible={showUsuariosBloqueados}
+        onClose={() => setShowUsuariosBloqueados(false)}
       />
       <Preferencias
         visible={showPreferencias}

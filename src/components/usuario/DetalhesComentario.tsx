@@ -6,7 +6,6 @@ import {
   Animated,
   BackHandler,
   Dimensions,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,8 +16,9 @@ import {
 const { width } = Dimensions.get("window");
 
 interface ComentarioSelecionado {
-  id: string;
-  avatar: string;
+  id?: string;
+  elogios?: string[];
+  nota?: number;
   autor: string;
   comentario: string;
   tempo: string;
@@ -94,7 +94,7 @@ export default function NotasAgradecimento({
     return (
       <View style={styles.stars}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Text key={i} style={styles.star}>
+          <Text key={i} style={[styles.star, i >= (data.nota ?? 5) && { color: "#DDD" }]}>
             ★
           </Text>
         ))}
@@ -135,15 +135,26 @@ export default function NotasAgradecimento({
             {/* TOP ROW: Quote and Avatar */}
             <View style={styles.cardTopRow}>
               <Text style={styles.quote}>“</Text>
-              <Image source={{ uri: data.avatar }} style={styles.avatar} />
+              <View
+                style={[
+                  styles.avatar,
+                  { alignItems: "center", justifyContent: "center", backgroundColor: "#EEE" },
+                ]}
+              >
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "#555" }}>
+                  {(data.autor ?? "?").trim().charAt(0).toUpperCase() || "?"}
+                </Text>
+              </View>
             </View>
 
             {/* CONTENT */}
             <Text style={styles.text}>{data.comentario}</Text>
 
-            <Text style={styles.tags}>
-              {'"Pontual" "Educado" "Bom condutor" "Sabe o caminho"'}
-            </Text>
+            {(data.elogios ?? []).length > 0 && (
+              <Text style={styles.tags}>
+                {(data.elogios ?? []).map((titulo) => `"${titulo}"`).join(" ")}
+              </Text>
+            )}
 
             <View style={styles.footer}>
               <Text style={styles.author}>

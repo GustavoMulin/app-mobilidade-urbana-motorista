@@ -8,6 +8,7 @@ import type {
   PassageiroDaCorrida,
   ResultadoCancelamento,
 } from "@/hooks/useDespachoMotorista";
+import type { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
 import { useToast } from "@/context/ToastContext";
 import { useCallback, useMemo, useState } from "react";
 
@@ -153,8 +154,20 @@ const OFERTAS_EM_SEQUENCIA: OfertaCorrida[] = variacoes.map(
 );
 export const QUANTIDADE_EM_SEQUENCIA = OFERTAS_EM_SEQUENCIA.length;
 
+/** Corrida fictícia para ver a tela de avaliar o passageiro: nada é enviado. */
+export const CORRIDA_SIMULADA_PARA_AVALIAR: CorridaParaAvaliar = {
+  id: -9_102,
+  codigo_corrida: "DEV-AVALIACAO",
+  distancia_total: 4.2,
+  passageiro: { name: "Carlos Pereira" },
+  metodo_pagamento: "dinheiro",
+  corrida_financeiro: { valor_motorista: 18.5, valor_pago_passageiro: 23.1 },
+  corrida_destinos: [{ tipo: "destino", endereco: ENDERECO_DESTINO }],
+};
+
 export function useSimuladorCorridaMotorista() {
   const { mostrarToast } = useToast();
+  const [avaliando, setAvaliando] = useState(false);
   const [etapa, setEtapa] = useState<EtapaSimulacaoMotorista | null>(null);
   const [finalizada, setFinalizada] = useState(false);
   const [inicioEspera, setInicioEspera] = useState<string | null>(null);
@@ -185,6 +198,17 @@ export function useSimuladorCorridaMotorista() {
     setFila([]);
     setFinalizada(true);
   }, []);
+
+  // abre só a tela de avaliação, como se a corrida tivesse acabado de terminar
+  const avaliarPassageiro = useCallback(() => {
+    setEtapa(null);
+    setInicioEspera(null);
+    setFila([]);
+    setFinalizada(false);
+    setAvaliando(true);
+  }, []);
+
+  const encerrarAvaliacao = useCallback(() => setAvaliando(false), []);
 
   const encerrar = useCallback(() => {
     setEtapa(null);
@@ -336,5 +360,8 @@ export function useSimuladorCorridaMotorista() {
     cancelar,
     finalizar,
     encerrar,
+    avaliando,
+    avaliarPassageiro,
+    encerrarAvaliacao,
   };
 }

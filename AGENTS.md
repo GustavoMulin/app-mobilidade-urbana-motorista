@@ -15,7 +15,7 @@
   ```bash
   REACT_NATIVE_PACKAGER_HOSTNAME=10.199.53.233 npm run start:go
   ```
-- Portas Metro: gestão `8081`, passageiro `8082` e motorista `8083` (este app); `start:go` já usa a 8083
+- Portas fixas: gestão `8081`, motorista `8082` (este app) e passageiro `8083`; `npm start`, `npm run start:go` e `npm run start:dev` já usam a 8082
 - Testes rodam em Expo Go; builds EAS apenas para distribuição
 
 ## Validação

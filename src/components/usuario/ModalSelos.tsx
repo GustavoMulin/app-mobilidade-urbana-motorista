@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useVoltarFecha } from "@/hooks/useVoltarFecha";
+import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
   Dimensions,
-  Image,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -17,7 +17,8 @@ interface AvaliacaoPositiva {
   id: string;
   titulo: string;
   subtitulo: string;
-  avatar: string;
+  icone: string;
+  imagem?: string | null;
 }
 
 interface Props {
@@ -102,7 +103,18 @@ export default function ModalSelos({
       >
         <View style={styles.body}>
           <View style={styles.avatarSection}>
-            <Image source={{ uri: data?.avatar }} style={styles.avatar} />
+            <View
+              style={[
+                styles.avatar,
+                { alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6" },
+              ]}
+            >
+              <IconeDoSelo
+                imagem={data?.imagem}
+                icone={data?.icone ?? ""}
+                tamanho={100}
+              />
+            </View>
             <Text style={styles.title}>{data?.titulo}</Text>
             <Text style={styles.subtitle}>{data?.subtitulo}</Text>
           </View>
