@@ -461,7 +461,8 @@ export default function Home() {
                   : ALTURA_FOLHA_CORRIDA
           }
           botaoAcima={
-            corridaExibida === null && !chamadaNoMapa ? (
+            // os atalhos de cima só aparecem com o motorista conectado
+            corridaExibida === null && !chamadaNoMapa && disponivelExibido ? (
               <>
                 {gestosDisponiveis ? (
                   <Suspense fallback={null}>

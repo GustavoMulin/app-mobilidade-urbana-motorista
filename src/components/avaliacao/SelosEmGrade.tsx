@@ -1,3 +1,4 @@
+import { useEstilos, type CoresDoTema } from "@/theme/tema";
 import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
 import { Text } from "@/components/common/Texto";
 import type { SeloDeAvaliacao } from "@/domain/avaliacao";
@@ -21,6 +22,7 @@ export default function SelosEmGrade({
   desabilitado = false,
   tamanho = 88,
 }: Props) {
+  const styles = useEstilos(estilosBase, extrasGrade);
   return (
     <View style={styles.grade}>
       {selos.map((selo) => {
@@ -72,7 +74,12 @@ export default function SelosEmGrade({
   );
 }
 
-const styles = StyleSheet.create({
+// o selo marcado fica num amarelo escuro no tema escuro
+const extrasGrade = (_cores: CoresDoTema) => ({
+  "backgroundColor:#fff6d6": "#3D3320",
+});
+
+const estilosBase = StyleSheet.create({
   grade: { flexDirection: "row", flexWrap: "wrap", rowGap: 14 },
   item: { width: "33.333%", alignItems: "center", paddingHorizontal: 4 },
   imagem: {

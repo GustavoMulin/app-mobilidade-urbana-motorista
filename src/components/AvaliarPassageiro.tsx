@@ -1,3 +1,4 @@
+import { useEstilos, type CoresDoTema } from "@/theme/tema";
 import SelosEmGrade from "@/components/avaliacao/SelosEmGrade";
 import { Text } from "@/components/common/Texto";
 import {
@@ -9,7 +10,13 @@ import { CorridaParaAvaliar } from "@/hooks/useAvaliacaoPendente";
 import { useSelosAvaliacao } from "@/hooks/useSelosAvaliacao";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
@@ -34,6 +41,8 @@ export default function AvaliarPassageiro({
   onDispensar,
   selosProntos,
 }: Props) {
+  const tema = useEstilos(estilosBase, extrasAvaliar);
+  const styles = { ...tema, textoBotao: estilosBase.textoBotao };
   const insets = useSafeAreaInsets();
   const selosDoServidor = useSelosAvaliacao(!selosProntos);
   const selos = selosProntos ?? selosDoServidor;
@@ -57,7 +66,11 @@ export default function AvaliarPassageiro({
       `Você não receberá mais chamadas de ${passageiro ?? "este passageiro"}.`,
       [
         { text: "Cancelar", style: "cancel" },
-        { text: "Bloquear", style: "destructive", onPress: () => void bloquear() },
+        {
+          text: "Bloquear",
+          style: "destructive",
+          onPress: () => void bloquear(),
+        },
       ],
     );
 
@@ -181,7 +194,13 @@ export default function AvaliarPassageiro({
   );
 }
 
-const styles = StyleSheet.create({
+// aviso de bloqueio: fundo e texto avermelhados em tons escuros
+const extrasAvaliar = (_cores: CoresDoTema) => ({
+  "backgroundColor:#fdecea": "#3A1D1B",
+  "color:#b3261e": "#F28B82",
+});
+
+const estilosBase = StyleSheet.create({
   sobreposicao: {
     ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(0,0,0,0.5)",

@@ -1,11 +1,11 @@
 import { useEstilos, useTema } from "@/theme/tema";
+import SelosDaNota from "./SelosDaNota";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import { api } from "@/Services/api";
 import {
-  inicialDoNome,
   textoDeQuando,
   type NotaDeAgradecimento,
 } from "@/domain/perfilMotorista";
@@ -52,7 +52,9 @@ export default function NotasAgradecimento({
         current_page: number;
         last_page: number;
       }>("/motorista/me/notas-agradecimento", { params: { page: alvo } });
-      setNotas((atuais) => (alvo === 1 ? data.data : [...atuais, ...data.data]));
+      setNotas((atuais) =>
+        alvo === 1 ? data.data : [...atuais, ...data.data],
+      );
       setPagina(data.current_page);
       setUltima(data.last_page);
     } catch {
@@ -129,17 +131,6 @@ export default function NotasAgradecimento({
     <View key={item.id} style={styles.card}>
       <Text style={styles.quote}>“</Text>
 
-      <View
-        style={[
-          styles.avatar,
-          { alignItems: "center", justifyContent: "center", backgroundColor: "#EEE" },
-        ]}
-      >
-        <Text style={{ fontSize: 18, fontWeight: "700", color: "#555" }}>
-          {inicialDoNome(item.autor)}
-        </Text>
-      </View>
-
       <Text style={styles.text}>{item.comentario}</Text>
 
       {item.elogios.length > 0 && (
@@ -153,6 +144,13 @@ export default function NotasAgradecimento({
       </Text>
 
       {renderStars(item.nota)}
+
+      {/* por último, no fim do cartão, os selos que a mesma avaliação recebeu */}
+      {(item.selos ?? []).length > 0 && (
+        <View style={{ marginTop: 12 }}>
+          <SelosDaNota selos={item.selos} tamanho={30} maximo={5} />
+        </View>
+      )}
     </View>
   );
   return (
@@ -175,7 +173,11 @@ export default function NotasAgradecimento({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back-outline" size={26} color={cores.icone} />
+              <Ionicons
+                name="arrow-back-outline"
+                size={26}
+                color={cores.icone}
+              />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Notas de agradecimentos</Text>
@@ -187,7 +189,14 @@ export default function NotasAgradecimento({
         {/* BODY */}
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {notas.length === 0 && !carregando && (
-            <Text style={{ padding: 24, textAlign: "center", color: "#777", lineHeight: 20 }}>
+            <Text
+              style={{
+                padding: 24,
+                textAlign: "center",
+                color: "#777",
+                lineHeight: 20,
+              }}
+            >
               Ainda não há notas de agradecimento. Os comentários que os
               passageiros deixarem ao avaliar você aparecem aqui.
             </Text>

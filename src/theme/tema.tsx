@@ -225,6 +225,8 @@ const ITENS = [
   "#ecedef",
   "#ececee",
   "#f4f4f6",
+  "#f3f3f3",
+  "#d8d8d8",
 ];
 const TEXTOS = [
   "#111",
@@ -315,3 +317,33 @@ export function useEstilos<T extends Record<string, object>>(
     [escuro, cores, estilos, extras],
   );
 }
+
+/** Tons escuros para avisos, chips e cartões coloridos das telas da corrida. */
+export const extrasDaCorrida = (cores: CoresDoTema): ExtrasDoTema => ({
+  "#fff4b8": "#3D3320",
+  "#fff4c2": "#3D3320",
+  "#fff4d6": "#3D3320",
+  "#fff4de": "#3D3320",
+  "#eaf2fe": "#1B2A44",
+  "#eaf2f8": "#1B2A44",
+  "#fef3f2": "#3A1D1B",
+  "#fdecea": "#3A1D1B",
+  "#e2e4e8": cores.item,
+  "#e8ebf0": cores.item,
+  "#f1f1f2": cores.item,
+  "#f0f0f2": cores.item,
+  "#e6edf5": cores.item,
+  "#f6f7f9": cores.item,
+  "#f7f8fa": cores.item,
+  "backgroundColor:#ddd": "#4B525C",
+  "borderBottomColor:#dadde1": cores.borda,
+  "borderBottomColor:#e8e8e8": cores.borda,
+  "color:#1959b3": "#7FB0FF",
+  "color:#c2410c": "#FB923C",
+  "color:#b42318": "#F28B82",
+  "color:#8a6d1a": "#E6C46A",
+  "color:#5c3b00": "#F2D79A",
+  "color:#374151": cores.textoApoio,
+  "color:#64748b": cores.textoApoio,
+  "color:#252525": cores.texto,
+});

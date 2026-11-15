@@ -15,8 +15,17 @@ import {
   View,
 } from "react-native";
 import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
+import SelosDaNota from "./SelosDaNota";
 import { useDadosDaTela } from "@/hooks/useDadosDaTela";
-import { textoDeQuando, type PerfilMotorista } from "@/domain/perfilMotorista";
+import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
+import {
+  larguraDaBarra,
+  tempoNaPlataforma,
+  textoDaMedia,
+  textoDeQuando,
+  totalDaDistribuicao,
+  type PerfilMotorista,
+} from "@/domain/perfilMotorista";
 import DetalhesComentario from "./DetalhesComentario";
 import DicasAvaliacao from "./DicasAvaliacao";
 import PerfilPublico from "./PerfilPublico";
@@ -85,6 +94,12 @@ export default function PerfilUsuario({
   const avaliacoesPositivas = perfil?.elogios ?? [];
   const notasAgradecimento = perfil?.notas_agradecimento ?? [];
   const dicasAvaliacao = perfil?.dicas ?? [];
+  const distribuicao = perfil?.distribuicao ?? {};
+  const totalNotas = totalDaDistribuicao(distribuicao);
+  const tempoTempo = tempoNaPlataforma(
+    perfil?.meses_na_plataforma ?? 0,
+    perfil?.desde_em ?? null,
+  );
 
   const mostrarAvaliacaoPositiva = (payload: object) => {
     setSeloSelecionado(payload);
@@ -182,11 +197,19 @@ export default function PerfilUsuario({
           >
             {/* USER INFO */}
             <View style={styles.profileSection}>
-              <Image
-                source={{ uri: "https://i.pravatar.cc/150?img=12" }}
-                style={styles.mainAvatar}
-              />
-              <Text style={styles.userName}>Diogo</Text>
+              {perfil?.foto ? (
+                <Image
+                  source={{ uri: perfil.foto }}
+                  style={styles.mainAvatar}
+                />
+              ) : (
+                <View style={[styles.mainAvatar, styles.mainAvatarVazio]}>
+                  <Ionicons name="person" size={48} color="#BDBDBD" />
+                </View>
+              )}
+              <Text style={styles.userName}>
+                {perfil?.nome?.split(" ")[0] ?? ""}
+              </Text>
               <TouchableOpacity
                 style={styles.publicProfileBtn}
                 onPress={() => setShowPerfilPublico(true)}
@@ -198,33 +221,44 @@ export default function PerfilUsuario({
             {/* STATS */}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>8000+</Text>
-                <Text style={styles.statLabel}>Corridas</Text>
+                <Text style={styles.statValue}>{perfil?.corridas ?? "-"}</Text>
+                <Text style={styles.statLabel}>
+                  {perfil?.corridas === 1 ? "Corrida" : "Corridas"}
+                </Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>2+</Text>
-                <Text style={styles.statLabel}>Anos</Text>
+                <Text style={styles.statValue}>{tempoTempo.valor}</Text>
+                <Text style={styles.statLabel}>{tempoTempo.rotulo}</Text>
               </View>
             </View>
 
             {/* RATING SECTION */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.evaluationTitle}>Avaliação 4.63 ★</Text>
+                <Text style={styles.evaluationTitle}>
+                  Avaliação {perfil ? textoDaNotaDoMotorista(perfil.nota) : "-"}{" "}
+                  ★
+                </Text>
                 <TouchableOpacity onPress={() => setShowDicasAvaliacao(true)}>
                   <Text style={styles.linkText}>Como funciona {">"}</Text>
                 </TouchableOpacity>
               </View>
               <Text style={styles.subInfoText}>
-                Média das 100 últimas avaliações de corridas
+                {perfil ? textoDaMedia(perfil) : ""}
               </Text>
 
               <View style={styles.ratingGraph}>
-                <RatingRow stars={5} count={89} percentage={89} />
-                <RatingRow stars={4} count={0} percentage={0} />
-                <RatingRow stars={3} count={2} percentage={2} />
-                <RatingRow stars={2} count={3} percentage={3} />
-                <RatingRow stars={1} count={6} percentage={6} />
+                {[5, 4, 3, 2, 1].map((estrelas) => {
+                  const quantidade = distribuicao[String(estrelas)] ?? 0;
+                  return (
+                    <RatingRow
+                      key={estrelas}
+                      stars={estrelas}
+                      count={quantidade}
+                      percentage={larguraDaBarra(quantidade, totalNotas)}
+                    />
+                  );
+                })}
               </View>
             </View>
 
@@ -309,6 +343,7 @@ export default function PerfilUsuario({
                           comentario: item.comentario,
                           tempo: textoDeQuando(item.quando),
                           elogios: item.elogios,
+                          selos: item.selos ?? [],
                           nota: item.nota,
                         })
                       }
@@ -319,6 +354,12 @@ export default function PerfilUsuario({
                       <Text style={styles.noteFooter}>
                         {item.autor} • {textoDeQuando(item.quando)}
                       </Text>
+                      {/* no fim do cartão: texto, autor e tempo, e só então os selos da avaliação */}
+                      {(item.selos ?? []).length > 0 && (
+                        <View style={styles.noteSelos}>
+                          <SelosDaNota selos={item.selos} tamanho={26} />
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -428,6 +469,7 @@ export default function PerfilUsuario({
         <PerfilPublico
           visible={showPerfilPublico}
           onClose={() => setShowPerfilPublico(false)}
+          perfil={perfil ?? null}
         />
       </View>
     </>
@@ -472,6 +514,7 @@ const estilosBase = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: "#f0f0f0",
   },
+  mainAvatarVazio: { alignItems: "center", justifyContent: "center" },
   userName: { fontSize: 24, fontWeight: "800", color: "#111", marginTop: 15 },
   publicProfileBtn: {
     marginTop: 10,
@@ -573,12 +616,13 @@ const estilosBase = StyleSheet.create({
   noteCard: {
     backgroundColor: "#f5f5f5",
     width: 240,
-    height: 110,
+    minHeight: 110,
     borderRadius: 20,
     padding: 15,
     marginRight: 12,
     justifyContent: "space-between",
   },
+  noteSelos: { marginTop: 8 },
   noteText: {
     fontSize: 14,
     color: "#333",

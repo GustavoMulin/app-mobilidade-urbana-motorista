@@ -19,12 +19,22 @@ export interface DicaDeAvaliacao {
   texto: string;
 }
 
+/** Selo que a avaliação de uma nota de agradecimento recebeu. */
+export interface SeloDaNota {
+  chave: string;
+  titulo: string;
+  icone: string;
+  imagem: string | null;
+}
+
 export interface NotaDeAgradecimento {
   id: number;
   autor: string;
   nota: number;
   comentario: string;
   elogios: string[];
+  // os mesmos selos com ícone e imagem; vazio quando a avaliação não recebeu nenhum
+  selos: SeloDaNota[];
   quando: string | null;
 }
 
@@ -57,6 +67,8 @@ export interface LimitesDasFaixas {
 export interface PerfilMotorista {
   nome: string | null;
   foto: string | null;
+  // cidade onde o motorista roda; nula quando ainda não escolheu
+  cidade?: { nome: string; uf: string } | null;
   nota: number;
   avaliacoes: number;
   nota_base: boolean;
@@ -67,6 +79,8 @@ export interface PerfilMotorista {
   faixa: FaixaDaNota;
   faixas: LimitesDasFaixas;
   desde: string | null;
+  // data e hora em que o motorista entrou (ISO); dá os dias e as horas do primeiro mês
+  desde_em?: string | null;
   meses_na_plataforma: number;
   distribuicao: Record<string, number>;
   elogios: Elogio[];
@@ -101,8 +115,33 @@ export const larguraDaBarra = (quantidade: number, total: number) =>
 export const totalDaDistribuicao = (distribuicao: Record<string, number>) =>
   Object.values(distribuicao).reduce((soma, n) => soma + n, 0);
 
-/** "7" + "Meses", "2" + "Anos": o que o motorista vê em "tempo na plataforma". */
-export const tempoNaPlataforma = (meses: number) => {
+/**
+ * "7" + "Meses", "2" + "Anos": o que o motorista vê em "tempo na plataforma".
+ * No primeiro mês mostra dias ("12" + "Dias") e, no primeiro dia, horas ("5" + "Horas").
+ */
+export const tempoNaPlataforma = (
+  meses: number,
+  desdeEm: string | null = null,
+  agora: Date = new Date(),
+) => {
+  if (meses < 1 && desdeEm) {
+    const inicio = new Date(desdeEm).getTime();
+
+    if (!Number.isNaN(inicio)) {
+      const horas = Math.max(
+        0,
+        Math.floor((agora.getTime() - inicio) / 3_600_000),
+      );
+      const dias = Math.floor(horas / 24);
+
+      if (dias >= 1) {
+        return { valor: String(dias), rotulo: dias === 1 ? "Dia" : "Dias" };
+      }
+
+      return { valor: String(horas), rotulo: horas === 1 ? "Hora" : "Horas" };
+    }
+  }
+
   if (meses < 12) {
     return { valor: String(meses), rotulo: meses === 1 ? "Mês" : "Meses" };
   }
@@ -176,14 +215,12 @@ export const formatarTelefone = (texto: string) => {
 };
 
 const semAcento = (texto: string) =>
-  texto
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
+  texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
 /** Busca da lista de estados e cidades: "sao joao" acha "São João"; vazio acha tudo. */
 export const combinaComBusca = (busca: string, ...textos: string[]) => {
   const termo = semAcento(busca);
-  return termo === "" || textos.some((texto) => semAcento(texto).includes(termo));
+  return (
+    termo === "" || textos.some((texto) => semAcento(texto).includes(termo))
+  );
 };

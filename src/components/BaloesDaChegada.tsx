@@ -1,3 +1,4 @@
+import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import { useToast } from "@/context/ToastContext";
 import { MENSAGENS_RAPIDAS_VISIVEIS } from "@/domain/mensagensRapidas";
@@ -85,6 +86,7 @@ interface Props {
 
 // monta a cada abertura do painel, sempre cheia
 function BarraDoTempo() {
+  const styles = useEstilos(estilosBase, extrasDaCorrida);
   const restante = useSharedValue(1);
 
   useEffect(() => {
@@ -110,6 +112,9 @@ export default function BaloesDaChegada({
   onEnviar,
   onAlturaChange,
 }: Props) {
+  const { cores } = useTema();
+  const tema = useEstilos(estilosBase, extrasDaCorrida);
+  const styles = { ...tema, contadorTexto: estilosBase.contadorTexto };
   const { mostrarToast } = useToast();
   const { height: alturaTela } = useWindowDimensions();
   const compacto = alturaTela < 700;
@@ -212,7 +217,7 @@ export default function BaloesDaChegada({
     >
       <View style={styles.cabecalho}>
         <View style={styles.iconeCabecalho}>
-          <Ionicons name="chatbubbles" size={18} color="#111" />
+          <Ionicons name="chatbubbles" size={18} color={cores.icone} />
         </View>
         <View style={styles.cabecalhoTextos}>
           <Text style={styles.titulo}>Avise o passageiro</Text>
@@ -225,7 +230,7 @@ export default function BaloesDaChegada({
           hitSlop={8}
           onPress={() => setFase("recolhido")}
         >
-          <Ionicons name="chevron-down" size={20} color="#444" />
+          <Ionicons name="chevron-down" size={20} color={cores.textoApoio} />
         </TouchableOpacity>
       </View>
 
@@ -280,7 +285,7 @@ export default function BaloesDaChegada({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   painel: {
     transformOrigin: "bottom",
     backgroundColor: "#FFFFFF",

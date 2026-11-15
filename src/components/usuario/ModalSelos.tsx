@@ -35,7 +35,9 @@ export default function ModalSelos({
   headerHeight,
   data,
 }: Props) {
-  const styles = useEstilos(estilosBase);
+  const tema = useEstilos(estilosBase);
+  // o botão amarelo mantém o texto escuro nos dois modos
+  const styles = { ...tema, buttonText: estilosBase.buttonText };
   const [slideAnim] = useState(() => new Animated.Value(height));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -108,7 +110,11 @@ export default function ModalSelos({
             <View
               style={[
                 styles.avatar,
-                { alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F6" },
+                {
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#F3F4F6",
+                },
               ]}
             >
               <IconeDoSelo
@@ -170,6 +176,7 @@ const estilosBase = StyleSheet.create({
     textAlign: "center",
     fontSize: 26,
     fontWeight: "400",
+    color: "#333",
   },
   footer: {
     paddingHorizontal: 20,
@@ -185,5 +192,6 @@ const estilosBase = StyleSheet.create({
   buttonText: {
     fontSize: 18,
     fontWeight: "700",
+    color: "#111",
   },
 });

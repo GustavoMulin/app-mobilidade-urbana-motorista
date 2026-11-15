@@ -1,3 +1,4 @@
+import { useEstilos, useTema, type CoresDoTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FontAwesome5, Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -27,6 +28,16 @@ export default function ConvidarMotorista({
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const tema = useEstilos(estilosBase, extrasConvidar);
+  const styles = {
+    ...tema,
+    btnConvidarText: estilosBase.btnConvidarText,
+    customHeaderTitle: estilosBase.customHeaderTitle,
+    headerRightText: estilosBase.headerRightText,
+    locationTag: estilosBase.locationTag,
+    locationText: estilosBase.locationText,
+  };
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -231,7 +242,11 @@ export default function ConvidarMotorista({
               </View>
               <TouchableOpacity style={styles.rulesBtn}>
                 <Text style={styles.rulesText}>Regras detalhadas</Text>
-                <Ionicons name="chevron-forward" size={14} color="#666" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={14}
+                  color={cores.textoApoio}
+                />
               </TouchableOpacity>
             </View>
 
@@ -295,7 +310,16 @@ export default function ConvidarMotorista({
   );
 }
 
-const styles = StyleSheet.create({
+// tons quentes da tela viram cinzas do tema; o amarelo (marca) fica igual
+const extrasConvidar = (cores: CoresDoTema) => ({
+  "#fff7e6": cores.fundo,
+  "#fff9f2": cores.item,
+  "#fff4eb": cores.item,
+  "#fff9e6": cores.item,
+  "#f2f2f2": cores.item,
+});
+
+const estilosBase = StyleSheet.create({
   drawer: { flex: 1, backgroundColor: "#fff7e6" },
   scrollContainer: { flex: 1 },
   customHeader: {

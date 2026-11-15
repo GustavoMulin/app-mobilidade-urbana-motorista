@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
 import { Text } from "@/components/common/Texto";
 import { useToast } from "@/context/ToastContext";
@@ -38,6 +39,8 @@ export default function UsuariosBloqueados({
   onClose,
   duration = 200,
 }: Props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const { mostrarToast } = useToast();
   const [translateX] = useState(() => new Animated.Value(width));
@@ -49,26 +52,31 @@ export default function UsuariosBloqueados({
   const [carregando, setCarregando] = useState(false);
   const [removendo, setRemovendo] = useState<number | null>(null);
 
-  const carregar = useCallback(async (alvo: number) => {
-    setCarregando(true);
+  const carregar = useCallback(
+    async (alvo: number) => {
+      setCarregando(true);
 
-    try {
-      const { data } = await api.get<Pagina>("/bloqueios-usuarios", {
-        params: { perfil: "motorista", page: alvo },
-      });
-      setItens((atuais) => (alvo === 1 ? data.data : [...atuais, ...data.data]));
-      setPagina(data.current_page);
-      setUltima(data.last_page);
-    } catch {
-      mostrarToast({
-        tipo: "error",
-        titulo: "Não foi possível carregar",
-        mensagem: "Confira sua conexão e tente de novo.",
-      });
-    } finally {
-      setCarregando(false);
-    }
-  }, [mostrarToast]);
+      try {
+        const { data } = await api.get<Pagina>("/bloqueios-usuarios", {
+          params: { perfil: "motorista", page: alvo },
+        });
+        setItens((atuais) =>
+          alvo === 1 ? data.data : [...atuais, ...data.data],
+        );
+        setPagina(data.current_page);
+        setUltima(data.last_page);
+      } catch {
+        mostrarToast({
+          tipo: "error",
+          titulo: "Não foi possível carregar",
+          mensagem: "Confira sua conexão e tente de novo.",
+        });
+      } finally {
+        setCarregando(false);
+      }
+    },
+    [mostrarToast],
+  );
 
   useEffect(() => {
     if (visible) void carregar(1);
@@ -188,7 +196,11 @@ export default function UsuariosBloqueados({
         <View style={styles.selos}>
           {item.selos.map((selo) => (
             <View key={selo.titulo} style={styles.selo}>
-              <IconeDoSelo imagem={selo.imagem} icone={selo.icone} tamanho={20} />
+              <IconeDoSelo
+                imagem={selo.imagem}
+                icone={selo.icone}
+                tamanho={20}
+              />
               <Text style={styles.seloTitulo}>{selo.titulo}</Text>
             </View>
           ))}
@@ -217,7 +229,7 @@ export default function UsuariosBloqueados({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="chevron-back" size={28} color="#111" />
+              <Ionicons name="chevron-back" size={28} color={cores.icone} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Usuários bloqueados</Text>
             <View style={{ width: 28 }} />
@@ -241,11 +253,17 @@ export default function UsuariosBloqueados({
                 <ActivityIndicator color="#999" />
               ) : (
                 <>
-                  <Ionicons name="shield-checkmark-outline" size={42} color="#BBB" />
-                  <Text style={styles.vazioTitulo}>Nenhum usuário bloqueado</Text>
+                  <Ionicons
+                    name="shield-checkmark-outline"
+                    size={42}
+                    color="#BBB"
+                  />
+                  <Text style={styles.vazioTitulo}>
+                    Nenhum usuário bloqueado
+                  </Text>
                   <Text style={styles.vazioTexto}>
-                    Quando você bloquear um passageiro ao avaliar uma corrida, ele
-                    aparece aqui e deixa de tocar nas suas chamadas.
+                    Quando você bloquear um passageiro ao avaliar uma corrida,
+                    ele aparece aqui e deixa de tocar nas suas chamadas.
                   </Text>
                 </>
               )}
@@ -257,7 +275,7 @@ export default function UsuariosBloqueados({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

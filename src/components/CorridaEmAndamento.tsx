@@ -1,3 +1,4 @@
+import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // Espera no embarque (motorista_chegou) no layout do 99: endereço do embarque
 // numa pílula escura no topo, faixa laranja da taxa de espera, relógio em
 // anel, passageiro e "Iniciar corrida". O ≡ abre a tela Mais (cancelar com
@@ -123,6 +124,10 @@ export default function CorridaEmAndamento({
   rotuloIniciar = "Iniciar corrida",
   paradasDoGrupo = null,
 }: props) {
+  const { cores } = useTema();
+  const tema = useEstilos(estilosBase, extrasDaCorrida);
+  // o botão amarelo do aviso mantém o texto escuro nos dois modos
+  const styles = { ...tema, taxaBotaoTexto: estilosBase.taxaBotaoTexto };
   const insets = useSafeAreaInsets();
   const { height: alturaTela } = useWindowDimensions();
   const [maisVisivel, setMaisVisivel] = useState(false);
@@ -292,7 +297,7 @@ export default function CorridaEmAndamento({
                 accessibilityLabel="Mais opções da corrida"
                 onPress={() => setMaisVisivel(true)}
               >
-                <Ionicons name="menu" size={24} color="#222" />
+                <Ionicons name="menu" size={24} color={cores.icone} />
               </TouchableOpacity>
             </View>
 
@@ -324,7 +329,11 @@ export default function CorridaEmAndamento({
                   <Text numberOfLines={1} style={styles.passageiroNome}>
                     {passageiro?.nome ?? "Passageiro"}
                   </Text>
-                  <Ionicons name="chevron-forward" size={16} color="#666" />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color={cores.textoApoio}
+                  />
                 </View>
                 <Text style={styles.passageiroApoio}>{reputacao}</Text>
                 {passageiro?.solicitante ? (
@@ -348,7 +357,7 @@ export default function CorridaEmAndamento({
                   accessibilityRole="button"
                   accessibilityLabel="Ligar para o passageiro"
                 >
-                  <Ionicons name="call" size={20} color="#111" />
+                  <Ionicons name="call" size={20} color={cores.icone} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -432,7 +441,7 @@ export default function CorridaEmAndamento({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   pilulaEmbarque: {
     position: "absolute",
     left: 12,

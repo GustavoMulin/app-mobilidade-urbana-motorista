@@ -3,6 +3,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import type { SeloDaNota } from "@/domain/perfilMotorista";
+import SelosDaNota from "./SelosDaNota";
 import {
   Animated,
   BackHandler,
@@ -19,6 +21,8 @@ const { width } = Dimensions.get("window");
 interface ComentarioSelecionado {
   id?: string;
   elogios?: string[];
+  // selos da avaliação, com ícone e imagem; vazio ou ausente = só a mensagem
+  selos?: SeloDaNota[];
   nota?: number;
   autor: string;
   comentario: string;
@@ -97,7 +101,10 @@ export default function NotasAgradecimento({
     return (
       <View style={styles.stars}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Text key={i} style={[styles.star, i >= (data.nota ?? 5) && { color: "#DDD" }]}>
+          <Text
+            key={i}
+            style={[styles.star, i >= (data.nota ?? 5) && { color: "#DDD" }]}
+          >
             ★
           </Text>
         ))}
@@ -125,7 +132,11 @@ export default function NotasAgradecimento({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back-outline" size={26} color={cores.icone} />
+              <Ionicons
+                name="arrow-back-outline"
+                size={26}
+                color={cores.icone}
+              />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Comentário</Text>
             <View style={{ width: 26 }} />
@@ -138,16 +149,8 @@ export default function NotasAgradecimento({
             {/* TOP ROW: Quote and Avatar */}
             <View style={styles.cardTopRow}>
               <Text style={styles.quote}>“</Text>
-              <View
-                style={[
-                  styles.avatar,
-                  { alignItems: "center", justifyContent: "center", backgroundColor: "#EEE" },
-                ]}
-              >
-                <Text style={{ fontSize: 18, fontWeight: "700", color: "#555" }}>
-                  {(data.autor ?? "?").trim().charAt(0).toUpperCase() || "?"}
-                </Text>
-              </View>
+              {/* no lugar da foto de quem avaliou, os selos que a corrida recebeu */}
+              <SelosDaNota selos={data.selos ?? []} tamanho={48} maximo={4} />
             </View>
 
             {/* CONTENT */}

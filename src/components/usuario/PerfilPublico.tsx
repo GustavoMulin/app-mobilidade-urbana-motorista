@@ -2,7 +2,14 @@ import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
+import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
 import { Text } from "@/components/common/Texto";
+import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
+import {
+  tempoNaPlataforma,
+  textoDeQuando,
+  type PerfilMotorista,
+} from "@/domain/perfilMotorista";
 import {
   Animated,
   BackHandler,
@@ -19,74 +26,29 @@ const { width } = Dimensions.get("window");
 interface props {
   visible: boolean;
   onClose: () => void;
+  // os mesmos dados do perfil: o público é o recorte que o passageiro enxerga
+  perfil: PerfilMotorista | null;
   duration?: number;
 }
 
 type Icone = keyof typeof Ionicons.glyphMap;
 
-// Dados de exemplo, iguais aos da tela de perfil, até a ligação com o servidor
-const perfil = {
-  nome: "Diogo",
-  cidade: "Porto Velho | Brazil",
-  foto: "https://i.pravatar.cc/150?img=12",
-  nota: "4.79",
-  corridas: "9000+",
-  anos: "2+",
-};
-
-const verificacoes = [
-  "Verificação de Antecedentes",
-  "CNH verificada",
-  "CRLV verificado",
-  "Foto com a CNH",
-  "Foto de perfil",
-  "Reconhecimento Facial",
-];
-
-const avaliacoesPositivas = [
-  { id: "1", titulo: "Bom condutor", total: 183, foto: 1 },
-  { id: "2", titulo: "Carro limpo", total: 117, foto: 2 },
-  { id: "3", titulo: "Educado/Respeitoso", total: 65, foto: 3 },
-  { id: "4", titulo: "Simpático", total: 63, foto: 4 },
-];
-
-const conquistas: { id: string; titulo: string; icone: Icone; cor: string }[] =
-  [
-    { id: "1", titulo: "10.000+ km", icone: "car-sport", cor: "#FF7A00" },
-    {
-      id: "2",
-      titulo: "2 anos na plataforma",
-      icone: "trophy",
-      cor: "#F25C1E",
-    },
-    {
-      id: "3",
-      titulo: "5 estrelas 1000+ vezes",
-      icone: "star",
-      cor: "#7B4DFF",
-    },
-    {
-      id: "4",
-      titulo: "1000+ avaliações",
-      icone: "chatbubbles",
-      cor: "#2F9BFF",
-    },
-  ];
-
-const avaliacaoCincoEstrelas = {
-  comentario:
-    "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O excelente gosto musical do motorista tornou a viagem agradável. Parabéns!",
-  autor: "Amanda",
-  tempo: "9 meses atrás",
-};
+// cores dos quadrinhos das conquistas, em rodízio
+const CORES_CONQUISTA = ["#FF7A00", "#F25C1E", "#7B4DFF", "#2F9BFF"];
 
 export default function PerfilPublico({
   visible,
   onClose,
+  perfil,
   duration = 200,
 }: props) {
   const { cores } = useTema();
-  const styles = useEstilos(estilosBase);
+  const tema = useEstilos(estilosBase);
+  // o botão amarelo mantém o texto preto nos dois modos
+  const styles = {
+    ...tema,
+    botaoFecharTexto: { ...estilosBase.botaoFecharTexto, color: "#000" },
+  };
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [isMounted, setIsMounted] = useState(visible);
@@ -122,6 +84,21 @@ export default function PerfilPublico({
 
   if (!isMounted) return null;
 
+  const tempo = tempoNaPlataforma(
+    perfil?.meses_na_plataforma ?? 0,
+    perfil?.desde_em ?? null,
+  );
+  const verificacoes = (perfil?.verificacoes ?? []).filter((item) => item.ok);
+  const elogios = perfil?.elogios ?? [];
+  const conquistas = perfil?.selos ?? [];
+  // as avaliações de 5 estrelas com comentário, da mais nova para a mais antiga
+  const cincoEstrelas = (perfil?.notas_agradecimento ?? [])
+    .filter((nota) => nota.nota === 5)
+    .slice(0, 3);
+  const cidade = perfil?.cidade
+    ? `${perfil.cidade.nome} - ${perfil.cidade.uf}`
+    : null;
+
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 40 }]}>
       <Animated.View style={[styles.tela, { transform: [{ translateX }] }]}>
@@ -141,105 +118,150 @@ export default function PerfilPublico({
         >
           <View style={styles.aviso}>
             <Text style={styles.avisoTexto}>
-              Isto é o que os passageiro verão
+              Isto é o que os passageiros verão
             </Text>
           </View>
 
           <View style={styles.identidade}>
-            <Image source={{ uri: perfil.foto }} style={styles.foto} />
+            {perfil?.foto ? (
+              <Image source={{ uri: perfil.foto }} style={styles.foto} />
+            ) : (
+              <View style={[styles.foto, styles.fotoVazia]}>
+                <Ionicons name="person" size={64} color="#BDBDBD" />
+              </View>
+            )}
             <View style={styles.identidadeTextos}>
-              <Text style={styles.nome}>{perfil.nome}</Text>
-              <Text style={styles.cidade}>
-                De <Text style={styles.cidadeForte}>{perfil.cidade}</Text>
+              <Text style={styles.nome} numberOfLines={2}>
+                {(perfil?.nome ?? "").split(" ")[0]}
               </Text>
+              {cidade ? (
+                <Text style={styles.cidade}>
+                  De <Text style={styles.cidadeForte}>{cidade}</Text>
+                </Text>
+              ) : null}
             </View>
           </View>
 
           <View style={styles.numeros}>
             <View style={styles.numero}>
               <View style={styles.numeroLinha}>
-                <Text style={styles.numeroValor}>{perfil.nota}</Text>
+                <Text style={styles.numeroValor}>
+                  {perfil ? textoDaNotaDoMotorista(perfil.nota) : "-"}
+                </Text>
                 <Ionicons name="star" size={22} color={cores.icone} />
               </View>
               <Text style={styles.numeroRotulo}>Nota</Text>
             </View>
             <View style={styles.numero}>
-              <Text style={styles.numeroValor}>{perfil.corridas}</Text>
-              <Text style={styles.numeroRotulo}>Corridas</Text>
+              <Text style={styles.numeroValor}>{perfil?.corridas ?? "-"}</Text>
+              <Text style={styles.numeroRotulo}>
+                {perfil?.corridas === 1 ? "Corrida" : "Corridas"}
+              </Text>
             </View>
             <View style={styles.numero}>
-              <Text style={styles.numeroValor}>{perfil.anos}</Text>
-              <Text style={styles.numeroRotulo}>Anos</Text>
+              <Text style={styles.numeroValor}>{tempo.valor}</Text>
+              <Text style={styles.numeroRotulo}>{tempo.rotulo}</Text>
             </View>
           </View>
 
-          <View style={styles.secaoCabecalho}>
-            <Text style={styles.secaoTitulo}>Verificações</Text>
-            <View style={styles.maisLinha}>
-              <Text style={styles.maisTexto}>Mais</Text>
-              <Ionicons name="chevron-forward" size={16} color={cores.textoApoio} />
-            </View>
-          </View>
-          <View style={styles.chips}>
-            {verificacoes.map((titulo) => (
-              <View key={titulo} style={styles.chip}>
-                <Ionicons name="checkmark" size={14} color={cores.icone} />
-                <Text style={styles.chipTexto}>{titulo}</Text>
+          {verificacoes.length > 0 && (
+            <>
+              <View style={styles.secaoCabecalho}>
+                <Text style={styles.secaoTitulo}>Verificações</Text>
               </View>
-            ))}
-          </View>
-
-          <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
-            Avaliações positivas
-          </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.linhaHorizontal}
-          >
-            {avaliacoesPositivas.map((item) => (
-              <View key={item.id} style={styles.positiva}>
-                <View>
-                  <Image
-                    source={{
-                      uri: `https://i.pravatar.cc/150?img=${item.foto}`,
-                    }}
-                    style={styles.positivaFoto}
-                  />
-                  <View style={styles.contador}>
-                    <Text style={styles.contadorTexto}>{item.total}</Text>
+              <View style={styles.chips}>
+                {verificacoes.map((item) => (
+                  <View key={item.chave} style={styles.chip}>
+                    <Ionicons name="checkmark" size={14} color={cores.icone} />
+                    <Text style={styles.chipTexto}>{item.titulo}</Text>
                   </View>
-                </View>
-                <Text style={styles.positivaTitulo}>{item.titulo}</Text>
+                ))}
               </View>
-            ))}
-          </ScrollView>
+            </>
+          )}
 
-          <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
-            Conquistas
-          </Text>
-          <View style={styles.conquistas}>
-            {conquistas.map((item) => (
-              <View key={item.id} style={styles.conquista}>
-                <View
-                  style={[styles.conquistaIcone, { backgroundColor: item.cor }]}
-                >
-                  <Ionicons name={item.icone} size={34} color="#fff" />
-                </View>
-                <Text style={styles.conquistaTitulo}>{item.titulo}</Text>
+          {elogios.length > 0 && (
+            <>
+              <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
+                Avaliações positivas
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.linhaHorizontal}
+              >
+                {elogios.map((item) => (
+                  <View key={item.chave} style={styles.positiva}>
+                    <View>
+                      <View
+                        style={[styles.positivaFoto, styles.positivaImagem]}
+                      >
+                        <IconeDoSelo
+                          imagem={item.imagem}
+                          icone={item.icone}
+                          tamanho={88}
+                        />
+                      </View>
+                      <View style={styles.contador}>
+                        <Text style={styles.contadorTexto}>
+                          {item.quantidade}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.positivaTitulo} numberOfLines={2}>
+                      {item.titulo}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          {conquistas.length > 0 && (
+            <>
+              <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
+                Conquistas
+              </Text>
+              <View style={styles.conquistas}>
+                {conquistas.map((item, indice) => (
+                  <View key={item.chave} style={styles.conquista}>
+                    <View
+                      style={[
+                        styles.conquistaIcone,
+                        {
+                          backgroundColor:
+                            CORES_CONQUISTA[indice % CORES_CONQUISTA.length],
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={item.icone as Icone}
+                        size={34}
+                        color="#fff"
+                      />
+                    </View>
+                    <Text style={styles.conquistaTitulo}>{item.titulo}</Text>
+                  </View>
+                ))}
               </View>
-            ))}
-          </View>
+            </>
+          )}
 
-          <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
-            Avaliações 5 estrelas
-          </Text>
-          <Text style={styles.comentario}>
-            {avaliacaoCincoEstrelas.comentario}
-          </Text>
-          <Text style={styles.comentarioRodape}>
-            {avaliacaoCincoEstrelas.autor} • {avaliacaoCincoEstrelas.tempo}
-          </Text>
+          {cincoEstrelas.length > 0 && (
+            <>
+              <Text style={[styles.secaoTitulo, styles.secaoSolta]}>
+                Avaliações 5 estrelas
+              </Text>
+              {cincoEstrelas.map((nota) => (
+                <View key={nota.id} style={styles.avaliacaoCincoEstrelas}>
+                  <Text style={styles.comentario}>{nota.comentario}</Text>
+                  <Text style={styles.comentarioRodape}>
+                    {nota.autor} • {textoDeQuando(nota.quando)}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
         </ScrollView>
 
         <View
@@ -311,6 +333,9 @@ const estilosBase = StyleSheet.create({
     marginBottom: 14,
   },
   secaoTitulo: { fontSize: 27, fontWeight: "800", color: "#111" },
+  fotoVazia: { alignItems: "center", justifyContent: "center" },
+  positivaImagem: { alignItems: "center", justifyContent: "center" },
+  avaliacaoCincoEstrelas: { marginBottom: 22 },
   secaoSolta: { marginTop: 40, marginBottom: 18 },
   maisLinha: { flexDirection: "row", alignItems: "center" },
   maisTexto: { fontSize: 17, color: "#111" },

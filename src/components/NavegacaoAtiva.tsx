@@ -1,3 +1,4 @@
+import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // Navegação turn-by-turn no estilo 99 (banner de manobra, ponto no mapa com
 // direção, velocímetro, ETA). Entra em cena depois do aceite para guiar até
 // o embarque e volta a guiar até o destino quando a corrida é iniciada.
@@ -8,7 +9,6 @@
 // - Voz guiando as manobras (precisa de TTS + lógica de quando anunciar).
 // Paradas: em viagem o alvo é a próxima parada pendente e o botão vira
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
-import { useTema } from "@/theme/tema";
 import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
@@ -245,6 +245,45 @@ export default function NavegacaoAtiva({
   const corDoAlvo = tipoAlvo === "origem" ? "#18C9A0" : "#FF7A2F";
   const insets = useSafeAreaInsets();
   const tema = useTema();
+  const estilosDaFolha = useEstilos(estilosBase, extrasDaCorrida);
+  // só a folha de baixo muda com o tema; o topo e o mapa seguem como estão
+  const styles = useMemo(() => {
+    const juntos: Record<string, unknown> = { ...estilosBase };
+    for (const chave of [
+      "folhaFundo",
+      "folhaConteudo",
+      "conteudoFolha",
+      "cabecalhoFolhaArrastavel",
+      "resumoCabecalho",
+      "espacoMenuCorrida",
+      "botaoMenuCorrida",
+      "puxador",
+      "resumoLinha",
+      "resumoTexto",
+      "informacoesChegada",
+      "avisoLimiteChegada",
+      "avisoLimiteChegadaTexto",
+      "avisoLimiteChegadaTextoTempo",
+      "chipPagamento",
+      "chipPagamentoTexto",
+      "separador",
+      "linhaPassageiro",
+      "avatar",
+      "avatarVazio",
+      "avatarProtegido",
+      "passageiroBloco",
+      "passageiroNome",
+      "passageiroApoio",
+      "botaoLigar",
+      "segurancaFolha",
+      "segurancaTitulo",
+      "segurancaLinha",
+      "segurancaTexto",
+    ]) {
+      juntos[chave] = (estilosDaFolha as Record<string, unknown>)[chave];
+    }
+    return juntos as typeof estilosBase;
+  }, [estilosDaFolha]);
   const { height: alturaTela } = useWindowDimensions();
   const mapRef = useRef<MapView>(null);
   const mapaPronto = useRef(false);
@@ -529,7 +568,7 @@ export default function NavegacaoAtiva({
             <Ionicons
               name={indiceFolha === 0 ? "chevron-up" : "chevron-down"}
               size={26}
-              color="#111"
+              color={tema.cores.icone}
             />
           </TouchableOpacity>
           <View style={styles.espacoMenuCorrida} />
@@ -543,7 +582,11 @@ export default function NavegacaoAtiva({
             <View style={styles.informacoesChegada}>
               {status === "em_andamento" && horarioChegada && (
                 <View style={styles.avisoLimiteChegada}>
-                  <Ionicons name="time-outline" size={16} color="#111" />
+                  <Ionicons
+                    name="time-outline"
+                    size={16}
+                    color={tema.cores.icone}
+                  />
                   <Text style={styles.avisoLimiteChegadaTexto}>
                     Chegada prevista:
                     <Text style={styles.avisoLimiteChegadaTextoTempo}>
@@ -554,7 +597,11 @@ export default function NavegacaoAtiva({
               )}
               {status === "aceita" && horarioChegada && (
                 <View style={styles.avisoLimiteChegada}>
-                  <Ionicons name="time-outline" size={16} color="#111" />
+                  <Ionicons
+                    name="time-outline"
+                    size={16}
+                    color={tema.cores.icone}
+                  />
                   <Text style={styles.avisoLimiteChegadaTexto}>
                     Chegue antes de:
                     <Text style={styles.avisoLimiteChegadaTextoTempo}>
@@ -573,12 +620,20 @@ export default function NavegacaoAtiva({
             accessibilityLabel="Abrir mais opções da corrida"
             onPress={() => setMaisVisivel(true)}
           >
-            <Ionicons name="menu" size={24} color="#222" />
+            <Ionicons name="menu" size={24} color={tema.cores.icone} />
           </TouchableOpacity>
         </View>
       </View>
     ),
-    [distanciaTexto, horarioChegada, indiceFolha, minutosRestantes, status],
+    [
+      distanciaTexto,
+      horarioChegada,
+      indiceFolha,
+      minutosRestantes,
+      status,
+      styles,
+      tema.cores.icone,
+    ],
   );
 
   // funcional: mostra os telefones de emergência reais. FALTA pra chegar no
@@ -843,7 +898,7 @@ export default function NavegacaoAtiva({
                 <Ionicons
                   name={ICONE_PAGAMENTO[metodoPagamento] ?? "cash"}
                   size={18}
-                  color="#1959B3"
+                  color={tema.escuro ? "#7FB0FF" : "#1959B3"}
                 />
                 <Text style={styles.chipPagamentoTexto}>
                   Corrida em{" "}
@@ -902,7 +957,7 @@ export default function NavegacaoAtiva({
                   accessibilityRole="button"
                   accessibilityLabel="Ligar para o passageiro"
                 >
-                  <Feather name="phone" size={20} color="#000" />
+                  <Feather name="phone" size={20} color={tema.cores.icone} />
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -1000,7 +1055,7 @@ export default function NavegacaoAtiva({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   avisoMapa: {
     backgroundColor: "#FFF",
     borderRadius: 16,
