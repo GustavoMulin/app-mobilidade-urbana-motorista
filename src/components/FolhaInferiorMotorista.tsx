@@ -3,6 +3,7 @@ import type { ItemAcao } from "@/domain/acoesNecessarias";
 import BannersPublicidade from "@/components/BannersPublicidade";
 import { useBannersPublicidade } from "@/hooks/useBannersPublicidade";
 import TituloBloqueio from "@/components/TituloBloqueio";
+import { useTema } from "@/theme/tema";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
@@ -36,6 +37,7 @@ export default function FolhaInferiorMotorista({
   acoes,
   onAlturaAcoes,
 }: DriverSearchProps) {
+  const { cores } = useTema();
   const banners = useBannersPublicidade();
   const [alturaTopo, setAlturaTopo] = useState(0);
   const temAcoes = acoes.length > 0;
@@ -87,6 +89,8 @@ export default function FolhaInferiorMotorista({
         // avisa já no início, para o menu do topo sair antes de a folha chegar
         onAnimate={(_, para) => onSheetChange(para)}
         animatedIndex={indiceAnimado}
+        backgroundStyle={{ backgroundColor: cores.superficie }}
+        handleIndicatorStyle={{ backgroundColor: cores.borda }}
       >
         {/* rola quando, aberta, os recursos passam da altura da folha */}
         <BottomSheetScrollView contentContainerStyle={styles.conteudo}>
@@ -105,7 +109,7 @@ export default function FolhaInferiorMotorista({
           {/* os banners cadastrados na Central de Publicidade da gestão; com
               ação pendente a folha mostra só as ações */}
           {!temAcoes && (
-            <View style={styles.recursos}>
+            <View style={[styles.recursos, { backgroundColor: cores.fundo }]}>
               <BannersPublicidade banners={banners} />
             </View>
           )}
@@ -126,6 +130,5 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     padding: 16,
     paddingBottom: 32,
-    backgroundColor: "#F2F3F5",
   },
 });

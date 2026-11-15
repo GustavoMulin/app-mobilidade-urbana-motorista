@@ -1,4 +1,5 @@
 import { Text } from "@/components/common/Texto";
+import { useTema } from "@/theme/tema";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, {
@@ -19,6 +20,7 @@ const SEMPRE = { reduceMotion: ReduceMotion.Never };
 
 // cada toque no "Conectar" com ação pendente aumenta `aviso` e a faixa fica vermelha
 export default function TituloBloqueio({ aviso }: { aviso: number }) {
+  const { cores } = useTema();
   const [indice, setIndice] = useState(0);
   const [avisoVisto, setAvisoVisto] = useState(aviso);
   const alerta = useSharedValue(0);
@@ -68,7 +70,7 @@ export default function TituloBloqueio({ aviso }: { aviso: number }) {
         exiting={FadeOut.duration(350)}
         style={styles.camada}
       >
-        <Text maxFontSizeMultiplier={1.1} style={styles.texto}>
+        <Text maxFontSizeMultiplier={1.1} style={[styles.texto, { color: cores.texto }]}>
           {TEXTOS[indice]}
         </Text>
       </Animated.View>
@@ -103,7 +105,6 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 28,
     fontWeight: "700",
-    color: "#111",
   },
   textoAlerta: { color: "#FFF" },
 });

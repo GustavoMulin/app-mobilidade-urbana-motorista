@@ -3,7 +3,12 @@ import { Text } from "@/components/common/Texto";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Buscando from "./Buscando";
 
@@ -77,7 +82,7 @@ export default function MenuInferiorMotorista({
           elevation: 0,
         }
       : {
-          backgroundColor: bloqueado ? "#E0E0E0" : "#FFD600",
+          backgroundColor: bloqueado ? cores.neutro : "#FFD600",
         },
   ];
 
@@ -126,9 +131,17 @@ export default function MenuInferiorMotorista({
           >
             {disponivel ? (
               <Buscando />
+            ) : ocupado && !emCorrida ? (
+              // conectando ou desconectando: um loading no lugar das reticências
+              <ActivityIndicator
+                size="small"
+                color="#000"
+                accessibilityLabel="Conectando"
+                style={styles.carregando}
+              />
             ) : (
               <Text style={styles.connectTextLarge}>
-                {emCorrida ? "Em corrida" : ocupado ? "..." : "Conectar"}
+                {emCorrida ? "Em corrida" : "Conectar"}
               </Text>
             )}
           </TouchableOpacity>
@@ -202,6 +215,8 @@ const styles = StyleSheet.create({
     elevation: 3,
     minHeight: 60,
   },
+  // mesma altura do texto, para o botão não mudar de tamanho
+  carregando: { height: 29 },
   connectTextLarge: {
     color: "black",
     fontSize: 24,
