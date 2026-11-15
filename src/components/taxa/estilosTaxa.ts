@@ -1,3 +1,4 @@
+import { useEstilos, type CoresDoTema } from "@/theme/tema";
 import { StyleSheet } from "react-native";
 
 // altura do gráfico diário, usada também pelo componente do gráfico
@@ -154,3 +155,16 @@ export const estilosTaxa = StyleSheet.create({
   itemHistoricoDetalhe: { fontSize: 13, color: "#888", marginTop: 2 },
   itemHistoricoValor: { fontSize: 17, fontWeight: "bold", color: "#222" },
 });
+
+// no escuro: avisos e chips em tons escuros (o texto ganha um tom mais claro)
+export const extrasTaxa = (_cores: CoresDoTema) => ({
+  "backgroundColor:#fdecea": "#3A1D1B",
+  "color:#b3261e": "#F28B82",
+  "backgroundColor:#ffe9b8": "#3D3320",
+  "color:#b07a00": "#F2B640",
+});
+
+/** Estilos das telas de taxa no tema atual. */
+export function useEstilosTaxa() {
+  return useEstilos(estilosTaxa, extrasTaxa);
+}

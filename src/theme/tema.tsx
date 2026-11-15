@@ -223,6 +223,8 @@ const ITENS = [
   "#eee",
   "#e5e7eb",
   "#ecedef",
+  "#ececee",
+  "#f4f4f6",
 ];
 const TEXTOS = [
   "#111",
