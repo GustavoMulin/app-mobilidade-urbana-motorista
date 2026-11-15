@@ -37,7 +37,7 @@ export default function FolhaInferiorMotorista({
   acoes,
   onAlturaAcoes,
 }: DriverSearchProps) {
-  const { cores } = useTema();
+  const { escuro, cores } = useTema();
   const banners = useBannersPublicidade();
   const [alturaTopo, setAlturaTopo] = useState(0);
   const temAcoes = acoes.length > 0;
@@ -90,7 +90,9 @@ export default function FolhaInferiorMotorista({
         onAnimate={(_, para) => onSheetChange(para)}
         animatedIndex={indiceAnimado}
         backgroundStyle={{ backgroundColor: cores.superficie }}
-        handleIndicatorStyle={{ backgroundColor: cores.borda }}
+        handleIndicatorStyle={{
+          backgroundColor: escuro ? "#6B727D" : "#C9CDD2",
+        }}
       >
         {/* rola quando, aberta, os recursos passam da altura da folha */}
         <BottomSheetScrollView contentContainerStyle={styles.conteudo}>
