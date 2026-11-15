@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -26,6 +27,8 @@ export default function VerificacoesUsuario({
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -122,7 +125,7 @@ export default function VerificacoesUsuario({
       {/* Ícone com check */}
       <View style={styles.iconWrapper}>
         <View style={styles.iconCircle}>
-          <Ionicons name={item.icon} size={22} color="#555" />
+          <Ionicons name={item.icon} size={22} color={cores.textoApoio} />
         </View>
 
         {/* CHECK AJUSTADO */}
@@ -159,7 +162,7 @@ export default function VerificacoesUsuario({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back-outline" size={26} color="#111" />
+              <Ionicons name="arrow-back-outline" size={26} color={cores.icone} />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Verificações</Text>
@@ -177,7 +180,7 @@ export default function VerificacoesUsuario({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

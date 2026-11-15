@@ -207,3 +207,109 @@ export function useTema(): ContextoDoTema {
     throw new Error("useTema precisa estar dentro do TemaProvider");
   return contexto;
 }
+
+// Cores fixas que as telas antigas usam no modo claro e o papel de cada uma no
+// modo escuro. Cores de marca (amarelo, laranja, verde) não entram: valem nos dois.
+const SUPERFICIES = ["#fff", "#ffffff"];
+const FUNDOS = ["#f7f7f7"];
+const ITENS = [
+  "#f5f5f5",
+  "#f9f9f9",
+  "#f8f8f8",
+  "#f2f3f5",
+  "#f3f4f6",
+  "#f0f0f0",
+  "#eeeeee",
+  "#eee",
+  "#e5e7eb",
+  "#ecedef",
+];
+const TEXTOS = [
+  "#111",
+  "#111111",
+  "#222",
+  "#333",
+  "#444",
+  "#1f1f1f",
+  "#2b2b2b",
+  "#000",
+  "black",
+];
+const APOIOS = [
+  "#555",
+  "#666",
+  "#777",
+  "#888",
+  "#999",
+  "#9aa0a6",
+  "#a0a4a8",
+  "#8a8a8f",
+  "#9a9aa0",
+  "#6b7280",
+];
+const BORDAS = ["#e5e5e5", "#eee", "#f0f0f0", "#ccc", "#ddd", "#d5d5d5"];
+
+function corNoEscuro(
+  propriedade: string,
+  valor: string,
+  cores: CoresDoTema,
+  extras?: ExtrasDoTema,
+) {
+  const cor = valor.toLowerCase();
+  // trocas próprias da tela: "propriedade:cor" vale só para aquela propriedade
+  const propria = extras?.[`${propriedade}:${cor}`] ?? extras?.[cor];
+  if (propria) return propria;
+  const eBorda = propriedade.startsWith("border");
+  const eTexto = propriedade === "color";
+
+  if (eBorda) {
+    if (BORDAS.includes(cor) || SUPERFICIES.includes(cor)) return cores.borda;
+    return valor;
+  }
+  // texto branco (sobre fundos de marca) já lê bem no escuro
+  if (eTexto && SUPERFICIES.includes(cor)) return valor;
+  if (SUPERFICIES.includes(cor)) return cores.superficie;
+  if (FUNDOS.includes(cor)) return cores.fundo;
+  if (ITENS.includes(cor)) return eTexto ? valor : cores.item;
+  if (TEXTOS.includes(cor)) return cores.texto;
+  if (APOIOS.includes(cor)) return cores.textoApoio;
+  return valor;
+}
+
+const PROPRIEDADES_DE_COR =
+  /^(color|backgroundColor|border(Top|Bottom|Left|Right)?Color)$/;
+
+/** Trocas de cor de uma tela: `"#abc"` ou `"backgroundColor:#abc"` para a cor escura. */
+export type ExtrasDoTema = Record<string, string>;
+
+/** Converte as cores fixas de um `StyleSheet` para o modo escuro. */
+export function tematizar<T extends Record<string, object>>(
+  estilos: T,
+  cores: CoresDoTema,
+  extras?: ExtrasDoTema,
+): T {
+  const resultado: Record<string, object> = {};
+  for (const [nome, estilo] of Object.entries(estilos)) {
+    const novo: Record<string, unknown> = {};
+    for (const [propriedade, valor] of Object.entries(estilo)) {
+      novo[propriedade] =
+        typeof valor === "string" && PROPRIEDADES_DE_COR.test(propriedade)
+          ? corNoEscuro(propriedade, valor, cores, extras)
+          : valor;
+    }
+    resultado[nome] = novo;
+  }
+  return resultado as T;
+}
+
+/** Estilos da tela no tema atual: no claro devolve os mesmos estilos. */
+export function useEstilos<T extends Record<string, object>>(
+  estilos: T,
+  extras?: (cores: CoresDoTema) => ExtrasDoTema,
+): T {
+  const { escuro, cores } = useTema();
+  return useMemo(
+    () => (escuro ? tematizar(estilos, cores, extras?.(cores)) : estilos),
+    [escuro, cores, estilos, extras],
+  );
+}

@@ -1,3 +1,4 @@
+import { useEstilos, useTema, type CoresDoTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import { api } from "@/Services/api";
 import { Ionicons } from "@expo/vector-icons";
@@ -146,6 +147,10 @@ export default function SeusGanhos({
   duration = 200,
   periodoInicial = "semanal",
 }: Props) {
+  const { cores, escuro } = useTema();
+  const acento = escuro ? "#4A4F8F" : AZUL;
+  const acentoTexto = escuro ? "#A9AEF0" : AZUL;
+  const styles = useEstilos(estilosBase, extrasSeusGanhos);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [isMounted, setIsMounted] = useState(visible);
@@ -313,7 +318,7 @@ export default function SeusGanhos({
               accessibilityRole="button"
               accessibilityLabel="Voltar"
             >
-              <Ionicons name="chevron-back" size={26} color={TEXTO} />
+              <Ionicons name="chevron-back" size={26} color={cores.icone} />
             </TouchableOpacity>
             <Text style={styles.titulo}>Seus ganhos</Text>
           </View>
@@ -332,7 +337,7 @@ export default function SeusGanhos({
                 <View
                   style={[
                     styles.sublinhado,
-                    tipo === valor && { backgroundColor: AZUL },
+                    tipo === valor && { backgroundColor: acento },
                   ]}
                 />
               </TouchableOpacity>
@@ -369,7 +374,7 @@ export default function SeusGanhos({
             accessibilityRole="button"
           >
             <Text style={styles.seletorDataTexto}>{rotuloPeriodo}</Text>
-            <Ionicons name="caret-down" size={16} color={TEXTO} />
+            <Ionicons name="caret-down" size={16} color={cores.icone} />
           </TouchableOpacity>
         </View>
 
@@ -388,7 +393,7 @@ export default function SeusGanhos({
                 </TouchableOpacity>
               </>
             ) : (
-              <ActivityIndicator size="large" color={AZUL} />
+              <ActivityIndicator size="large" color={acentoTexto} />
             )}
           </View>
         ) : (
@@ -518,7 +523,7 @@ export default function SeusGanhos({
               }
               accessibilityRole="button"
             >
-              <Ionicons name="receipt-outline" size={24} color={TEXTO} />
+              <Ionicons name="receipt-outline" size={24} color={cores.icone} />
               <Text style={styles.demonstrativoTexto}>
                 Demonstrativo de ganhos
               </Text>
@@ -553,7 +558,7 @@ export default function SeusGanhos({
                 accessibilityRole="button"
                 accessibilityLabel="Fechar"
               >
-                <Ionicons name="close" size={30} color="#111" />
+                <Ionicons name="close" size={30} color={cores.icone} />
               </TouchableOpacity>
               <Text style={styles.folhaTitulo}>
                 {periodo === "mensal" ? "Selecionar data" : "Selecionar semana"}
@@ -599,7 +604,11 @@ export default function SeusGanhos({
                       }
                       accessibilityLabel="Mês anterior"
                     >
-                      <Ionicons name="caret-back" size={18} color="#111" />
+                      <Ionicons
+                        name="caret-back"
+                        size={18}
+                        color={cores.icone}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.navegacaoTexto}>
                       {`${MESES[mesSemanas.getMonth()]} ${mesSemanas.getFullYear()}`}
@@ -621,7 +630,7 @@ export default function SeusGanhos({
                           <Ionicons
                             name="caret-forward"
                             size={18}
-                            color={pode ? "#111" : "#CCC"}
+                            color={pode ? cores.icone : cores.textoDesativado}
                           />
                         </TouchableOpacity>
                       );
@@ -674,6 +683,10 @@ function Grafico({
   selecionado?: string;
   onEscolher?: (data: string) => void;
 }) {
+  const { escuro } = useTema();
+  const acento = escuro ? "#4A4F8F" : AZUL;
+  const apagada = escuro ? "#3A3F4B" : "#C9CAD6";
+  const styles = useEstilos(estilosBase, extrasSeusGanhos);
   const maior = Math.max(0, ...pontos.map((ponto) => Number(ponto.valor) || 0));
   return (
     <View style={styles.grafico}>
@@ -695,7 +708,7 @@ function Grafico({
                   styles.barra,
                   {
                     height: Math.max(6, (valor / maior) * 90),
-                    backgroundColor: destaque ? AZUL : "#C9CAD6",
+                    backgroundColor: destaque ? acento : apagada,
                   },
                 ]}
               />
@@ -731,6 +744,9 @@ function ListaGanhos({
   tipo: TipoServico;
   onClose: () => void;
 }) {
+  const { cores, escuro } = useTema();
+  const acentoTexto = escuro ? "#A9AEF0" : AZUL;
+  const styles = useEstilos(estilosBase, extrasSeusGanhos);
   const insets = useSafeAreaInsets();
   const [pagina, setPagina] = useState(1);
   const [estado, setEstado] = useState({
@@ -783,7 +799,7 @@ function ListaGanhos({
           accessibilityRole="button"
           accessibilityLabel="Voltar"
         >
-          <Ionicons name="chevron-back" size={26} color={TEXTO} />
+          <Ionicons name="chevron-back" size={26} color={cores.icone} />
         </TouchableOpacity>
         <Text style={styles.titulo}>{titulo}</Text>
       </View>
@@ -800,7 +816,7 @@ function ListaGanhos({
         }}
         ListEmptyComponent={
           carregando ? (
-            <ActivityIndicator size="large" color={AZUL} />
+            <ActivityIndicator size="large" color={acentoTexto} />
           ) : (
             <Text style={styles.vazioTexto}>
               {estado.erro
@@ -838,7 +854,17 @@ function ListaGanhos({
   );
 }
 
-const styles = StyleSheet.create({
+// no escuro o azul-marinho vira um lilás (texto) ou um azul médio (fundos)
+const extrasSeusGanhos = (cores: CoresDoTema) => ({
+  "#f2f3f5": cores.fundo,
+  "#f5f5f7": cores.item,
+  "#d7d8de": cores.neutro,
+  "#e5e5ea": cores.borda,
+  "color:#2d2f50": "#A9AEF0",
+  "backgroundColor:#2d2f50": "#4A4F8F",
+});
+
+const estilosBase = StyleSheet.create({
   tela: { flex: 1, backgroundColor: FUNDO },
   topo: { backgroundColor: "#FFF", paddingBottom: 8 },
   cabecalho: {

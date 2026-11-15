@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -37,6 +38,8 @@ export default function NotasAgradecimento({
   duration = 200,
   data,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -122,7 +125,7 @@ export default function NotasAgradecimento({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back-outline" size={26} color="#111" />
+              <Ionicons name="arrow-back-outline" size={26} color={cores.icone} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Comentário</Text>
             <View style={{ width: 26 }} />
@@ -169,7 +172,7 @@ export default function NotasAgradecimento({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

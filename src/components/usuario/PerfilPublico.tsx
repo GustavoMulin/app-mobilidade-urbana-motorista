@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -84,6 +85,8 @@ export default function PerfilPublico({
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [isMounted, setIsMounted] = useState(visible);
@@ -126,7 +129,7 @@ export default function PerfilPublico({
           style={[styles.header, { paddingTop: Math.max(insets.top + 12, 45) }]}
         >
           <TouchableOpacity onPress={onClose} hitSlop={12}>
-            <Ionicons name="chevron-back" size={26} color="#111" />
+            <Ionicons name="chevron-back" size={26} color={cores.icone} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Perfil público</Text>
         </View>
@@ -156,7 +159,7 @@ export default function PerfilPublico({
             <View style={styles.numero}>
               <View style={styles.numeroLinha}>
                 <Text style={styles.numeroValor}>{perfil.nota}</Text>
-                <Ionicons name="star" size={22} color="#111" />
+                <Ionicons name="star" size={22} color={cores.icone} />
               </View>
               <Text style={styles.numeroRotulo}>Nota</Text>
             </View>
@@ -174,13 +177,13 @@ export default function PerfilPublico({
             <Text style={styles.secaoTitulo}>Verificações</Text>
             <View style={styles.maisLinha}>
               <Text style={styles.maisTexto}>Mais</Text>
-              <Ionicons name="chevron-forward" size={16} color="#555" />
+              <Ionicons name="chevron-forward" size={16} color={cores.textoApoio} />
             </View>
           </View>
           <View style={styles.chips}>
             {verificacoes.map((titulo) => (
               <View key={titulo} style={styles.chip}>
-                <Ionicons name="checkmark" size={14} color="#111" />
+                <Ionicons name="checkmark" size={14} color={cores.icone} />
                 <Text style={styles.chipTexto}>{titulo}</Text>
               </View>
             ))}
@@ -254,7 +257,7 @@ export default function PerfilPublico({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   tela: { ...StyleSheet.absoluteFill, backgroundColor: "#fff" },
   header: {
     flexDirection: "row",

@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -40,21 +41,26 @@ const RatingRow = ({
   stars: number;
   count: number;
   percentage: number;
-}) => (
-  <View style={styles.ratingRow}>
-    <Text style={styles.starLabel}>{stars} ★</Text>
-    <View style={styles.barBackground}>
-      <View style={[styles.barFill, { width: `${percentage}%` }]} />
+}) => {
+  const styles = useEstilos(estilosBase);
+  return (
+    <View style={styles.ratingRow}>
+      <Text style={styles.starLabel}>{stars} ★</Text>
+      <View style={styles.barBackground}>
+        <View style={[styles.barFill, { width: `${percentage}%` }]} />
+      </View>
+      <Text style={styles.ratingCount}>{count}</Text>
     </View>
-    <Text style={styles.ratingCount}>{count}</Text>
-  </View>
-);
+  );
+};
 
 export default function PerfilUsuario({
   visible,
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -161,7 +167,7 @@ export default function PerfilUsuario({
             <View style={styles.headerContent}>
               <View style={styles.headerContentLeft}>
                 <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="chevron-back" size={24} color="#111" />
+                  <Ionicons name="chevron-back" size={24} color={cores.icone} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Perfil de usuário</Text>
               </View>
@@ -261,7 +267,9 @@ export default function PerfilUsuario({
                           </View>
                         </TouchableOpacity>
                         <View style={styles.badgeCountContainer}>
-                          <Text style={styles.badgeCountText}>{item.quantidade}</Text>
+                          <Text style={styles.badgeCountText}>
+                            {item.quantidade}
+                          </Text>
                         </View>
                       </View>
                       <Text style={styles.badgeLabel}>{item.titulo}</Text>
@@ -328,7 +336,9 @@ export default function PerfilUsuario({
                 contentContainerStyle={styles.horizontalScroll}
               >
                 {dicasAvaliacao.length === 0 && (
-                  <Text style={styles.semDados}>Nenhuma dica cadastrada por enquanto.</Text>
+                  <Text style={styles.semDados}>
+                    Nenhuma dica cadastrada por enquanto.
+                  </Text>
                 )}
                 {dicasAvaliacao.map((item) => (
                   <View key={item.id} style={styles.dicaCard}>
@@ -424,7 +434,7 @@ export default function PerfilUsuario({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

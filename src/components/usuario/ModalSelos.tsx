@@ -1,3 +1,4 @@
+import { useEstilos } from "@/theme/tema";
 import { useEffect, useState } from "react";
 import { useVoltarFecha } from "@/hooks/useVoltarFecha";
 import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
@@ -34,6 +35,7 @@ export default function ModalSelos({
   headerHeight,
   data,
 }: Props) {
+  const styles = useEstilos(estilosBase);
   const [slideAnim] = useState(() => new Animated.Value(height));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -130,7 +132,7 @@ export default function ModalSelos({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   body: {
     padding: 24,
     alignItems: "center",
