@@ -166,7 +166,7 @@ export const formatarTelefone = (texto: string) => {
 const semAcento = (texto: string) =>
   texto
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
 
