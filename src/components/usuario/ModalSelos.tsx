@@ -1,10 +1,11 @@
+import { useEstilos } from "@/theme/tema";
 import { useEffect, useState } from "react";
 import { useVoltarFecha } from "@/hooks/useVoltarFecha";
+import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
 import { Text } from "@/components/common/Texto";
 import {
   Animated,
   Dimensions,
-  Image,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -17,7 +18,8 @@ interface AvaliacaoPositiva {
   id: string;
   titulo: string;
   subtitulo: string;
-  avatar: string;
+  icone: string;
+  imagem?: string | null;
 }
 
 interface Props {
@@ -33,6 +35,9 @@ export default function ModalSelos({
   headerHeight,
   data,
 }: Props) {
+  const tema = useEstilos(estilosBase);
+  // o botão amarelo mantém o texto escuro nos dois modos
+  const styles = { ...tema, buttonText: estilosBase.buttonText };
   const [slideAnim] = useState(() => new Animated.Value(height));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -102,7 +107,22 @@ export default function ModalSelos({
       >
         <View style={styles.body}>
           <View style={styles.avatarSection}>
-            <Image source={{ uri: data?.avatar }} style={styles.avatar} />
+            <View
+              style={[
+                styles.avatar,
+                {
+                  alignItems: "center",
+                  justifyContent: "center",
+                  backgroundColor: "#F3F4F6",
+                },
+              ]}
+            >
+              <IconeDoSelo
+                imagem={data?.imagem}
+                icone={data?.icone ?? ""}
+                tamanho={100}
+              />
+            </View>
             <Text style={styles.title}>{data?.titulo}</Text>
             <Text style={styles.subtitle}>{data?.subtitulo}</Text>
           </View>
@@ -118,7 +138,7 @@ export default function ModalSelos({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   body: {
     padding: 24,
     alignItems: "center",
@@ -156,6 +176,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     fontSize: 26,
     fontWeight: "400",
+    color: "#333",
   },
   footer: {
     paddingHorizontal: 20,
@@ -171,5 +192,6 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 18,
     fontWeight: "700",
+    color: "#111",
   },
 });

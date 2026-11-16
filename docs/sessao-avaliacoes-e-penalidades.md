@@ -50,8 +50,8 @@ Backend: `RestricaoNotaService`, tabelas `alertas_por_nota` e `restricoes_por_no
 | Projeto | Porta |
 |---|---|
 | Gestão | 8081 |
-| Passageiro | 8082 |
-| Motorista | 8083 |
+| Motorista | 8082 |
+| Passageiro | 8083 |
 
 `npm run start:go` já usa a porta de cada app. O `.env.local` de cada app define `RCT_METRO_PORT` para o `npx expo start -c` (esse arquivo não vai para o Git). Detalhes em `docs/atualizacao-sdk-58.md`.
 

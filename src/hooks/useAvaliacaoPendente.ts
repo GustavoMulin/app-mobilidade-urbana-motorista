@@ -63,8 +63,36 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
     return () => clearTimeout(timer);
   }, [buscar, recarregarQuando]);
 
+  // bloquear o passageiro: ele não toca mais nas suas chamadas
+  const bloquear = useCallback(async () => {
+    if (corrida === null) return false;
+
+    try {
+      await api.post("/bloqueios-usuarios", {
+        perfil: "motorista",
+        corrida_id: corrida.id,
+      });
+      mostrarToast({
+        tipo: "success",
+        titulo: "Passageiro bloqueado",
+        mensagem: "Você não receberá mais chamadas dele.",
+      });
+
+      return true;
+    } catch {
+      mostrarToast({
+        tipo: "error",
+        titulo: "Não foi possível bloquear",
+        mensagem: "Confira sua conexão e tente de novo.",
+      });
+
+      return false;
+    }
+  }, [corrida, mostrarToast]);
+
+  // o motorista avalia com nota e selos; só o passageiro escreve comentário
   const avaliar = useCallback(
-    async (nota: number, comentario?: string) => {
+    async (nota: number, elogios: string[] = []) => {
       if (corrida === null) return false;
 
       setEnviando(true);
@@ -73,7 +101,7 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
         await api.post("/avaliacoes-corridas", {
           corrida_id: corrida.id,
           nota,
-          comentario,
+          elogios,
         });
 
         await AsyncStorage.removeItem(chaveLembrete(corrida.id));
@@ -113,5 +141,5 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
     setCorrida(null);
   }, [corrida]);
 
-  return { corrida, enviando, avaliar, dispensar };
+  return { corrida, enviando, avaliar, bloquear, dispensar };
 }

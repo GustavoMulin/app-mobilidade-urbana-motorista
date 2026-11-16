@@ -9,7 +9,7 @@ import {
   Secao,
   type Aba,
 } from "@/components/taxa/ComponentesTaxa";
-import { estilosTaxa as styles } from "@/components/taxa/estilosTaxa";
+import { useEstilosTaxa } from "@/components/taxa/estilosTaxa";
 import PainelDeTaxa from "@/components/taxa/PainelDeTaxa";
 import {
   rotuloDia,
@@ -31,6 +31,7 @@ type ModoHistorico = "mensal" | "diaria";
 
 /** Tela Taxa de Aceitação: taxa do mês, dados diários, regras e histórico. */
 export default function TaxaAceitacao({ visible, onClose, duration }: Props) {
+  const styles = useEstilosTaxa();
   const { dados, erro } = useDadosDaTela<DetalheAceitacao>(
     visible,
     "/motorista/me/taxa-aceitacao",

@@ -4,12 +4,14 @@ import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import PreferenciaCompartilhada from "@/components/PreferenciaCompartilhada";
 import PreferenciasChat from "@/components/PreferenciasChat";
+import { useTema } from "@/theme/tema";
 import {
   Animated,
   BackHandler,
   Dimensions,
   Pressable,
   StyleSheet,
+  Switch,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -61,6 +63,7 @@ export default function Preferencias({
   buscandoCorrida,
 }: props) {
   const insets = useSafeAreaInsets();
+  const { cores, escuro, alternar } = useTema();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
@@ -129,7 +132,7 @@ export default function Preferencias({
           <Animated.View
             style={[
               StyleSheet.absoluteFill,
-              { backgroundColor: "rgba(0,0,0,0.25)", opacity: overlayOpacity },
+              { backgroundColor: cores.veu, opacity: overlayOpacity },
             ]}
           />
         </Pressable>
@@ -139,6 +142,7 @@ export default function Preferencias({
           style={[
             styles.drawer,
             {
+              backgroundColor: cores.fundo,
               transform: [{ translateX }],
             },
           ]}
@@ -147,14 +151,22 @@ export default function Preferencias({
           <View
             style={[
               styles.header,
-              { paddingTop: Math.max(insets.top + 12, 45) },
+              {
+                paddingTop: Math.max(insets.top + 12, 45),
+                backgroundColor: cores.superficie,
+                borderBottomColor: cores.borda,
+              },
             ]}
           >
             <View style={styles.headerContent}>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="arrow-back-outline" size={26} color="#111" />
+                <Ionicons
+                  name="arrow-back-outline"
+                  size={26}
+                  color={cores.icone}
+                />
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>
+              <Text style={[styles.headerTitle, { color: cores.texto }]}>
                 Preferências de solicitações
               </Text>
               <View style={{ width: 26 }} />
@@ -164,9 +176,37 @@ export default function Preferencias({
           {/* BODY */}
           <View style={styles.body}>
             <PreferenciaCompartilhada visivel={visible} />
-            <View style={styles.cardGroup}>
+            <View style={[styles.cardGroup, { backgroundColor: cores.cartao }]}>
+              <View
+                style={[styles.cardButton, { backgroundColor: cores.item }]}
+                accessibilityLabel="Modo escuro"
+              >
+                <Ionicons
+                  name={escuro ? "moon" : "moon-outline"}
+                  size={26}
+                  color={cores.icone}
+                  style={styles.icon}
+                />
+                <View style={styles.cardTextos}>
+                  <Text style={[styles.cardTextoAtivo, { color: cores.texto }]}>
+                    Modo escuro
+                  </Text>
+                  <Text
+                    style={[styles.cardApoio, { color: cores.textoDesativado }]}
+                  >
+                    Telas e mapa com cores escuras
+                  </Text>
+                </View>
+                <Switch
+                  value={escuro}
+                  onValueChange={alternar}
+                  trackColor={{ true: "#17A673", false: "#D1D5DB" }}
+                  thumbColor="#FFF"
+                  accessibilityLabel="Ativar modo escuro"
+                />
+              </View>
               <TouchableOpacity
-                style={styles.cardButton}
+                style={[styles.cardButton, { backgroundColor: cores.item }]}
                 accessibilityRole="button"
                 accessibilityLabel="Mensagens do chat. Frases rápidas de cada etapa da corrida"
                 onPress={() => setChatAberto(true)}
@@ -174,12 +214,16 @@ export default function Preferencias({
                 <Ionicons
                   name="chatbubbles-outline"
                   size={26}
-                  color="#111"
+                  color={cores.icone}
                   style={styles.icon}
                 />
                 <View style={styles.cardTextos}>
-                  <Text style={styles.cardTextoAtivo}>Mensagens do chat</Text>
-                  <Text style={styles.cardApoio}>
+                  <Text style={[styles.cardTextoAtivo, { color: cores.texto }]}>
+                    Mensagens do chat
+                  </Text>
+                  <Text
+                    style={[styles.cardApoio, { color: cores.textoDesativado }]}
+                  >
                     Frases rápidas de cada etapa da corrida
                   </Text>
                 </View>
@@ -188,22 +232,39 @@ export default function Preferencias({
               {ITENS_EM_BREVE.map((item) => (
                 <View
                   key={item.titulo}
-                  style={styles.cardButton}
+                  style={[styles.cardButton, { backgroundColor: cores.item }]}
                   accessibilityLabel={`${item.titulo}, em breve`}
                   accessibilityState={{ disabled: true }}
                 >
                   <Ionicons
                     name={item.icone}
                     size={26}
-                    color="#9CA3AF"
+                    color={cores.textoDesativado}
                     style={styles.icon}
                   />
                   <View style={styles.cardTextos}>
-                    <Text style={styles.cardText}>{item.titulo}</Text>
-                    <Text style={styles.cardApoio}>{item.apoio}</Text>
+                    <Text
+                      style={[styles.cardText, { color: cores.textoApoio }]}
+                    >
+                      {item.titulo}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.cardApoio,
+                        { color: cores.textoDesativado },
+                      ]}
+                    >
+                      {item.apoio}
+                    </Text>
                   </View>
-                  <View style={styles.emBreve}>
-                    <Text style={styles.emBreveTexto}>Em breve</Text>
+                  <View
+                    style={[styles.emBreve, { backgroundColor: cores.neutro }]}
+                  >
+                    <Text
+                      style={[styles.emBreveTexto, { color: cores.textoApoio }]}
+                    >
+                      Em breve
+                    </Text>
                   </View>
                 </View>
               ))}
@@ -217,12 +278,28 @@ export default function Preferencias({
 
           {/* FOOTER */}
           {buscandoCorrida && (
-            <View style={styles.footer}>
+            <View
+              style={[
+                styles.footer,
+                {
+                  backgroundColor: cores.superficie,
+                  borderTopColor: cores.borda,
+                },
+              ]}
+            >
               <TouchableOpacity
-                style={styles.botaoDesconectar}
+                style={[
+                  styles.botaoDesconectar,
+                  {
+                    backgroundColor: cores.superficie,
+                    borderColor: cores.texto,
+                  },
+                ]}
                 onPress={handleDesconectar}
               >
-                <Text style={styles.textoDesconectar}>Desconectar</Text>
+                <Text style={[styles.textoDesconectar, { color: cores.texto }]}>
+                  Desconectar
+                </Text>
               </TouchableOpacity>
             </View>
           )}

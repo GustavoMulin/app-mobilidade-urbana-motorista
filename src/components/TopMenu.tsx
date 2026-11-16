@@ -1,3 +1,4 @@
+import { useTema } from "@/theme/tema";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
@@ -8,6 +9,8 @@ interface TopMenuProps {
 }
 
 export default function TopMenu({ onMenuPress }: TopMenuProps) {
+  const { cores } = useTema();
+
   return (
     // a faixa cobre o topo inteiro: fora do botão, o toque passa para o ganho do dia
     <SafeAreaView
@@ -15,13 +18,13 @@ export default function TopMenu({ onMenuPress }: TopMenuProps) {
       style={styles.topMenuWrapper}
       pointerEvents="box-none"
     >
-      <View style={styles.topMenu}>
+      <View style={[styles.topMenu, { backgroundColor: cores.superficie }]}>
         <TouchableOpacity
           onPress={onMenuPress}
           style={styles.iconButton}
           accessibilityLabel="Abrir menu"
         >
-          <Ionicons name="menu" size={26} color="#111" />
+          <Ionicons name="menu" size={26} color={cores.icone} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>

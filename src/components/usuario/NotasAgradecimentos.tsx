@@ -1,12 +1,18 @@
+import { useEstilos, useTema } from "@/theme/tema";
+import SelosDaNota from "./SelosDaNota";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { api } from "@/Services/api";
+import {
+  textoDeQuando,
+  type NotaDeAgradecimento,
+} from "@/domain/perfilMotorista";
 import {
   Animated,
   BackHandler,
   Dimensions,
-  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -27,10 +33,41 @@ export default function NotasAgradecimento({
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
   const [isMounted, setIsMounted] = useState(visible);
+  const [notas, setNotas] = useState<NotaDeAgradecimento[]>([]);
+  const [pagina, setPagina] = useState(1);
+  const [ultima, setUltima] = useState(1);
+  const [carregando, setCarregando] = useState(false);
+
+  const carregar = async (alvo: number) => {
+    setCarregando(true);
+    try {
+      const { data } = await api.get<{
+        data: NotaDeAgradecimento[];
+        current_page: number;
+        last_page: number;
+      }>("/motorista/me/notas-agradecimento", { params: { page: alvo } });
+      setNotas((atuais) =>
+        alvo === 1 ? data.data : [...atuais, ...data.data],
+      );
+      setPagina(data.current_page);
+      setUltima(data.last_page);
+    } catch {
+      // a lista fica como estava; tenta de novo ao reabrir
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  useEffect(() => {
+    if (visible) void carregar(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
 
   useEffect(() => {
     const onBackPress = () => {
@@ -80,87 +117,42 @@ export default function NotasAgradecimento({
 
   if (!isMounted) return null;
 
-  const renderStars = () => {
-    return (
-      <View style={styles.stars}>
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Text key={i} style={styles.star}>
-            ★
-          </Text>
-        ))}
-      </View>
-    );
-  };
-
-  const renderCard = (item: any, index: number) => (
-    <View key={index} style={styles.card}>
-      {/* aspas */}
-      <Text style={styles.quote}>“</Text>
-
-      {/* avatar */}
-      <Image source={{ uri: item.avatar }} style={styles.avatar} />
-
-      {/* texto */}
-      <Text style={styles.text}>{item.text}</Text>
-
-      {/* tags */}
-      <Text style={styles.tags}>{item.tags}</Text>
-
-      {/* autor */}
-      <Text style={styles.author}>
-        {item.name} • {item.time}
-      </Text>
-
-      {/* estrelas */}
-      {renderStars()}
+  const renderStars = (nota: number) => (
+    <View style={styles.stars}>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Text key={i} style={[styles.star, i >= nota && { color: "#DDD" }]}>
+          ★
+        </Text>
+      ))}
     </View>
   );
 
-  const data = [
-    {
-      text: "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O excelente gosto musical do motorista tornou a viagem agradável. Parabéns!",
-      tags: `"Pontual" "Educado" "Bom condutor" "Sabe o caminho"`,
-      name: "Amanda",
-      time: "1 mês atrás",
-      avatar: "https://i.pravatar.cc/100?img=5",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-    {
-      text: "excelente condutor",
-      tags: `"Simpático" "Pontual" "Educado" "Veículo limpo" "Bom condutor" "Sabe o caminho" "Usou o cinto"`,
-      name: "deivison",
-      time: "5 meses atrás",
-      avatar: "https://i.pravatar.cc/100?img=8",
-    },
-  ];
+  const renderCard = (item: NotaDeAgradecimento) => (
+    <View key={item.id} style={styles.card}>
+      <Text style={styles.quote}>“</Text>
 
+      <Text style={styles.text}>{item.comentario}</Text>
+
+      {item.elogios.length > 0 && (
+        <Text style={styles.tags}>
+          {item.elogios.map((titulo) => `"${titulo}"`).join(" ")}
+        </Text>
+      )}
+
+      <Text style={styles.author}>
+        {item.autor} • {textoDeQuando(item.quando)}
+      </Text>
+
+      {renderStars(item.nota)}
+
+      {/* por último, no fim do cartão, os selos que a mesma avaliação recebeu */}
+      {(item.selos ?? []).length > 0 && (
+        <View style={{ marginTop: 12 }}>
+          <SelosDaNota selos={item.selos} tamanho={30} maximo={5} />
+        </View>
+      )}
+    </View>
+  );
   return (
     <View style={[StyleSheet.absoluteFill, { zIndex: 30 }]}>
       {/* Overlay */}
@@ -181,7 +173,11 @@ export default function NotasAgradecimento({
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose}>
-              <Ionicons name="arrow-back-outline" size={26} color="#111" />
+              <Ionicons
+                name="arrow-back-outline"
+                size={26}
+                color={cores.icone}
+              />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Notas de agradecimentos</Text>
@@ -192,14 +188,38 @@ export default function NotasAgradecimento({
 
         {/* BODY */}
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          {data.map(renderCard)}
+          {notas.length === 0 && !carregando && (
+            <Text
+              style={{
+                padding: 24,
+                textAlign: "center",
+                color: "#777",
+                lineHeight: 20,
+              }}
+            >
+              Ainda não há notas de agradecimento. Os comentários que os
+              passageiros deixarem ao avaliar você aparecem aqui.
+            </Text>
+          )}
+          {notas.map(renderCard)}
+          {pagina < ultima && (
+            <TouchableOpacity
+              disabled={carregando}
+              onPress={() => void carregar(pagina + 1)}
+              style={{ padding: 16, alignItems: "center" }}
+            >
+              <Text style={{ color: "#2F6BFF", fontWeight: "600" }}>
+                {carregando ? "Carregando..." : "Carregar mais"}
+              </Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </Animated.View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

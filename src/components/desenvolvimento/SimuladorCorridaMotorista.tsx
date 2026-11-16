@@ -29,6 +29,8 @@ interface Props {
   onSelecionarEtapa: (etapa: EtapaSimulacaoMotorista) => void;
   onFinalizar: () => void;
   onEncerrar: () => void;
+  // abre a tela de avaliar o passageiro, com uma corrida fictícia
+  onAvaliarPassageiro: () => void;
 }
 
 const rotulos: Record<EtapaSimulacaoMotorista, string> = {
@@ -49,6 +51,7 @@ export default function SimuladorCorridaMotorista({
   onSelecionarEtapa,
   onFinalizar,
   onEncerrar,
+  onAvaliarPassageiro,
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const insets = useSafeAreaInsets();
@@ -191,6 +194,19 @@ export default function SimuladorCorridaMotorista({
                 <Text style={styles.finalizarTexto}>
                   Finalizar corrida simulada
                 </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={bloqueado && !ativa}
+                style={[
+                  styles.etapa,
+                  bloqueado && !ativa && styles.desabilitada,
+                ]}
+                onPress={escolher(onAvaliarPassageiro)}
+              >
+                <Text style={styles.etapaTexto}>Avaliar passageiro</Text>
+                <Ionicons name="star-outline" size={20} color="#1E293B" />
               </TouchableOpacity>
 
               {(ativa || finalizada) && (

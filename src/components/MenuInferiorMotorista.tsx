@@ -1,8 +1,14 @@
+import { useTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useState } from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Buscando from "./Buscando";
 
@@ -31,6 +37,7 @@ export default function MenuInferiorMotorista({
   onAlternarDisponibilidade,
   onAlturaChange,
 }: props) {
+  const { cores } = useTema();
   const [dialogPreferenciasVisible, setDialogPreferenciasVisibleLocal] =
     useState(false);
 
@@ -75,7 +82,7 @@ export default function MenuInferiorMotorista({
           elevation: 0,
         }
       : {
-          backgroundColor: bloqueado ? "#E0E0E0" : "#FFD600",
+          backgroundColor: bloqueado ? cores.neutro : "#FFD600",
         },
   ];
 
@@ -90,7 +97,10 @@ export default function MenuInferiorMotorista({
 
       <SafeAreaView
         edges={["bottom"]}
-        style={styles.bottomMenuWrapper}
+        style={[
+          styles.bottomMenuWrapper,
+          { backgroundColor: cores.superficie, borderTopColor: cores.borda },
+        ]}
         onLayout={({ nativeEvent }) =>
           onAlturaChange?.(Math.ceil(nativeEvent.layout.height))
         }
@@ -102,7 +112,7 @@ export default function MenuInferiorMotorista({
             onPress={MostrarPreferencias}
             activeOpacity={0.8}
           >
-            <Ionicons name="options-outline" size={32} color="#000" />
+            <Ionicons name="options-outline" size={32} color={cores.icone} />
             {/* 🔴 Pontinho vermelho de status */}
             <View
               style={[
@@ -121,9 +131,17 @@ export default function MenuInferiorMotorista({
           >
             {disponivel ? (
               <Buscando />
+            ) : ocupado && !emCorrida ? (
+              // conectando ou desconectando: um loading no lugar das reticências
+              <ActivityIndicator
+                size="small"
+                color="#000"
+                accessibilityLabel="Conectando"
+                style={styles.carregando}
+              />
             ) : (
               <Text style={styles.connectTextLarge}>
-                {emCorrida ? "Em corrida" : ocupado ? "..." : "Conectar"}
+                {emCorrida ? "Em corrida" : "Conectar"}
               </Text>
             )}
           </TouchableOpacity>
@@ -134,7 +152,11 @@ export default function MenuInferiorMotorista({
             onPress={setSolicitacoesCorrida}
             activeOpacity={0.8}
           >
-            <Ionicons name="document-text-outline" size={32} color="#000" />
+            <Ionicons
+              name="document-text-outline"
+              size={32}
+              color={cores.icone}
+            />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -193,6 +215,8 @@ const styles = StyleSheet.create({
     elevation: 3,
     minHeight: 60,
   },
+  // mesma altura do texto, para o botão não mudar de tamanho
+  carregando: { height: 29 },
   connectTextLarge: {
     color: "black",
     fontSize: 24,
