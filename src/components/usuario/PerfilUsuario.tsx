@@ -337,6 +337,7 @@ export default function PerfilUsuario({
                 {notasAgradecimento.map((item) => (
                   <View key={item.id} style={styles.noteCard}>
                     <TouchableOpacity
+                      style={styles.noteConteudo}
                       onPress={() =>
                         mostrarDetalhesMensagem({
                           autor: item.autor,
@@ -348,13 +349,15 @@ export default function PerfilUsuario({
                         })
                       }
                     >
-                      <Text style={styles.noteText} numberOfLines={3}>
-                        {item.comentario}
-                      </Text>
-                      <Text style={styles.noteFooter}>
-                        {item.autor} • {textoDeQuando(item.quando)}
-                      </Text>
-                      {/* no fim do cartão: texto, autor e tempo, e só então os selos da avaliação */}
+                      <View>
+                        <Text style={styles.noteText} numberOfLines={3}>
+                          {item.comentario}
+                        </Text>
+                        <Text style={styles.noteFooter}>
+                          {item.autor} • {textoDeQuando(item.quando)}
+                        </Text>
+                      </View>
+                      {/* os selos ficam no pé do cartão, abaixo de autor e tempo */}
                       {(item.selos ?? []).length > 0 && (
                         <View style={styles.noteSelos}>
                           <SelosDaNota selos={item.selos} tamanho={26} />
@@ -622,7 +625,8 @@ const estilosBase = StyleSheet.create({
     marginRight: 12,
     justifyContent: "space-between",
   },
-  noteSelos: { marginTop: 8 },
+  noteConteudo: { flex: 1, justifyContent: "space-between" },
+  noteSelos: { marginTop: 12 },
   noteText: {
     fontSize: 14,
     color: "#333",
