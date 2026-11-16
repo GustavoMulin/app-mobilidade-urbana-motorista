@@ -215,7 +215,11 @@ export const formatarTelefone = (texto: string) => {
 };
 
 const semAcento = (texto: string) =>
-  texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+  texto
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 /** Busca da lista de estados e cidades: "sao joao" acha "São João"; vazio acha tudo. */
 export const combinaComBusca = (busca: string, ...textos: string[]) => {
