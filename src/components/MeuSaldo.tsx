@@ -39,6 +39,7 @@ const ICONE_MOVIMENTO: Record<
   corrida: "car",
   taxa_dinheiro: "cash",
   taxa_cancelamento: "cash-plus",
+  gorjeta: "hand-coin",
   saque: "bank-transfer-out",
 };
 

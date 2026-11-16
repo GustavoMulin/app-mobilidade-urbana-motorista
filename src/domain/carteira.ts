@@ -38,7 +38,7 @@ export interface Saque {
 }
 
 export interface Movimento {
-  tipo: "corrida" | "taxa_dinheiro" | "taxa_cancelamento" | "saque";
+  tipo: "corrida" | "taxa_dinheiro" | "taxa_cancelamento" | "gorjeta" | "saque";
   id: number;
   descricao: string;
   detalhe: string;
