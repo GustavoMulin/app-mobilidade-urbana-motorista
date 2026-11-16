@@ -51,7 +51,10 @@ import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import { usePermissoesPendentes } from "@/hooks/usePermissoesPendentes";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
-import { useSimuladorCorridaMotorista } from "@/hooks/useSimuladorCorridaMotorista";
+import {
+  CORRIDA_SIMULADA_PARA_AVALIAR,
+  useSimuladorCorridaMotorista,
+} from "@/hooks/useSimuladorCorridaMotorista";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import {
@@ -265,6 +268,7 @@ export default function Home() {
     corrida: corridaParaAvaliar,
     enviando: enviandoAvaliacao,
     avaliar,
+    bloquear: bloquearPassageiro,
     dispensar: dispensarAvaliacao,
   } = useAvaliacaoPendente(corrida?.id ?? null);
   const encerrarSimulacao = simuladorCorrida.encerrar;
@@ -457,7 +461,8 @@ export default function Home() {
                   : ALTURA_FOLHA_CORRIDA
           }
           botaoAcima={
-            corridaExibida === null && !chamadaNoMapa ? (
+            // os atalhos de cima só aparecem com o motorista conectado
+            corridaExibida === null && !chamadaNoMapa && disponivelExibido ? (
               <>
                 {gestosDisponiveis ? (
                   <Suspense fallback={null}>
@@ -597,9 +602,40 @@ export default function Home() {
             corrida={corridaParaAvaliar}
             enviando={enviandoAvaliacao}
             onAvaliar={avaliar}
+            onBloquear={bloquearPassageiro}
             onDispensar={dispensarAvaliacao}
           />
         )}
+
+      {/* simulador: a tela de avaliar o passageiro com uma corrida fictícia */}
+      {simuladorCorrida.avaliando && (
+        <AvaliarPassageiro
+          corrida={CORRIDA_SIMULADA_PARA_AVALIAR}
+          enviando={false}
+          onAvaliar={(nota, elogios) => {
+            simuladorCorrida.encerrarAvaliacao();
+            mostrarToast({
+              tipo: "info",
+              titulo: "Avaliação simulada",
+              mensagem: `${nota} estrela(s)${
+                elogios.length > 0 ? ` e ${elogios.length} selo(s)` : ""
+              }. Nada foi enviado.`,
+              chave: "simulacao:avaliacao",
+            });
+          }}
+          onBloquear={async () => {
+            mostrarToast({
+              tipo: "info",
+              titulo: "Bloqueio simulado",
+              mensagem: "O passageiro fictício não foi bloqueado de verdade.",
+              chave: "simulacao:bloqueio",
+            });
+
+            return true;
+          }}
+          onDispensar={simuladorCorrida.encerrarAvaliacao}
+        />
+      )}
 
       {ganhoRecebido !== null && (
         <DinheiroRecebido
@@ -866,6 +902,7 @@ export default function Home() {
         onSelecionarEtapa={simuladorCorrida.selecionarEtapa}
         onFinalizar={simuladorCorrida.finalizar}
         onEncerrar={simuladorCorrida.encerrar}
+        onAvaliarPassageiro={simuladorCorrida.avaliarPassageiro}
       />
     </View>
   );

@@ -1,3 +1,4 @@
+import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import { enderecoCurto } from "@/domain/endereco";
 import type { ParadaDoGrupo } from "@/hooks/useDespachoMotorista";
@@ -13,6 +14,8 @@ const emReais = (valor: number) => `R$ ${valor.toFixed(2).replace(".", ",")}`;
 // Viagem compartilhada: as paradas na ordem do trajeto (o carro nunca volta
 // atrás). A parada da vez fica em destaque; quem cancelou some do caminho.
 export default function ListaParadasDoGrupo({ paradas }: Props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase, extrasDaCorrida);
   const visiveis = paradas.filter((parada) => !parada.cancelada);
   const daVez = visiveis.findIndex((parada) => !parada.feita);
   const pessoas = new Set(visiveis.map((parada) => parada.corrida_id)).size;
@@ -20,7 +23,7 @@ export default function ListaParadasDoGrupo({ paradas }: Props) {
   return (
     <View style={styles.caixa} accessibilityRole="list">
       <View style={styles.cabecalho}>
-        <Ionicons name="people" size={16} color="#111" />
+        <Ionicons name="people" size={16} color={cores.icone} />
         <Text style={styles.titulo}>
           Compartilhada · {pessoas}{" "}
           {pessoas === 1 ? "passageiro" : "passageiros"}
@@ -78,7 +81,7 @@ export default function ListaParadasDoGrupo({ paradas }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   caixa: {
     borderRadius: 14,
     backgroundColor: "#F7F8FA",

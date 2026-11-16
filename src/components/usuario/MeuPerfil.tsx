@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -35,6 +36,8 @@ interface props {
 }
 
 export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -179,14 +182,14 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
   ) => (
     <TouchableOpacity onPress={onPress} style={styles.item}>
       <View style={styles.left}>
-        <Ionicons name={icon} size={22} color="#333" />
+        <Ionicons name={icon} size={22} color={cores.icone} />
         <View style={{ marginLeft: 12 }}>
           <Text style={styles.title}>{title}</Text>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
       </View>
 
-      <Ionicons name="chevron-forward" size={18} color="black" />
+      <Ionicons name="chevron-forward" size={18} color={cores.icone} />
     </TouchableOpacity>
   );
 
@@ -214,7 +217,7 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
           >
             <View style={styles.headerRow}>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="close-outline" size={26} color="#111" />
+                <Ionicons name="close-outline" size={26} color={cores.icone} />
               </TouchableOpacity>
 
               <Text style={styles.headerTitle}>Perfil</Text>
@@ -330,7 +333,7 @@ export default function MeuPefil({ visible, onClose, duration = 200 }: props) {
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

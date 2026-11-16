@@ -46,6 +46,19 @@ test("mostra o tempo na plataforma em meses e depois em anos", () => {
   assert.deepEqual(tempoNaPlataforma(30), { valor: "2", rotulo: "Anos" });
 });
 
+test("tempoNaPlataforma mostra dias no primeiro mês e horas no primeiro dia", () => {
+  const agora = new Date("2026-11-15T12:00:00Z");
+
+  assert.deepEqual(tempoNaPlataforma(0, "2026-11-03T12:00:00Z", agora), { valor: "12", rotulo: "Dias" });
+  assert.deepEqual(tempoNaPlataforma(0, "2026-11-14T12:00:00Z", agora), { valor: "1", rotulo: "Dia" });
+  assert.deepEqual(tempoNaPlataforma(0, "2026-11-15T07:00:00Z", agora), { valor: "5", rotulo: "Horas" });
+  assert.deepEqual(tempoNaPlataforma(0, "2026-11-15T11:00:00Z", agora), { valor: "1", rotulo: "Hora" });
+  assert.deepEqual(tempoNaPlataforma(0, "2026-11-15T11:59:00Z", agora), { valor: "0", rotulo: "Horas" });
+  // sem a data (ou a partir de 1 mês) segue em meses e anos
+  assert.deepEqual(tempoNaPlataforma(0, null, agora), { valor: "0", rotulo: "Meses" });
+  assert.deepEqual(tempoNaPlataforma(3, "2026-08-15T12:00:00Z", agora), { valor: "3", rotulo: "Meses" });
+});
+
 test("escreve há quanto tempo a nota de agradecimento chegou", () => {
   const agora = new Date("2026-11-14T12:00:00Z");
   const antes = (ms) => new Date(agora.getTime() - ms).toISOString();

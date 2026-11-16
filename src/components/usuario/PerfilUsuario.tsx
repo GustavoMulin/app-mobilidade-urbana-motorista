@@ -1,3 +1,4 @@
+import { useEstilos, useTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
@@ -13,8 +14,21 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import IconeDoSelo from "@/components/avaliacao/IconeDoSelo";
+import SelosDaNota from "./SelosDaNota";
+import { useDadosDaTela } from "@/hooks/useDadosDaTela";
+import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
+import {
+  larguraDaBarra,
+  tempoNaPlataforma,
+  textoDaMedia,
+  textoDeQuando,
+  totalDaDistribuicao,
+  type PerfilMotorista,
+} from "@/domain/perfilMotorista";
 import DetalhesComentario from "./DetalhesComentario";
 import DicasAvaliacao from "./DicasAvaliacao";
+import PerfilPublico from "./PerfilPublico";
 import MeuPerfil from "./MeuPerfil";
 import ModalSelos from "./ModalSelos";
 import NotasAgradecimentos from "./NotasAgradecimentos";
@@ -36,21 +50,26 @@ const RatingRow = ({
   stars: number;
   count: number;
   percentage: number;
-}) => (
-  <View style={styles.ratingRow}>
-    <Text style={styles.starLabel}>{stars} ★</Text>
-    <View style={styles.barBackground}>
-      <View style={[styles.barFill, { width: `${percentage}%` }]} />
+}) => {
+  const styles = useEstilos(estilosBase);
+  return (
+    <View style={styles.ratingRow}>
+      <Text style={styles.starLabel}>{stars} ★</Text>
+      <View style={styles.barBackground}>
+        <View style={[styles.barFill, { width: `${percentage}%` }]} />
+      </View>
+      <Text style={styles.ratingCount}>{count}</Text>
     </View>
-    <Text style={styles.ratingCount}>{count}</Text>
-  </View>
-);
+  );
+};
 
 export default function PerfilUsuario({
   visible,
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -65,80 +84,22 @@ export default function PerfilUsuario({
   const [showDetalhesComentario, setShowDetalhesComentarioSelecionado] =
     useState(false);
   const [showDicasAvaliacao, setShowDicasAvaliacao] = useState(false);
+  const [showPerfilPublico, setShowPerfilPublico] = useState(false);
 
-  // Dados Mockados para as novas seções
-  const avaliacoesPositivas = [
-    {
-      id: "1",
-      titulo: "Bom contudor",
-      subtitulo:
-        "Obedece às regras de trânsito, dirige com habilidade e permanece atento (a)",
-      avatar: "https://i.pravatar.cc/150?img=1",
-    },
-    {
-      id: "2",
-      titulo: "Sabe o caminho",
-      subtitulo:
-        "Familiarizado(a) com as condições de trânsito e evita desvio de rota desnecessários",
-      avatar: "https://i.pravatar.cc/150?img=2",
-    },
-    {
-      id: "3",
-      titulo: "Veículo limpo",
-      subtitulo:
-        "Mantém o interior do veículo limpo e sem odores desagradáveis",
-      avatar: "https://i.pravatar.cc/150?img=3",
-    },
-    {
-      id: "4",
-      titulo: "Pontual",
-      subtitulo:
-        "Viagem feita dentro do horário prevista para embarque e desembarque",
-      avatar: "https://i.pravatar.cc/150?img=4",
-    },
-    {
-      id: "5",
-      titulo: "Educado",
-      subtitulo: "Respeitoso e atencioso",
-      avatar: "https://i.pravatar.cc/150?img=5",
-    },
-    {
-      id: "6",
-      titulo: "Simpático",
-      subtitulo: "",
-      avatar: "https://i.pravatar.cc/150?img=6",
-    },
-  ];
-
-  const notasAgradecimento = [
-    {
-      id: "1",
-      avatar: "https://i.pravatar.cc/150?img=1",
-      comentario: "Muito boa a corrida ao som de Bon Jovi, Bryan Adams... O...",
-      autor: "Amanda",
-      tempo: "1 mês atrás",
-    },
-    {
-      id: "2",
-      avatar: "https://i.pravatar.cc/150?img=2",
-      comentario: "Excelente motorista, muito educado e carro impecável.",
-      autor: "Deivison",
-      tempo: "5 meses atrás",
-    },
-  ];
-
-  const dicasAvaliacao = [
-    {
-      id: "1",
-      titulo: "Cuide do seu veículo",
-      sub: "Veículo limpo e manutenção em dia ajudam na avaliação.",
-    },
-    {
-      id: "2",
-      titulo: "Mantenha a calma",
-      sub: "Respeite as leis de trânsito para uma viagem segura.",
-    },
-  ];
+  // selos, notas de agradecimento e dicas vêm do servidor; conta nova começa sem selos nem notas
+  const { dados: perfil } = useDadosDaTela<PerfilMotorista>(
+    visible,
+    "/motorista/me/perfil",
+  );
+  const avaliacoesPositivas = perfil?.elogios ?? [];
+  const notasAgradecimento = perfil?.notas_agradecimento ?? [];
+  const dicasAvaliacao = perfil?.dicas ?? [];
+  const distribuicao = perfil?.distribuicao ?? {};
+  const totalNotas = totalDaDistribuicao(distribuicao);
+  const tempoTempo = tempoNaPlataforma(
+    perfil?.meses_na_plataforma ?? 0,
+    perfil?.desde_em ?? null,
+  );
 
   const mostrarAvaliacaoPositiva = (payload: object) => {
     setSeloSelecionado(payload);
@@ -221,7 +182,7 @@ export default function PerfilUsuario({
             <View style={styles.headerContent}>
               <View style={styles.headerContentLeft}>
                 <TouchableOpacity onPress={onClose}>
-                  <Ionicons name="chevron-back" size={24} color="#111" />
+                  <Ionicons name="chevron-back" size={24} color={cores.icone} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Perfil de usuário</Text>
               </View>
@@ -236,12 +197,23 @@ export default function PerfilUsuario({
           >
             {/* USER INFO */}
             <View style={styles.profileSection}>
-              <Image
-                source={{ uri: "https://i.pravatar.cc/150?img=12" }}
-                style={styles.mainAvatar}
-              />
-              <Text style={styles.userName}>Diogo</Text>
-              <TouchableOpacity style={styles.publicProfileBtn}>
+              {perfil?.foto ? (
+                <Image
+                  source={{ uri: perfil.foto }}
+                  style={styles.mainAvatar}
+                />
+              ) : (
+                <View style={[styles.mainAvatar, styles.mainAvatarVazio]}>
+                  <Ionicons name="person" size={48} color="#BDBDBD" />
+                </View>
+              )}
+              <Text style={styles.userName}>
+                {perfil?.nome?.split(" ")[0] ?? ""}
+              </Text>
+              <TouchableOpacity
+                style={styles.publicProfileBtn}
+                onPress={() => setShowPerfilPublico(true)}
+              >
                 <Text style={styles.publicProfileText}>Ver perfil público</Text>
               </TouchableOpacity>
             </View>
@@ -249,33 +221,44 @@ export default function PerfilUsuario({
             {/* STATS */}
             <View style={styles.statsContainer}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>8000+</Text>
-                <Text style={styles.statLabel}>Corridas</Text>
+                <Text style={styles.statValue}>{perfil?.corridas ?? "-"}</Text>
+                <Text style={styles.statLabel}>
+                  {perfil?.corridas === 1 ? "Corrida" : "Corridas"}
+                </Text>
               </View>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>2+</Text>
-                <Text style={styles.statLabel}>Anos</Text>
+                <Text style={styles.statValue}>{tempoTempo.valor}</Text>
+                <Text style={styles.statLabel}>{tempoTempo.rotulo}</Text>
               </View>
             </View>
 
             {/* RATING SECTION */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.evaluationTitle}>Avaliação 4.63 ★</Text>
+                <Text style={styles.evaluationTitle}>
+                  Avaliação {perfil ? textoDaNotaDoMotorista(perfil.nota) : "-"}{" "}
+                  ★
+                </Text>
                 <TouchableOpacity onPress={() => setShowDicasAvaliacao(true)}>
                   <Text style={styles.linkText}>Como funciona {">"}</Text>
                 </TouchableOpacity>
               </View>
               <Text style={styles.subInfoText}>
-                Média das 100 últimas avaliações de corridas
+                {perfil ? textoDaMedia(perfil) : ""}
               </Text>
 
               <View style={styles.ratingGraph}>
-                <RatingRow stars={5} count={89} percentage={89} />
-                <RatingRow stars={4} count={0} percentage={0} />
-                <RatingRow stars={3} count={2} percentage={2} />
-                <RatingRow stars={2} count={3} percentage={3} />
-                <RatingRow stars={1} count={6} percentage={6} />
+                {[5, 4, 3, 2, 1].map((estrelas) => {
+                  const quantidade = distribuicao[String(estrelas)] ?? 0;
+                  return (
+                    <RatingRow
+                      key={estrelas}
+                      stars={estrelas}
+                      count={quantidade}
+                      percentage={larguraDaBarra(quantidade, totalNotas)}
+                    />
+                  );
+                })}
               </View>
             </View>
 
@@ -290,19 +273,37 @@ export default function PerfilUsuario({
                 contentContainerStyle={styles.horizontalScroll}
               >
                 <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                  {avaliacoesPositivas.length === 0 && (
+                    <Text style={styles.semDados}>
+                      Você ainda não recebeu selos. Eles aparecem aqui quando os
+                      passageiros elogiarem suas corridas.
+                    </Text>
+                  )}
                   {avaliacoesPositivas.map((item) => (
-                    <View key={item.id} style={styles.badgeItem}>
+                    <View key={item.chave} style={styles.badgeItem}>
                       <View style={styles.avatarWrapper}>
                         <TouchableOpacity
-                          onPress={() => mostrarAvaliacaoPositiva(item)}
+                          onPress={() =>
+                            mostrarAvaliacaoPositiva({
+                              titulo: item.titulo,
+                              subtitulo: item.descricao ?? "",
+                              icone: item.icone,
+                              imagem: item.imagem,
+                            })
+                          }
                         >
-                          <Image
-                            source={{ uri: item.avatar }}
-                            style={styles.avatarBadge}
-                          />
+                          <View style={styles.avatarEmoji}>
+                            <IconeDoSelo
+                              imagem={item.imagem}
+                              icone={item.icone}
+                              tamanho={64}
+                            />
+                          </View>
                         </TouchableOpacity>
                         <View style={styles.badgeCountContainer}>
-                          <Text style={styles.badgeCountText}>178</Text>
+                          <Text style={styles.badgeCountText}>
+                            {item.quantidade}
+                          </Text>
                         </View>
                       </View>
                       <Text style={styles.badgeLabel}>{item.titulo}</Text>
@@ -327,17 +328,38 @@ export default function PerfilUsuario({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
+                {notasAgradecimento.length === 0 && (
+                  <Text style={styles.semDados}>
+                    Ainda não há notas de agradecimento. Os comentários que os
+                    passageiros deixarem ao avaliar você aparecem aqui.
+                  </Text>
+                )}
                 {notasAgradecimento.map((item) => (
                   <View key={item.id} style={styles.noteCard}>
                     <TouchableOpacity
-                      onPress={() => mostrarDetalhesMensagem(item)}
+                      onPress={() =>
+                        mostrarDetalhesMensagem({
+                          autor: item.autor,
+                          comentario: item.comentario,
+                          tempo: textoDeQuando(item.quando),
+                          elogios: item.elogios,
+                          selos: item.selos ?? [],
+                          nota: item.nota,
+                        })
+                      }
                     >
                       <Text style={styles.noteText} numberOfLines={3}>
                         {item.comentario}
                       </Text>
                       <Text style={styles.noteFooter}>
-                        {item.autor} • {item.tempo}
+                        {item.autor} • {textoDeQuando(item.quando)}
                       </Text>
+                      {/* no fim do cartão: texto, autor e tempo, e só então os selos da avaliação */}
+                      {(item.selos ?? []).length > 0 && (
+                        <View style={styles.noteSelos}>
+                          <SelosDaNota selos={item.selos} tamanho={26} />
+                        </View>
+                      )}
                     </TouchableOpacity>
                   </View>
                 ))}
@@ -354,10 +376,15 @@ export default function PerfilUsuario({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalScroll}
               >
+                {dicasAvaliacao.length === 0 && (
+                  <Text style={styles.semDados}>
+                    Nenhuma dica cadastrada por enquanto.
+                  </Text>
+                )}
                 {dicasAvaliacao.map((item) => (
                   <View key={item.id} style={styles.dicaCard}>
                     <Text style={styles.dicaTitle}>{item.titulo}</Text>
-                    <Text style={styles.dicaSub}>{item.sub}</Text>
+                    <Text style={styles.dicaSub}>{item.texto}</Text>
                   </View>
                 ))}
               </ScrollView>
@@ -439,12 +466,17 @@ export default function PerfilUsuario({
           visible={showDicasAvaliacao}
           onClose={() => setShowDicasAvaliacao(false)}
         />
+        <PerfilPublico
+          visible={showPerfilPublico}
+          onClose={() => setShowPerfilPublico(false)}
+          perfil={perfil ?? null}
+        />
       </View>
     </>
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,
@@ -482,6 +514,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     backgroundColor: "#f0f0f0",
   },
+  mainAvatarVazio: { alignItems: "center", justifyContent: "center" },
   userName: { fontSize: 24, fontWeight: "800", color: "#111", marginTop: 15 },
   publicProfileBtn: {
     marginTop: 10,
@@ -539,6 +572,16 @@ const styles = StyleSheet.create({
     height: 60,
     position: "relative",
   },
+  avatarEmoji: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarEmojiTexto: { fontSize: 30 },
+  semDados: { fontSize: 14, color: "#777", lineHeight: 20, paddingRight: 16 },
   avatarBadge: {
     width: 60,
     height: 60,
@@ -573,12 +616,13 @@ const styles = StyleSheet.create({
   noteCard: {
     backgroundColor: "#f5f5f5",
     width: 240,
-    height: 110,
+    minHeight: 110,
     borderRadius: 20,
     padding: 15,
     marginRight: 12,
     justifyContent: "space-between",
   },
+  noteSelos: { marginTop: 8 },
   noteText: {
     fontSize: 14,
     color: "#333",

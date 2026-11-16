@@ -1,4 +1,5 @@
 import { Text } from "@/components/common/Texto";
+import { useTema } from "@/theme/tema";
 import type { ItemAcao } from "@/domain/acoesNecessarias";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect } from "react";
@@ -16,6 +17,7 @@ import Animated, {
 const VERMELHO = "#C5221F";
 
 export default function AcoesNecessarias({ itens }: { itens: ItemAcao[] }) {
+  const { escuro, cores } = useTema();
   const pulso = useSharedValue(0);
   const movimentoReduzido = useReducedMotion();
 
@@ -42,7 +44,12 @@ export default function AcoesNecessarias({ itens }: { itens: ItemAcao[] }) {
   }));
 
   return (
-    <View style={styles.faixa}>
+    <View
+      style={[
+        styles.faixa,
+        { backgroundColor: escuro ? "#2A1717" : "#FCE8E6" },
+      ]}
+    >
       <View style={styles.coluna}>
         <View style={styles.iconeCaixa}>
           <Animated.View style={[styles.onda, onda]} />
@@ -58,16 +65,22 @@ export default function AcoesNecessarias({ itens }: { itens: ItemAcao[] }) {
       </View>
 
       <View style={styles.conteudo}>
-        <Text maxFontSizeMultiplier={1.1} style={styles.titulo}>
+        <Text
+          maxFontSizeMultiplier={1.1}
+          style={[styles.titulo, { color: cores.texto }]}
+        >
           Ações necessárias ({itens.length})
         </Text>
-        <Text maxFontSizeMultiplier={1.1} style={styles.subtitulo}>
+        <Text
+          maxFontSizeMultiplier={1.1}
+          style={[styles.subtitulo, escuro && { color: "#F28B82" }]}
+        >
           Ficar online quando resolvido
         </Text>
         {itens.map((item) => (
           <TouchableOpacity
             key={item.chave}
-            style={styles.linha}
+            style={[styles.linha, { borderTopColor: cores.borda }]}
             onPress={item.onPress}
             disabled={!item.onPress}
             activeOpacity={0.7}
@@ -75,15 +88,21 @@ export default function AcoesNecessarias({ itens }: { itens: ItemAcao[] }) {
             accessibilityLabel={`${item.titulo}. ${item.detalhe}`}
           >
             <View style={styles.textos}>
-              <Text maxFontSizeMultiplier={1.1} style={styles.linhaTitulo}>
+              <Text
+                maxFontSizeMultiplier={1.1}
+                style={[styles.linhaTitulo, { color: cores.texto }]}
+              >
                 {item.titulo}
               </Text>
-              <Text maxFontSizeMultiplier={1.1} style={styles.linhaDetalhe}>
+              <Text
+                maxFontSizeMultiplier={1.1}
+                style={[styles.linhaDetalhe, { color: cores.textoApoio }]}
+              >
                 {item.detalhe}
               </Text>
             </View>
             {item.onPress ? (
-              <Ionicons name="chevron-forward" size={22} color="#1F1F1F" />
+              <Ionicons name="chevron-forward" size={22} color={cores.icone} />
             ) : null}
           </TouchableOpacity>
         ))}
@@ -104,7 +123,6 @@ const styles = StyleSheet.create({
     paddingRight: 20,
     paddingTop: 14,
     paddingBottom: 4,
-    backgroundColor: "#FCE8E6",
   },
   coluna: { width: 36, alignItems: "center" },
   iconeCaixa: {
@@ -129,7 +147,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(197,34,31,0.25)",
   },
   conteudo: { flex: 1 },
-  titulo: { fontSize: 22, lineHeight: 28, fontWeight: "600", color: "#1F1F1F" },
+  titulo: { fontSize: 22, lineHeight: 28, fontWeight: "600" },
   subtitulo: {
     fontSize: 16,
     lineHeight: 22,
@@ -143,14 +161,12 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(0,0,0,0.12)",
   },
   textos: { flex: 1 },
   linhaTitulo: {
     fontSize: 18,
     lineHeight: 24,
     fontWeight: "500",
-    color: "#1F1F1F",
   },
-  linhaDetalhe: { fontSize: 16, lineHeight: 22, color: "#5F6368" },
+  linhaDetalhe: { fontSize: 16, lineHeight: 22 },
 });

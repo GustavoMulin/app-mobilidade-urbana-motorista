@@ -1,4 +1,5 @@
 // CODEX: contagem pendente; recupera carregamento e limita enquadramento à área visível. Remover após validação/commit.
+import { useTema } from "@/theme/tema";
 import { useCarregamentoMapa } from "@/hooks/useCarregamentoMapa";
 import { paddingMapa, pontoMapaValido } from "@/domain/visualizacaoMapa";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -110,11 +111,14 @@ export default function Map({
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const tema = useTema();
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState<Region | null>(null);
   const [permissao, setPermissao] = useState<Permissao>("verificando");
   const [buscandoPosicao, setBuscandoPosicao] = useState(false);
   const [localizacaoIndisponivel, setLocalizacaoIndisponivel] = useState(false);
+  // o botão de centralizar só aparece depois que o motorista arrasta o mapa
+  const [mapaMovido, setMapaMovido] = useState(false);
   const [regiaoReserva, setRegiaoReserva] = useState<Region>(REGIAO_BRASIL);
   const temPosicaoReal = useRef(false);
   const {
@@ -354,6 +358,7 @@ export default function Map({
   };
 
   const centerOnUser = async () => {
+    setMapaMovido(false);
     if (userLocation && mapRef.current) {
       mapRef.current.animateToRegion(userLocation, 1000);
       return;
@@ -418,6 +423,7 @@ export default function Map({
         style={StyleSheet.absoluteFill}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={region || userLocation || regiaoReserva}
+        onPanDrag={() => setMapaMovido(true)}
         onRegionChangeComplete={(regiao) => {
           regiaoDoMapa.current = regiao;
           onRegionChange(regiao);
@@ -433,7 +439,8 @@ export default function Map({
         showsMyLocationButton={false}
         followsUserLocation={false}
         mapType="standard"
-        userInterfaceStyle="light"
+        userInterfaceStyle={tema.mapa.userInterfaceStyle}
+        customMapStyle={tema.mapa.customMapStyle}
         onLayout={({ nativeEvent }) => setDimensoesMapa(nativeEvent.layout)}
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
@@ -564,19 +571,21 @@ export default function Map({
           style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
         >
           {botaoAcima}
-          <TouchableOpacity
-            accessibilityLabel="Centralizar na minha localização"
-            accessibilityRole="button"
-            style={styles.centerButton}
-            onPress={centerOnUser}
-            disabled={buscandoPosicao}
-          >
-            <MaterialIcons
-              name={userLocation ? "my-location" : "location-searching"}
-              size={24}
-              color={buscandoPosicao ? "#ccc" : "#007AFF"}
-            />
-          </TouchableOpacity>
+          {mapaMovido && (
+            <TouchableOpacity
+              accessibilityLabel="Centralizar na minha localização"
+              accessibilityRole="button"
+              style={styles.centerButton}
+              onPress={centerOnUser}
+              disabled={buscandoPosicao}
+            >
+              <MaterialIcons
+                name={userLocation ? "my-location" : "location-searching"}
+                size={24}
+                color={buscandoPosicao ? "#ccc" : "#007AFF"}
+              />
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
     </View>

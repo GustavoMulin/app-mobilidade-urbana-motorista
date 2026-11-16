@@ -6,9 +6,9 @@ import { ToastProvider } from "@/context/ToastContext";
 import "@/styles/global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { TemaProvider, useTema } from "@/theme/tema";
 
 // Rotas protegidas: com a sessão aberta, login e cadastro saem da pilha (o
 // voltar do celular não cai mais no login); sem sessão, a área logada sai.
@@ -57,19 +57,24 @@ function Rotas() {
   );
 }
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function BarraDeStatus() {
+  const { escuro } = useTema();
+  return <StatusBar style={escuro ? "light" : "dark"} />;
+}
 
+export default function RootLayout() {
   return (
-    <AuthProvider>
-      <SafeAreaProvider>
-        <ToastProvider>
-          <GestureHandlerRootView style={{ flex: 1 }}>
-            <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
-            <Rotas />
-          </GestureHandlerRootView>
-        </ToastProvider>
-      </SafeAreaProvider>
-    </AuthProvider>
+    <TemaProvider>
+      <AuthProvider>
+        <SafeAreaProvider>
+          <ToastProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <BarraDeStatus />
+              <Rotas />
+            </GestureHandlerRootView>
+          </ToastProvider>
+        </SafeAreaProvider>
+      </AuthProvider>
+    </TemaProvider>
   );
 }

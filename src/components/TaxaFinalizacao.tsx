@@ -9,7 +9,7 @@ import {
   Secao,
   type Aba,
 } from "@/components/taxa/ComponentesTaxa";
-import { estilosTaxa as styles } from "@/components/taxa/estilosTaxa";
+import { useEstilosTaxa } from "@/components/taxa/estilosTaxa";
 import PainelDeTaxa from "@/components/taxa/PainelDeTaxa";
 import {
   avisoDaSituacaoTaxa,
@@ -33,6 +33,7 @@ type ModoHistorico = "janela" | "diaria";
 
 /** Tela Taxa de Finalização: medidor, dados diários, regras e histórico. */
 export default function TaxaFinalizacao({ visible, onClose, duration }: Props) {
+  const styles = useEstilosTaxa();
   const { dados, erro } = useDadosDaTela<DetalheFinalizacao>(
     visible,
     "/motorista/me/taxa-finalizacao",

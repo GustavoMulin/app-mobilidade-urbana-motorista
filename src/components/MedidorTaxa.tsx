@@ -1,3 +1,4 @@
+import { useEstilos, useTema, type CoresDoTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import {
   COR_ABAIXO,
@@ -81,6 +82,10 @@ function pecasDoArco(
  * o ponteiro da taxa atual por dentro. Com mínimo, a seta do mínimo por fora.
  */
 export default function MedidorTaxa({ taxa, minima = null }: Props) {
+  const { escuro } = useTema();
+  const styles = useEstilos(estilosBase, extrasMedidor);
+  const vazia = escuro ? "#2B3037" : COR_VAZIA;
+  const guia = escuro ? "#3A3F4B" : "#DCDCDC";
   const [largura, setLargura] = useState(0);
   const escala = largura / LARGURA;
   const comMinima = minima !== null;
@@ -88,22 +93,16 @@ export default function MedidorTaxa({ taxa, minima = null }: Props) {
   const arco = useMemo(
     () =>
       pecasDoArco(RAIO, ESPESSURA, PASSO_ARCO, (valor) => {
-        if (minima === null) return valor <= taxa ? COR_ACIMA : COR_VAZIA;
+        if (minima === null) return valor <= taxa ? COR_ACIMA : vazia;
         if (valor < minima - FOLGA_DA_FAIXA) return COR_ABAIXO;
         if (valor <= minima + FOLGA_DA_FAIXA) return COR_TRANSICAO;
         return COR_ACIMA;
       }),
-    [minima, taxa],
+    [minima, taxa, vazia],
   );
   const trilho = useMemo(
-    () =>
-      pecasDoArco(
-        RAIO_INTERNO,
-        ESPESSURA_TRILHO,
-        PASSO_TRILHO,
-        () => "#DCDCDC",
-      ),
-    [],
+    () => pecasDoArco(RAIO_INTERNO, ESPESSURA_TRILHO, PASSO_TRILHO, () => guia),
+    [guia],
   );
 
   const aTaxa = anguloDoValor(taxa);
@@ -113,8 +112,8 @@ export default function MedidorTaxa({ taxa, minima = null }: Props) {
     ? COR_ABAIXO
     : taxa > 0
       ? COR_ACIMA
-      : COR_VAZIA;
-  const corDaPontaFinal = comMinima || taxa >= 100 ? COR_ACIMA : COR_VAZIA;
+      : vazia;
+  const corDaPontaFinal = comMinima || taxa >= 100 ? COR_ACIMA : vazia;
   const ponteiro = polar(CX, CY, RAIO_INTERNO - 2, aTaxa);
 
   // seta do mínimo: haste por fora do arco e a ponta apontando para a faixa
@@ -259,7 +258,12 @@ export default function MedidorTaxa({ taxa, minima = null }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+// no escuro a seta e o triângulo (pretos) viram claros
+const extrasMedidor = (cores: CoresDoTema) => ({
+  "borderBottomColor:#111": cores.texto,
+});
+
+const estilosBase = StyleSheet.create({
   caixa: {
     width: "100%",
     aspectRatio: LARGURA / ALTURA,

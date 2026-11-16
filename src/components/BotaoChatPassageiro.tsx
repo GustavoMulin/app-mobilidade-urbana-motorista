@@ -1,3 +1,4 @@
+import { useTema } from "@/theme/tema";
 import { Text } from "@/components/common/Texto";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -20,6 +21,7 @@ export default function BotaoChatPassageiro({
   onPress,
   estilo,
 }: Props) {
+  const { cores } = useTema();
   return (
     <TouchableOpacity
       style={estilo}
@@ -27,7 +29,7 @@ export default function BotaoChatPassageiro({
       accessibilityRole="button"
       accessibilityLabel={`Conversar com o passageiro${naoLidas > 0 ? `, ${naoLidas} ${naoLidas === 1 ? "mensagem nova" : "mensagens novas"}` : ""}`}
     >
-      <Ionicons name="chatbubble-outline" size={20} color="#111" />
+      <Ionicons name="chatbubble-outline" size={20} color={cores.icone} />
       {naoLidas > 0 ? (
         <View style={styles.selo}>
           <Text style={styles.seloTexto}>{naoLidas > 9 ? "9+" : naoLidas}</Text>

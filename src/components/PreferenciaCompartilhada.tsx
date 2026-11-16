@@ -1,6 +1,7 @@
 import { Text } from "@/components/common/Texto";
 import { useToast } from "@/context/ToastContext";
 import { api } from "@/Services/api";
+import { useTema } from "@/theme/tema";
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState } from "react";
 import {
@@ -29,6 +30,7 @@ export default function PreferenciaCompartilhada({
   visivel: boolean;
 }) {
   const { mostrarToast } = useToast();
+  const { cores } = useTema();
   const [preferencias, setPreferencias] = useState<Preferencias | null>(null);
   const [salvando, setSalvando] = useState(false);
 
@@ -73,8 +75,14 @@ export default function PreferenciaCompartilhada({
 
   if (preferencias === null) {
     return (
-      <View style={[styles.cartao, styles.carregando]}>
-        <ActivityIndicator color="#111" />
+      <View
+        style={[
+          styles.cartao,
+          styles.carregando,
+          { backgroundColor: cores.cartao },
+        ]}
+      >
+        <ActivityIndicator color={cores.icone} />
       </View>
     );
   }
@@ -82,12 +90,14 @@ export default function PreferenciaCompartilhada({
   const assentos = preferencias.assentos;
 
   return (
-    <View style={styles.cartao}>
+    <View style={[styles.cartao, { backgroundColor: cores.cartao }]}>
       <View style={styles.linha}>
-        <Ionicons name="people-outline" size={26} color="#111" />
+        <Ionicons name="people-outline" size={26} color={cores.icone} />
         <View style={styles.textos}>
-          <Text style={styles.titulo}>Aceito compartilhadas</Text>
-          <Text style={styles.apoio}>
+          <Text style={[styles.titulo, { color: cores.texto }]}>
+            Aceito compartilhadas
+          </Text>
+          <Text style={[styles.apoio, { color: cores.textoApoio }]}>
             Vários passageiros na mesma viagem, com valor maior e adicional por
             embarque. Recusar não conta na sua taxa de aceitação.
           </Text>
@@ -113,38 +123,46 @@ export default function PreferenciaCompartilhada({
       ) : null}
 
       {assentos !== null && (
-        <View style={[styles.linha, styles.linhaAssentos]}>
-          <Ionicons name="car-outline" size={26} color="#111" />
+        <View
+          style={[
+            styles.linha,
+            styles.linhaAssentos,
+            { borderTopColor: cores.borda },
+          ]}
+        >
+          <Ionicons name="car-outline" size={26} color={cores.icone} />
           <View style={styles.textos}>
-            <Text style={styles.titulo}>Lugares para passageiros</Text>
-            <Text style={styles.apoio}>
+            <Text style={[styles.titulo, { color: cores.texto }]}>
+              Lugares para passageiros
+            </Text>
+            <Text style={[styles.apoio, { color: cores.textoApoio }]}>
               Grupos maiores que isso não chegam para você.
             </Text>
           </View>
           <View style={styles.contador}>
             <TouchableOpacity
-              style={styles.passo}
+              style={[styles.passo, { backgroundColor: cores.item }]}
               accessibilityRole="button"
               accessibilityLabel="Menos um lugar"
               disabled={assentos <= MIN_ASSENTOS || salvando}
               onPress={() => void salvar({ assentos: assentos - 1 })}
             >
-              <Ionicons name="remove" size={18} color="#111" />
+              <Ionicons name="remove" size={18} color={cores.icone} />
             </TouchableOpacity>
             <Text
-              style={styles.valor}
+              style={[styles.valor, { color: cores.texto }]}
               accessibilityLabel={`${assentos} lugares`}
             >
               {assentos}
             </Text>
             <TouchableOpacity
-              style={styles.passo}
+              style={[styles.passo, { backgroundColor: cores.item }]}
               accessibilityRole="button"
               accessibilityLabel="Mais um lugar"
               disabled={assentos >= MAX_ASSENTOS || salvando}
               onPress={() => void salvar({ assentos: assentos + 1 })}
             >
-              <Ionicons name="add" size={18} color="#111" />
+              <Ionicons name="add" size={18} color={cores.icone} />
             </TouchableOpacity>
           </View>
         </View>

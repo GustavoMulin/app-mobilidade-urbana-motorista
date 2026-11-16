@@ -1,6 +1,7 @@
 // Buscando.tsx
 import React, { useEffect, useState } from "react";
 import { Text } from "@/components/common/Texto";
+import { useTema } from "@/theme/tema";
 import {
   Animated,
   Easing,
@@ -13,7 +14,7 @@ import {
  * Buscando v2
  * - Alterna palavras com fade in/out
  * - Indicador (linha) na parte inferior que se move lateralmente
- * - Fundo branco, texto preto
+ * - Cores do tema (claro: fundo branco e texto preto)
  *
  * Uso:
  * <Buscando />
@@ -26,6 +27,8 @@ const WORD_DISPLAY_DELAY = 5000; // tempo total antes de trocar (inclui fades)
 const LINE_TRAVEL_DURATION = 700; // duração do movimento completo da linha (ida ou volta)
 
 export default function Buscando() {
+  const { cores } = useTema();
+
   // índice da palavra atual
   const [index, setIndex] = useState(0);
 
@@ -123,12 +126,16 @@ export default function Buscando() {
   };
 
   return (
-    <View style={styles.outer} onLayout={onLayout}>
+    <View
+      style={[styles.outer, { backgroundColor: cores.superficie }]}
+      onLayout={onLayout}
+    >
       <View style={styles.center}>
         {/* Palavra atual com opacidade animada */}
         <Animated.Text
           style={[
             styles.word,
+            { color: cores.texto },
             {
               opacity: opacity,
               transform: [
@@ -155,12 +162,12 @@ export default function Buscando() {
         </Animated.Text>
 
         {/* subtexto menor opcional (pode comentar se não quiser) */}
-        <Text style={styles.hint}>Aguarde, buscando por novas corridas</Text>
+        <Text style={[styles.hint, { color: cores.textoApoio }]}>Aguarde, buscando por novas corridas</Text>
       </View>
 
       {/* indicador inferior: linha/track com barra movendo-se */}
       <View style={styles.lineWrapper} pointerEvents="none">
-        <View style={styles.lineTrack}>
+        <View style={[styles.lineTrack, { backgroundColor: cores.neutro }]}>
           {/* Moving pill/segment */}
           <Animated.View
             style={[
@@ -184,7 +191,6 @@ export default function Buscando() {
 const styles = StyleSheet.create({
   outer: {
     width: "100%",
-    backgroundColor: "#fff", // fundo branco conforme solicitado
     alignItems: "center",
     justifyContent: "center",
   },
@@ -195,7 +201,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   word: {
-    color: "#000",
     fontSize: 22,
     lineHeight: 28,
     fontWeight: "700",
@@ -205,7 +210,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 11,
     lineHeight: 15,
-    color: "#666",
   },
   lineWrapper: {
     width: "100%",
@@ -215,7 +219,6 @@ const styles = StyleSheet.create({
   lineTrack: {
     width: "82%", // área na qual a "pill" se move (ajuste pra seu layout)
     height: 6,
-    backgroundColor: "#F0F0F0",
     borderRadius: 999,
     overflow: "hidden",
     justifyContent: "center",

@@ -12,11 +12,11 @@ npm run start:go -- --clear
 ```
 
 Use o Expo Go compatível com SDK 58 e escaneie o QR Code pelo iPhone.
-O comando `start:go` usa a porta 8083. Mantenha a gestão na 8081, o passageiro na 8082 e o motorista na 8083. Use este comando para evitar conflito com a gestão.
+O comando `start:go` usa a porta 8082. Mantenha a gestão na 8081, o motorista na 8082 e o passageiro na 8083. Use este comando para evitar conflito com a gestão.
 A API e as chaves dos serviços continuam dependendo da configuração de ambiente do projeto.
 
 
-Para usar `npx expo start -c`, configure `RCT_METRO_PORT=8083` no `.env.local` deste projeto. Esse arquivo local não vai pelo Git.
+Para usar `npx expo start -c`, configure `RCT_METRO_PORT=8082` no `.env.local` deste projeto. Esse arquivo local não vai pelo Git.
 
 ## Mudanças da migração
 

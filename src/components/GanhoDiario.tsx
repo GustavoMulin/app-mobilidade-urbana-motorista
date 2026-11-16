@@ -1,4 +1,5 @@
 import { Text } from "@/components/common/Texto";
+import { useTema } from "@/theme/tema";
 import { useAuth } from "@/context/AuthProvider";
 import { formatarValorHistorico as reais } from "@/domain/historicoCorridas";
 import {
@@ -97,6 +98,7 @@ export default function GanhoDiario({
   ocultarAtalho = false,
 }: GanhoDiarioProps) {
   const insets = useSafeAreaInsets();
+  const { escuro, cores } = useTema();
   const [mostrarValor, setMostrarValor] = useState(true);
   const [historicoVisivel, setHistoricoVisivel] = useState(false);
   const [centralVisivel, setCentralVisivel] = useState(false);
@@ -340,6 +342,7 @@ export default function GanhoDiario({
           style={[
             styles.painel,
             {
+              backgroundColor: cores.superficie,
               // abaixo do botão de ganhos, que continua por cima
               paddingTop: insets.top + 72,
               transform: [{ translateY: slideAnim }],
@@ -347,16 +350,18 @@ export default function GanhoDiario({
           ]}
         >
           <View style={styles.tituloLinha}>
-            <Text style={styles.titulo}>Painel</Text>
+            <Text style={[styles.titulo, { color: cores.texto }]}>Painel</Text>
             <TouchableOpacity
-              style={styles.editar}
+              style={[styles.editar, { borderLeftColor: cores.borda }]}
               onPress={() => setEditarVisivel(true)}
               hitSlop={10}
               accessibilityRole="button"
               accessibilityLabel="Editar painel"
             >
-              <Ionicons name="create-outline" size={18} color="#8A8A8F" />
-              <Text style={styles.editarTexto}>Editar</Text>
+              <Ionicons name="create-outline" size={18} color={cores.textoApoio} />
+              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                Editar
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.verMais}
@@ -365,8 +370,10 @@ export default function GanhoDiario({
               accessibilityRole="button"
               accessibilityLabel="Mais: abrir Seus ganhos"
             >
-              <Text style={styles.editarTexto}>Mais</Text>
-              <Ionicons name="chevron-forward" size={16} color="#8A8A8F" />
+              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                Mais
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color={cores.textoApoio} />
             </TouchableOpacity>
           </View>
           <View style={styles.grade}>
@@ -374,48 +381,72 @@ export default function GanhoDiario({
             {celulas.map((celula, indice) => (
               <TouchableOpacity
                 key={celula.id}
-                style={[styles.celula, indice % 3 > 0 && styles.celulaDivisor]}
+                style={[
+                  styles.celula,
+                  indice % 3 > 0 && [
+                    styles.celulaDivisor,
+                    { borderLeftColor: cores.borda },
+                  ],
+                ]}
                 onPress={celula.onPress}
                 accessibilityRole="button"
               >
-                <Text style={styles.celulaValor}>{celula.valor}</Text>
-                <Text style={styles.celulaRotulo}>{`${celula.rotulo} ›`}</Text>
+                <Text style={[styles.celulaValor, { color: cores.texto }]}>
+                  {celula.valor}
+                </Text>
+                <Text
+                  style={[styles.celulaRotulo, { color: cores.textoApoio }]}
+                >{`${celula.rotulo} ›`}</Text>
               </TouchableOpacity>
             ))}
           </View>
 
           <TouchableOpacity
-            style={styles.botaoCentral}
+            style={[
+              styles.botaoCentral,
+              { backgroundColor: escuro ? "#F3F4F6" : "#111" },
+            ]}
             onPress={() => setCentralVisivel(true)}
             accessibilityRole="button"
           >
-            <Text style={styles.botaoCentralTexto}>Ver Central de ganhos</Text>
+            <Text
+              style={[
+                styles.botaoCentralTexto,
+                { color: escuro ? "#111" : "#FFF" },
+              ]}
+            >
+              Ver Central de ganhos
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.meta}
+            style={[styles.meta, { borderTopColor: cores.borda }]}
             onPress={() => setObjetivoVisivel(true)}
             accessibilityRole="button"
           >
-            <Text style={styles.metaTitulo}>Meta de ganhos escolhida</Text>
+            <Text style={[styles.metaTitulo, { color: cores.texto }]}>
+              Meta de ganhos escolhida
+            </Text>
             <View style={styles.metaLinha}>
               <Ionicons name="trophy-outline" size={24} color="#F5C518" />
               <View style={styles.metaTextos}>
-                <Text style={styles.metaRotulo}>Objetivo semanal</Text>
-                <Text style={styles.metaSub}>
+                <Text style={[styles.metaRotulo, { color: cores.texto }]}>
+                  Objetivo semanal
+                </Text>
+                <Text style={[styles.metaSub, { color: cores.textoApoio }]}>
                   {meta
                     ? "Continue aumentando seus ganhos"
                     : "Toque para definir sua meta"}
                 </Text>
               </View>
               {meta !== null && (
-                <Text style={styles.metaValores}>
+                <Text style={[styles.metaValores, { color: cores.texto }]}>
                   {`${reais(painel.ganhosSemana)} / ${reais(meta)}`}
                 </Text>
               )}
             </View>
             {meta !== null && (
-              <View style={styles.barra}>
+              <View style={[styles.barra, { backgroundColor: cores.neutro }]}>
                 <View
                   style={[
                     styles.barraCheia,
@@ -427,6 +458,14 @@ export default function GanhoDiario({
               </View>
             )}
           </TouchableOpacity>
+
+          {/* alça no fim da folha, como a da folha de baixo */}
+          <View
+            style={[
+              styles.alca,
+              { backgroundColor: escuro ? "#6B727D" : "#C9CDD2" },
+            ]}
+          />
         </Animated.View>
       </View>
 
@@ -561,7 +600,6 @@ const styles = StyleSheet.create({
     right: 0,
     paddingHorizontal: 20,
     paddingBottom: 20,
-    backgroundColor: "#FFF",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 10,
@@ -569,6 +607,15 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
+  },
+  alca: {
+    alignSelf: "center",
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    // mais perto da borda de baixo, sem mudar a altura da folha
+    marginTop: 24,
+    marginBottom: -8,
   },
   tituloLinha: {
     flexDirection: "row",
@@ -584,7 +631,6 @@ const styles = StyleSheet.create({
     minHeight: 32,
     paddingLeft: 16,
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: "#CCC",
   },
   editarTexto: { fontSize: 16, color: "#8A8A8F" },
   // empurrado para a direita da linha do título
@@ -599,7 +645,6 @@ const styles = StyleSheet.create({
   celula: { width: "33.33%", alignItems: "center", paddingHorizontal: 4 },
   celulaDivisor: {
     borderLeftWidth: StyleSheet.hairlineWidth,
-    borderLeftColor: "#D5D5D5",
   },
   celulaValor: {
     fontSize: 18,
@@ -627,7 +672,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingTop: 16,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(0,0,0,0.12)",
   },
   metaTitulo: {
     fontSize: 18,

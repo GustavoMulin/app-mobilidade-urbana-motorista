@@ -1,6 +1,7 @@
 import { Text } from "@/components/common/Texto";
 import { Abas, type Aba } from "@/components/taxa/ComponentesTaxa";
-import { estilosTaxa } from "@/components/taxa/estilosTaxa";
+import { useEstilosTaxa } from "@/components/taxa/estilosTaxa";
+import { useEstilos, useTema, type CoresDoTema } from "@/theme/tema";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useEffect, useState, type ReactNode } from "react";
 import {
@@ -50,6 +51,9 @@ export default function PainelDeTaxa({
   children,
   duration = 200,
 }: Props) {
+  const { cores } = useTema();
+  const estilosTaxa = useEstilosTaxa();
+  const styles = useEstilos(estilosBase, extrasPainel);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -133,7 +137,7 @@ export default function PainelDeTaxa({
             onPress={emHistorico ? onVoltarDoHistorico : onClose}
             hitSlop={12}
           >
-            <Ionicons name="chevron-back" size={28} color="#222" />
+            <Ionicons name="chevron-back" size={28} color={cores.icone} />
           </TouchableOpacity>
           <Text style={styles.headerTitulo}>
             {emHistorico ? "Histórico" : titulo}
@@ -171,7 +175,12 @@ export default function PainelDeTaxa({
   );
 }
 
-const styles = StyleSheet.create({
+// o fundo da tela é um cinza um pouco mais escuro que os cartões
+const extrasPainel = (cores: CoresDoTema) => ({
+  "backgroundColor:#f4f4f6": cores.fundo,
+});
+
+const estilosBase = StyleSheet.create({
   layer: { zIndex: 30 },
   overlay: { backgroundColor: "rgba(0,0,0,0.4)" },
   drawer: {

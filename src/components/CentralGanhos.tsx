@@ -1,3 +1,4 @@
+import { useEstilos, useTema, type CoresDoTema } from "@/theme/tema";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useState } from "react";
@@ -36,6 +37,8 @@ export default function CentralGanhos({
   onClose,
   duration = 200,
 }: props) {
+  const { cores } = useTema();
+  const styles = useEstilos(estilosBase, extrasCentral);
   const insets = useSafeAreaInsets();
   const [translateX] = useState(() => new Animated.Value(width));
   const [overlayOpacity] = useState(() => new Animated.Value(0));
@@ -161,7 +164,7 @@ export default function CentralGanhos({
           >
             <View style={styles.headerContent}>
               <TouchableOpacity onPress={onClose}>
-                <Ionicons name="chevron-back" size={24} color="#111" />
+                <Ionicons name="chevron-back" size={24} color={cores.icone} />
               </TouchableOpacity>
               <Text style={styles.headerTitle}>Central de ganhos</Text>
               <TouchableOpacity onPress={mostrarHistoricoCorridas}>
@@ -184,7 +187,11 @@ export default function CentralGanhos({
                 <Text style={styles.earningValue}>
                   {formatarReais(ganhos?.ganhos_do_dia)}
                 </Text>
-                <Ionicons name="chevron-forward" size={24} color="#333" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color={cores.icone}
+                />
               </View>
             </TouchableOpacity>
 
@@ -277,7 +284,11 @@ export default function CentralGanhos({
               accessibilityLabel="Recompensa por Indicação"
             >
               <View style={[styles.row, styles.improvementConteudo]}>
-                <Ionicons name="megaphone-outline" size={24} color="#444" />
+                <Ionicons
+                  name="megaphone-outline"
+                  size={24}
+                  color={cores.icone}
+                />
                 <View style={styles.improvementTextContent}>
                   <Text style={styles.resourceName}>
                     Recompensa por Indicação
@@ -341,7 +352,10 @@ export default function CentralGanhos({
   );
 }
 
-const styles = StyleSheet.create({
+// o fundo da tela é um cinza um pouco mais escuro que os cartões
+const extrasCentral = (cores: CoresDoTema) => ({ "#f8f8f8": cores.fundo });
+
+const estilosBase = StyleSheet.create({
   drawer: {
     position: "absolute",
     right: 0,

@@ -6,7 +6,7 @@ import {
   LARGURA_BARRA,
   LARGURA_EIXO,
   TOPO_BALAO,
-  estilosTaxa as styles,
+  useEstilosTaxa,
 } from "@/components/taxa/estilosTaxa";
 import {
   COR_ACIMA,
@@ -15,6 +15,7 @@ import {
   rotuloDiaCurto,
   type PontoDiario,
 } from "@/domain/taxaFinalizacao";
+import { useTema } from "@/theme/tema";
 import { Ionicons } from "@expo/vector-icons";
 import React, { useRef, type ComponentRef, type ReactNode } from "react";
 import { Pressable, ScrollView, TouchableOpacity, View } from "react-native";
@@ -28,6 +29,7 @@ export function Abas({
   aba: Aba;
   onChange: (aba: Aba) => void;
 }) {
+  const styles = useEstilosTaxa();
   return (
     <View style={styles.abas}>
       {(
@@ -68,6 +70,7 @@ export function Secao({
   children: ReactNode;
   grande?: boolean;
 }) {
+  const styles = useEstilosTaxa();
   return (
     <View>
       <TouchableOpacity
@@ -99,6 +102,7 @@ export function Chips<T extends string>({
   valor: T;
   onChange: (valor: T) => void;
 }) {
+  const styles = useEstilosTaxa();
   return (
     <View style={styles.chips}>
       {opcoes.map(([chave, rotulo]) => (
@@ -129,6 +133,7 @@ export function ItemDeHistorico({
   detalhe?: string;
   valor: string;
 }) {
+  const styles = useEstilosTaxa();
   return (
     <View style={styles.itemHistorico}>
       <View>
@@ -149,6 +154,7 @@ export function LinhaDeContagem({
   rotulo: string;
   valor: number;
 }) {
+  const styles = useEstilosTaxa();
   return (
     <View style={styles.linhaContagem}>
       <Text style={styles.contagemRotulo}>{rotulo}</Text>
@@ -173,6 +179,8 @@ export function GraficoDiario({
   selecionado: number;
   onSelecionar: (indice: number) => void;
 }) {
+  const styles = useEstilosTaxa();
+  const { cores } = useTema();
   const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
   const alturaTotal = TOPO_BALAO + ALTURA_BARRA + ALTURA_ROTULO;
   const topoDaMinima =
@@ -226,7 +234,7 @@ export function GraficoDiario({
                     height: altura,
                     borderTopLeftRadius: 3,
                     borderTopRightRadius: 3,
-                    backgroundColor: ativo ? corAtiva : "#F0F0F0",
+                    backgroundColor: ativo ? corAtiva : cores.neutro,
                   }}
                 />
               </View>

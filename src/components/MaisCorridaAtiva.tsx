@@ -1,3 +1,4 @@
+import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // CODEX: 486 linhas criadas neste arquivo para detalhes, ajuda e cancelamento seguro da corrida ativa.
 import CentralAjuda from "@/components/CentralAjuda";
 import type { PassageiroDaCorrida } from "@/components/CorridaEmAndamento";
@@ -73,6 +74,14 @@ export default function MaisCorridaAtiva({
   onCancelar,
   compartilhada = false,
 }: Props) {
+  const { cores } = useTema();
+  const tema = useEstilos(estilosBase, extrasDaCorrida);
+  const styles = {
+    ...tema,
+    // a tela de fundo é o cinza da página; o botão amarelo mantém o texto escuro
+    tela: { ...tema.tela, backgroundColor: cores.fundo },
+    botaoCancelarTexto: estilosBase.botaoCancelarTexto,
+  };
   const insets = useSafeAreaInsets();
   const [tela, setTela] = useState<"mais" | "motivos">("mais");
   const [motivo, setMotivo] = useState<string | null>(null);
@@ -161,7 +170,7 @@ export default function MaisCorridaAtiva({
             accessibilityRole="button"
             accessibilityLabel="Voltar"
           >
-            <Ionicons name="chevron-back" size={26} color="#111" />
+            <Ionicons name="chevron-back" size={26} color={cores.icone} />
           </TouchableOpacity>
           <Text style={styles.tituloCabecalho}>
             {tela === "mais" ? "Mais" : ""}
@@ -210,7 +219,7 @@ export default function MaisCorridaAtiva({
                     accessibilityRole="button"
                     accessibilityLabel={`Ligar para ${passageiro.nome}`}
                   >
-                    <Feather name="phone" size={21} color="#111" />
+                    <Feather name="phone" size={21} color={cores.icone} />
                   </TouchableOpacity>
                 ) : null}
               </View>
@@ -353,7 +362,7 @@ export default function MaisCorridaAtiva({
                 <Ionicons
                   name={politicaAberta ? "chevron-down" : "chevron-forward"}
                   size={16}
-                  color="#777"
+                  color={cores.textoApoio}
                 />
               </TouchableOpacity>
               {politicaAberta && (
@@ -393,7 +402,7 @@ export default function MaisCorridaAtiva({
                   onPress={() => void confirmarCancelamento()}
                 >
                   {cancelando ? (
-                    <ActivityIndicator color="#111" />
+                    <ActivityIndicator color={cores.icone} />
                   ) : (
                     <Text style={styles.botaoCancelarTexto}>Cancelar</Text>
                   )}
@@ -412,7 +421,7 @@ export default function MaisCorridaAtiva({
   );
 }
 
-const styles = StyleSheet.create({
+const estilosBase = StyleSheet.create({
   tela: { flex: 1, backgroundColor: "#F6F7F9" },
   cabecalho: {
     flexDirection: "row",

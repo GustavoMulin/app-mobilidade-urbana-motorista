@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Text } from "@/components/common/Texto";
 import { textoDaNotaDoMotorista } from "@/domain/notaDoMotorista";
+import { useTema } from "@/theme/tema";
 import {
   avisoDaSituacaoTaxa,
   type SituacaoTaxa,
@@ -29,6 +30,7 @@ import HistoricoMensagens from "./HistoricoMensagens";
 import Preferencias from "./Preferencias";
 import TaxaAceitacao from "./TaxaAceitacao";
 import TaxaFinalizacao from "./TaxaFinalizacao";
+import UsuariosBloqueados from "./UsuariosBloqueados";
 import HorasDirigindo from "./usuario/HorasDirigindo";
 import MeusVeiculos from "./usuario/MeusVeiculos";
 import PerfilUsuario from "./usuario/PerfilUsuario";
@@ -69,6 +71,7 @@ const defaultMenuItems: MenuItem[] = [
   // o servidor ainda não conta o tempo online (a tela mostrava 11:24 fixo)
   { label: "Horas dirigindo" },
   { label: "Indique e ganhe" },
+  { label: "Usuários bloqueados" },
   { label: "Preferências" },
 ];
 
@@ -85,6 +88,7 @@ export default function SideMenu({
   onAlternarDisponibilidade,
 }: SideMenuProps) {
   const insets = useSafeAreaInsets();
+  const { cores, escuro } = useTema();
   const { user, logout } = useAuth();
   const { translateX, overlayOpacity, closeAnimation } = useSlideAnimation(
     visible,
@@ -104,6 +108,7 @@ export default function SideMenu({
   const [showConvidarMotorista, setShowConvidarMotorista] = useState(false);
   const [showTaxaFinalizacao, setShowTaxaFinalizacao] = useState(false);
   const [showTaxaAceitacao, setShowTaxaAceitacao] = useState(false);
+  const [showUsuariosBloqueados, setShowUsuariosBloqueados] = useState(false);
 
   const handleDisconnect = () => {
     if (disponivel && !emCorrida) onAlternarDisponibilidade(false);
@@ -149,6 +154,10 @@ export default function SideMenu({
       if (showTaxaFinalizacao || showTaxaAceitacao) return false;
       if (showConvidarMotorista) {
         setShowConvidarMotorista(false);
+        return true;
+      }
+      if (showUsuariosBloqueados) {
+        setShowUsuariosBloqueados(false);
         return true;
       }
       if (showPreferencias) {
@@ -201,6 +210,7 @@ export default function SideMenu({
     showTaxaAceitacao,
     showConvidarMotorista,
     showPreferencias,
+    showUsuariosBloqueados,
     showCentralGanhos,
     showPerfilUsuario,
     showHorasDirigindo,
@@ -279,6 +289,9 @@ export default function SideMenu({
     if (item.label === "Indique e ganhe") {
       setShowConvidarMotorista(true);
     }
+    if (item.label === "Usuários bloqueados") {
+      setShowUsuariosBloqueados(true);
+    }
     if (item.label === "Preferências") {
       setShowPreferencias(true);
     }
@@ -330,6 +343,10 @@ export default function SideMenu({
         visible={showConvidarMotorista}
         onClose={() => setShowConvidarMotorista(false)}
       />
+      <UsuariosBloqueados
+        visible={showUsuariosBloqueados}
+        onClose={() => setShowUsuariosBloqueados(false)}
+      />
       <Preferencias
         visible={showPreferencias}
         onClose={() => setShowPreferencias(false)}
@@ -351,6 +368,7 @@ export default function SideMenu({
             styles.sideMenu,
             {
               width: drawerWidth,
+              backgroundColor: cores.superficie,
               paddingTop: Math.max(insets.top + 12, 40),
               transform: [{ translateX }],
             },
@@ -369,17 +387,29 @@ export default function SideMenu({
                 {user?.foto ? (
                   <Image source={{ uri: user.foto }} style={styles.avatar} />
                 ) : (
-                  <View style={[styles.avatar, styles.avatarVazio]}>
-                    <Ionicons name="person" size={36} color="#777" />
+                  <View
+                    style={[
+                      styles.avatar,
+                      styles.avatarVazio,
+                      escuro && { backgroundColor: cores.item },
+                    ]}
+                  >
+                    <Ionicons
+                      name="person"
+                      size={36}
+                      color={cores.textoApoio}
+                    />
                   </View>
                 )}
               </TouchableOpacity>
 
               <View style={styles.nameRow}>
-                <Text style={styles.userName}>{user?.name || "Motorista"}</Text>
+                <Text style={[styles.userName, { color: cores.texto }]}>
+                  {user?.name || "Motorista"}
+                </Text>
               </View>
 
-              <Text style={styles.statusReal}>
+              <Text style={[styles.statusReal, { color: cores.textoApoio }]}>
                 {emCorrida ? "Em corrida" : disponivel ? "Online" : "Offline"}
               </Text>
 
@@ -408,14 +438,18 @@ export default function SideMenu({
                   onPress={() => setShowTaxaAceitacao(true)}
                   style={styles.statBox}
                 >
-                  <Text style={styles.statValue}>
+                  <Text style={[styles.statValue, { color: cores.texto }]}>
                     {estatisticas?.taxa_aceitacao == null
                       ? "—"
                       : `${estatisticas.taxa_aceitacao}%`}
                   </Text>
-                  <Text style={styles.statLabel}>Taxa de Aceitação</Text>
+                  <Text style={[styles.statLabel, { color: cores.textoApoio }]}>
+                    Taxa de Aceitação
+                  </Text>
                 </TouchableOpacity>
-                <View style={styles.statDivider} />
+                <View
+                  style={[styles.statDivider, { backgroundColor: cores.borda }]}
+                />
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel="Abrir a taxa de finalização"
@@ -426,6 +460,7 @@ export default function SideMenu({
                   <Text
                     style={[
                       styles.statValue,
+                      { color: cores.texto },
                       finalizacaoAbaixoDaMinima && styles.statValueAbaixo,
                     ]}
                   >
@@ -433,7 +468,9 @@ export default function SideMenu({
                       ? "—"
                       : `${estatisticas.taxa_finalizacao}%`}
                   </Text>
-                  <Text style={styles.statLabel}>Taxa de Finalização</Text>
+                  <Text style={[styles.statLabel, { color: cores.textoApoio }]}>
+                    Taxa de Finalização
+                  </Text>
                 </TouchableOpacity>
               </View>
               {avisoDaTaxa ? (
@@ -456,6 +493,7 @@ export default function SideMenu({
                   <Text
                     style={[
                       styles.menuText,
+                      { color: cores.texto },
                       item.color && { color: item.color },
                     ]}
                   >
