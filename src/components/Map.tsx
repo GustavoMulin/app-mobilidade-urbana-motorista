@@ -207,7 +207,14 @@ export default function Map({
   // controlada ela pulava de uma vez)
   const regiaoDoMapa = useRef<Region | null>(null);
   useEffect(() => {
-    if (!mapReady || !mapRef.current || rota.length > 0) return;
+    // com a chamada na tela (pontos do trajeto), quem enquadra é o trajeto
+    if (
+      !mapReady ||
+      !mapRef.current ||
+      rota.length > 0 ||
+      marcadores.length > 0
+    )
+      return;
     const alvo = region || userLocation || regiaoReserva;
     const atual = regiaoDoMapa.current;
     if (
@@ -218,7 +225,14 @@ export default function Map({
     )
       return;
     mapRef.current.animateToRegion(alvo, 600);
-  }, [mapReady, region, userLocation, regiaoReserva, rota.length]);
+  }, [
+    mapReady,
+    region,
+    userLocation,
+    regiaoReserva,
+    rota.length,
+    marcadores.length,
+  ]);
 
   useEffect(() => {
     if (chaveRota === "" || !mapReady || mapRef.current === null) return;
@@ -238,6 +252,39 @@ export default function Map({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     chaveRota,
+    alturaFolha,
+    mapReady,
+    dimensoesMapa.width,
+    dimensoesMapa.height,
+    insets.top,
+  ]);
+
+  // A chamada chega com os pontos do trajeto antes do traçado (que vem de uma
+  // consulta ao servidor). Enquadra os pontos já, e quando o traçado chega o
+  // efeito acima refaz o enquadramento com a rota inteira.
+  const chaveMarcadores = marcadores
+    .map((ponto) => `${ponto.latitude},${ponto.longitude}`)
+    .join(";");
+  const temTracado = rota.length > 1;
+  useEffect(() => {
+    if (chaveMarcadores === "" || temTracado) return;
+    if (!mapReady || mapRef.current === null) return;
+    if (dimensoesMapa.width <= 0 || dimensoesMapa.height <= 0) return;
+    const pontosValidos = marcadores.filter(pontoMapaValido);
+    if (pontosValidos.length < 2) return;
+    mapRef.current.fitToCoordinates(pontosValidos, {
+      edgePadding: paddingMapa(
+        dimensoesMapa.width,
+        dimensoesMapa.height,
+        insets.top + 100,
+        Math.max(alturaFolha, 120) + 16,
+      ),
+      animated: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chaveMarcadores,
+    temTracado,
     alturaFolha,
     mapReady,
     dimensoesMapa.width,
@@ -394,7 +441,8 @@ export default function Map({
     if (
       bottomSheetIndex === undefined ||
       !userInitialRegion.current ||
-      rota.length > 1
+      rota.length > 1 ||
+      marcadores.length > 1
     )
       return;
 
@@ -409,7 +457,7 @@ export default function Map({
     };
 
     mapRef.current?.animateToRegion(novaRegiao, 450);
-  }, [bottomSheetIndex, rota.length, mapReady]);
+  }, [bottomSheetIndex, rota.length, marcadores.length, mapReady]);
 
   const pedirPermissao = () => {
     void Location.requestForegroundPermissionsAsync().then(({ status }) => {
@@ -440,7 +488,7 @@ export default function Map({
         // sem rota (esperando no embarque), o centro do mapa fica na parte que
         // a folha e as mensagens rápidas não cobrem
         mapPadding={
-          rota.length === 0 && alturaFolha > 0
+          rota.length === 0 && marcadores.length === 0 && alturaFolha > 0
             ? { top: insets.top + 60, right: 0, bottom: alturaFolha, left: 0 }
             : SEM_PADDING
         }
