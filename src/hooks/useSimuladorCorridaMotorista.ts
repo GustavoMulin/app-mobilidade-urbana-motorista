@@ -1,4 +1,5 @@
 // CODEX: 235 linhas criadas; simula localmente todo o fluxo do motorista. Remover após validação/commit.
+import type { ModoDinamica } from "@/domain/dinamica";
 import type { ResumoEspera } from "@/domain/contadorEspera";
 import type { RotaNavegacao } from "@/domain/navegacao";
 import type {
@@ -168,6 +169,10 @@ export const CORRIDA_SIMULADA_PARA_AVALIAR: CorridaParaAvaliar = {
 export function useSimuladorCorridaMotorista() {
   const { mostrarToast } = useToast();
   const [avaliando, setAvaliando] = useState(false);
+  // mapa com preço dinâmico de mentira: null (desligado) ou o modo mostrado
+  const [dinamicaSimulada, setDinamicaSimulada] = useState<ModoDinamica | null>(
+    null,
+  );
   const [etapa, setEtapa] = useState<EtapaSimulacaoMotorista | null>(null);
   const [finalizada, setFinalizada] = useState(false);
   const [inicioEspera, setInicioEspera] = useState<string | null>(null);
@@ -184,7 +189,10 @@ export function useSimuladorCorridaMotorista() {
     );
   }, []);
 
-  const iniciar = useCallback(() => selecionarEtapa("oferta"), [selecionarEtapa]);
+  const iniciar = useCallback(
+    () => selecionarEtapa("oferta"),
+    [selecionarEtapa],
+  );
 
   const receberVarias = useCallback(() => {
     selecionarEtapa("oferta");
@@ -209,6 +217,13 @@ export function useSimuladorCorridaMotorista() {
   }, []);
 
   const encerrarAvaliacao = useCallback(() => setAvaliando(false), []);
+
+  // liga o mapa quente no modo escolhido; tocar no mesmo modo desliga
+  const simularDinamica = useCallback(
+    (modo: ModoDinamica) =>
+      setDinamicaSimulada((atual) => (atual === modo ? null : modo)),
+    [],
+  );
 
   const encerrar = useCallback(() => {
     setEtapa(null);
@@ -363,5 +378,7 @@ export function useSimuladorCorridaMotorista() {
     avaliando,
     avaliarPassageiro,
     encerrarAvaliacao,
+    dinamicaSimulada,
+    simularDinamica,
   };
 }

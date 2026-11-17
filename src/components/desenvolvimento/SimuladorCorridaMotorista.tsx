@@ -5,6 +5,7 @@ import {
   QUANTIDADE_EM_SEQUENCIA,
   type EtapaSimulacaoMotorista,
 } from "@/hooks/useSimuladorCorridaMotorista";
+import type { ModoDinamica } from "@/domain/dinamica";
 import { Ionicons } from "@expo/vector-icons";
 import { useState } from "react";
 import {
@@ -31,6 +32,9 @@ interface Props {
   onEncerrar: () => void;
   // abre a tela de avaliar o passageiro, com uma corrida fictícia
   onAvaliarPassageiro: () => void;
+  // mapa com preço dinâmico de mentira (null: desligado)
+  dinamicaSimulada: ModoDinamica | null;
+  onSimularDinamica: (modo: ModoDinamica) => void;
 }
 
 const rotulos: Record<EtapaSimulacaoMotorista, string> = {
@@ -52,6 +56,8 @@ export default function SimuladorCorridaMotorista({
   onFinalizar,
   onEncerrar,
   onAvaliarPassageiro,
+  dinamicaSimulada,
+  onSimularDinamica,
 }: Props) {
   const [aberto, setAberto] = useState(false);
   const insets = useSafeAreaInsets();
@@ -96,7 +102,9 @@ export default function SimuladorCorridaMotorista({
               <View style={styles.cabecalho}>
                 <View style={styles.cabecalhoTextos}>
                   <Text style={styles.sobreTitulo}>DESENVOLVIMENTO</Text>
-                  <Text style={styles.titulo}>Simular corrida do motorista</Text>
+                  <Text style={styles.titulo}>
+                    Simular corrida do motorista
+                  </Text>
                 </View>
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -116,8 +124,8 @@ export default function SimuladorCorridaMotorista({
                 <View style={styles.aviso}>
                   <Ionicons name="warning-outline" size={18} color="#9A5C00" />
                   <Text style={styles.avisoTexto}>
-                    Conclua ou recuse a solicitação real antes de iniciar
-                    uma simulação.
+                    Conclua ou recuse a solicitação real antes de iniciar uma
+                    simulação.
                   </Text>
                 </View>
               )}
@@ -208,6 +216,38 @@ export default function SimuladorCorridaMotorista({
                 <Text style={styles.etapaTexto}>Avaliar passageiro</Text>
                 <Ionicons name="star-outline" size={20} color="#1E293B" />
               </TouchableOpacity>
+
+              {(
+                [
+                  ["multiplicador", "Mapa com dinâmica (1,5x)"],
+                  ["valor_fixo", "Mapa com dinâmica (+R$)"],
+                ] as [ModoDinamica, string][]
+              ).map(([modo, rotulo]) => (
+                <TouchableOpacity
+                  key={modo}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: dinamicaSimulada === modo }}
+                  style={[
+                    styles.etapa,
+                    dinamicaSimulada === modo && styles.etapaAtiva,
+                  ]}
+                  onPress={escolher(() => onSimularDinamica(modo))}
+                >
+                  <Text
+                    style={[
+                      styles.etapaTexto,
+                      dinamicaSimulada === modo && styles.etapaTextoAtiva,
+                    ]}
+                  >
+                    {dinamicaSimulada === modo ? `${rotulo}: ligado` : rotulo}
+                  </Text>
+                  <Ionicons
+                    name="flame-outline"
+                    size={20}
+                    color={dinamicaSimulada === modo ? "#FFFFFF" : "#1E293B"}
+                  />
+                </TouchableOpacity>
+              ))}
 
               {(ativa || finalizada) && (
                 <TouchableOpacity

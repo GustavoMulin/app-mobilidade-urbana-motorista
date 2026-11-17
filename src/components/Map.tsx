@@ -28,6 +28,8 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import RotaAnimada from "@/components/RotaAnimada";
+import RegioesDinamicas from "@/components/RegioesDinamicas";
+import type { MapaDinamico } from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -58,6 +60,10 @@ interface MapProps {
   alturaMinimaRodape?: number;
   // botão flutuante extra, empilhado acima do "centralizar"
   botaoAcima?: React.ReactNode;
+  // mapa travado (sem arrastar, zoom nem girar), como enquanto a chamada toca
+  travado?: boolean;
+  // preço dinâmico: hexágonos de alta demanda pintados do amarelo ao vermelho
+  dinamica?: MapaDinamico | null;
   // embarque, paradas e destino da chamada que está tocando
   marcadores?: {
     latitude: number;
@@ -78,14 +84,18 @@ const REGIAO_BRASIL: Region = {
 const CHAVE_ULTIMA_REGIAO = "@motorista_ultima_regiao";
 const LIMITE_POSICAO_MS = 15_000;
 
+// Abertura do mapa: ~3 km de ponta a ponta, o suficiente para ler os nomes dos
+// bairros (com 0,01 só se via o quarteirão em volta).
+export const ABERTURA_DO_MAPA = 0.03;
+
 const regiaoDaPosicao = (coords: {
   latitude: number;
   longitude: number;
 }): Region => ({
   latitude: coords.latitude,
   longitude: coords.longitude,
-  latitudeDelta: 0.01,
-  longitudeDelta: 0.01,
+  latitudeDelta: ABERTURA_DO_MAPA,
+  longitudeDelta: ABERTURA_DO_MAPA,
 });
 
 type Permissao = "verificando" | "concedida" | "negada";
@@ -108,6 +118,8 @@ export default function Map({
   alturaMinimaRodape = 0,
   botaoAcima,
   marcadores = [],
+  dinamica = null,
+  travado = false,
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -198,7 +210,14 @@ export default function Map({
   // controlada ela pulava de uma vez)
   const regiaoDoMapa = useRef<Region | null>(null);
   useEffect(() => {
-    if (!mapReady || !mapRef.current || rota.length > 0) return;
+    // com a chamada na tela (pontos do trajeto), quem enquadra é o trajeto
+    if (
+      !mapReady ||
+      !mapRef.current ||
+      rota.length > 0 ||
+      marcadores.length > 0
+    )
+      return;
     const alvo = region || userLocation || regiaoReserva;
     const atual = regiaoDoMapa.current;
     if (
@@ -209,7 +228,14 @@ export default function Map({
     )
       return;
     mapRef.current.animateToRegion(alvo, 600);
-  }, [mapReady, region, userLocation, regiaoReserva, rota.length]);
+  }, [
+    mapReady,
+    region,
+    userLocation,
+    regiaoReserva,
+    rota.length,
+    marcadores.length,
+  ]);
 
   useEffect(() => {
     if (chaveRota === "" || !mapReady || mapRef.current === null) return;
@@ -229,6 +255,39 @@ export default function Map({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     chaveRota,
+    alturaFolha,
+    mapReady,
+    dimensoesMapa.width,
+    dimensoesMapa.height,
+    insets.top,
+  ]);
+
+  // A chamada chega com os pontos do trajeto antes do traçado (que vem de uma
+  // consulta ao servidor). Enquadra os pontos já, e quando o traçado chega o
+  // efeito acima refaz o enquadramento com a rota inteira.
+  const chaveMarcadores = marcadores
+    .map((ponto) => `${ponto.latitude},${ponto.longitude}`)
+    .join(";");
+  const temTracado = rota.length > 1;
+  useEffect(() => {
+    if (chaveMarcadores === "" || temTracado) return;
+    if (!mapReady || mapRef.current === null) return;
+    if (dimensoesMapa.width <= 0 || dimensoesMapa.height <= 0) return;
+    const pontosValidos = marcadores.filter(pontoMapaValido);
+    if (pontosValidos.length < 2) return;
+    mapRef.current.fitToCoordinates(pontosValidos, {
+      edgePadding: paddingMapa(
+        dimensoesMapa.width,
+        dimensoesMapa.height,
+        insets.top + 100,
+        Math.max(alturaFolha, 120) + 16,
+      ),
+      animated: true,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    chaveMarcadores,
+    temTracado,
     alturaFolha,
     mapReady,
     dimensoesMapa.width,
@@ -385,22 +444,23 @@ export default function Map({
     if (
       bottomSheetIndex === undefined ||
       !userInitialRegion.current ||
-      rota.length > 1
+      rota.length > 1 ||
+      marcadores.length > 1
     )
       return;
 
     const fracaoOcupada = [0.13, 0.34, 1][bottomSheetIndex] ?? 0.13;
     const base = userInitialRegion.current;
-    const latitudeDelta = base.latitudeDelta ?? 0.01;
+    const latitudeDelta = base.latitudeDelta ?? ABERTURA_DO_MAPA;
     const novaRegiao: Region = {
       ...base,
       latitude: base.latitude - (latitudeDelta * fracaoOcupada) / 2,
       latitudeDelta,
-      longitudeDelta: base.longitudeDelta ?? 0.01,
+      longitudeDelta: base.longitudeDelta ?? ABERTURA_DO_MAPA,
     };
 
     mapRef.current?.animateToRegion(novaRegiao, 450);
-  }, [bottomSheetIndex, rota.length, mapReady]);
+  }, [bottomSheetIndex, rota.length, marcadores.length, mapReady]);
 
   const pedirPermissao = () => {
     void Location.requestForegroundPermissionsAsync().then(({ status }) => {
@@ -431,10 +491,15 @@ export default function Map({
         // sem rota (esperando no embarque), o centro do mapa fica na parte que
         // a folha e as mensagens rápidas não cobrem
         mapPadding={
-          rota.length === 0 && alturaFolha > 0
+          rota.length === 0 && marcadores.length === 0 && alturaFolha > 0
             ? { top: insets.top + 60, right: 0, bottom: alturaFolha, left: 0 }
             : SEM_PADDING
         }
+        // travado: a chamada toca com o trajeto enquadrado e o dedo não desfaz isso
+        scrollEnabled={!travado}
+        zoomEnabled={!travado}
+        rotateEnabled={!travado}
+        pitchEnabled={!travado}
         showsUserLocation={false}
         showsMyLocationButton={false}
         followsUserLocation={false}
@@ -445,6 +510,8 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
+        {dinamica && <RegioesDinamicas mapa={dinamica} />}
+
         {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
         <RotaAnimada
@@ -571,7 +638,7 @@ export default function Map({
           style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
         >
           {botaoAcima}
-          {mapaMovido && (
+          {mapaMovido && !travado && (
             <TouchableOpacity
               accessibilityLabel="Centralizar na minha localização"
               accessibilityRole="button"

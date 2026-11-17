@@ -89,7 +89,7 @@ export default function FolhaInferiorMotorista({
         // avisa já no início, para o menu do topo sair antes de a folha chegar
         onAnimate={(_, para) => onSheetChange(para)}
         animatedIndex={indiceAnimado}
-        backgroundStyle={{ backgroundColor: cores.superficie }}
+        backgroundStyle={{ backgroundColor: cores.painel }}
         handleIndicatorStyle={{
           backgroundColor: escuro ? "#6B727D" : "#C9CDD2",
         }}
@@ -111,7 +111,7 @@ export default function FolhaInferiorMotorista({
           {/* os banners cadastrados na Central de Publicidade da gestão; com
               ação pendente a folha mostra só as ações */}
           {!temAcoes && (
-            <View style={[styles.recursos, { backgroundColor: cores.fundo }]}>
+            <View style={[styles.recursos, { backgroundColor: cores.painel }]}>
               <BannersPublicidade banners={banners} />
             </View>
           )}

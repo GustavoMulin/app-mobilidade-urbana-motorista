@@ -342,130 +342,151 @@ export default function GanhoDiario({
           style={[
             styles.painel,
             {
-              backgroundColor: cores.superficie,
+              backgroundColor: cores.painel,
               // abaixo do botão de ganhos, que continua por cima
-              paddingTop: insets.top + 72,
+              paddingTop: insets.top + 76,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          <View style={styles.tituloLinha}>
-            <Text style={[styles.titulo, { color: cores.texto }]}>Painel</Text>
-            <TouchableOpacity
-              style={[styles.editar, { borderLeftColor: cores.borda }]}
-              onPress={() => setEditarVisivel(true)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Editar painel"
-            >
-              <Ionicons name="create-outline" size={18} color={cores.textoApoio} />
-              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
-                Editar
+          {/* o conteúdo do painel, do título à meta, num cartão sobre o fundo lilás */}
+          <View style={[styles.cartao, { backgroundColor: cores.cartao }]}>
+            <View style={styles.tituloLinha}>
+              <Text style={[styles.titulo, { color: cores.texto }]}>
+                Painel
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.verMais}
-              onPress={() => setSeusGanhos("semanal")}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Mais: abrir Seus ganhos"
-            >
-              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
-                Mais
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={cores.textoApoio} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.grade}>
-            {/* sempre 3 por fila, com o traço entre as colunas */}
-            {celulas.map((celula, indice) => (
               <TouchableOpacity
-                key={celula.id}
-                style={[
-                  styles.celula,
-                  indice % 3 > 0 && [
-                    styles.celulaDivisor,
-                    { borderLeftColor: cores.borda },
-                  ],
-                ]}
-                onPress={celula.onPress}
+                style={[styles.editar, { borderLeftColor: cores.borda }]}
+                onPress={() => setEditarVisivel(true)}
+                hitSlop={10}
                 accessibilityRole="button"
+                accessibilityLabel="Editar painel"
               >
-                <Text style={[styles.celulaValor, { color: cores.texto }]}>
-                  {celula.valor}
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={cores.textoApoio}
+                />
+                <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                  Editar
                 </Text>
-                <Text
-                  style={[styles.celulaRotulo, { color: cores.textoApoio }]}
-                >{`${celula.rotulo} ›`}</Text>
               </TouchableOpacity>
-            ))}
+              <TouchableOpacity
+                style={styles.verMais}
+                onPress={() => setSeusGanhos("semanal")}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Mais: abrir Seus ganhos"
+              >
+                <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                  Mais
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={cores.textoApoio}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.grade}>
+              {/* blocos cinza, 3 por fila: valor e legenda */}
+              {celulas.map((celula) => (
+                <TouchableOpacity
+                  key={celula.id}
+                  style={[
+                    styles.celula,
+                    { backgroundColor: escuro ? cores.item : "#EDEEF3" },
+                  ]}
+                  onPress={celula.onPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${celula.rotulo}: ${celula.valor}`}
+                >
+                  <Text
+                    style={[styles.celulaValor, { color: cores.texto }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {celula.valor}
+                  </Text>
+                  <Text
+                    style={[styles.celulaRotulo, { color: cores.textoApoio }]}
+                    numberOfLines={2}
+                  >
+                    {celula.rotulo}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={styles.botaoCentral}
+              onPress={() => setCentralVisivel(true)}
+              accessibilityRole="button"
+            >
+              <Text style={styles.botaoCentralTexto}>
+                Ver Central de ganhos
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={[
-              styles.botaoCentral,
-              { backgroundColor: escuro ? "#F3F4F6" : "#111" },
-            ]}
-            onPress={() => setCentralVisivel(true)}
-            accessibilityRole="button"
-          >
-            <Text
-              style={[
-                styles.botaoCentralTexto,
-                { color: escuro ? "#111" : "#FFF" },
-              ]}
-            >
-              Ver Central de ganhos
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.meta, { borderTopColor: cores.borda }]}
-            onPress={() => setObjetivoVisivel(true)}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.metaTitulo, { color: cores.texto }]}>
-              Meta de ganhos escolhida
-            </Text>
-            <View style={styles.metaLinha}>
-              <Ionicons name="trophy-outline" size={24} color="#F5C518" />
-              <View style={styles.metaTextos}>
-                <Text style={[styles.metaRotulo, { color: cores.texto }]}>
-                  Objetivo semanal
-                </Text>
-                <Text style={[styles.metaSub, { color: cores.textoApoio }]}>
-                  {meta
-                    ? "Continue aumentando seus ganhos"
-                    : "Toque para definir sua meta"}
-                </Text>
-              </View>
-              {meta !== null && (
-                <Text style={[styles.metaValores, { color: cores.texto }]}>
-                  {`${reais(painel.ganhosSemana)} / ${reais(meta)}`}
-                </Text>
-              )}
-            </View>
-            {meta !== null && (
-              <View style={[styles.barra, { backgroundColor: cores.neutro }]}>
-                <View
-                  style={[
-                    styles.barraCheia,
-                    {
-                      width: `${Math.min(100, (painel.ganhosSemana / meta) * 100)}%`,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-          </TouchableOpacity>
-
-          {/* alça no fim da folha, como a da folha de baixo */}
+          {/* a meta de ganhos é um cartão à parte, abaixo do painel */}
           <View
             style={[
-              styles.alca,
-              { backgroundColor: escuro ? "#6B727D" : "#C9CDD2" },
+              styles.cartao,
+              styles.cartaoMeta,
+              { backgroundColor: cores.cartao },
             ]}
-          />
+          >
+            <TouchableOpacity
+              style={styles.meta}
+              onPress={() => setObjetivoVisivel(true)}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.metaTitulo, { color: cores.texto }]}>
+                Meta de ganhos escolhida
+              </Text>
+              <View style={styles.metaLinha}>
+                <Ionicons name="trophy-outline" size={24} color="#F5C518" />
+                <View style={styles.metaTextos}>
+                  <Text style={[styles.metaRotulo, { color: cores.texto }]}>
+                    Objetivo semanal
+                  </Text>
+                  <Text style={[styles.metaSub, { color: cores.textoApoio }]}>
+                    {meta
+                      ? "Continue aumentando seus ganhos"
+                      : "Toque para definir sua meta"}
+                  </Text>
+                </View>
+                {meta !== null && (
+                  <Text style={[styles.metaValores, { color: cores.texto }]}>
+                    {`${reais(painel.ganhosSemana)} / ${reais(meta)}`}
+                  </Text>
+                )}
+              </View>
+              {meta !== null && (
+                <View style={[styles.barra, { backgroundColor: cores.neutro }]}>
+                  <View
+                    style={[
+                      styles.barraCheia,
+                      {
+                        width: `${Math.min(100, (painel.ganhosSemana / meta) * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* faixa branca no fim da folha, com a alça, como a da folha de baixo */}
+          <View style={[styles.rodape, { backgroundColor: cores.cartao }]}>
+            <View
+              style={[
+                styles.alca,
+                { backgroundColor: escuro ? "#6B727D" : "#C9CDD2" },
+              ]}
+            />
+          </View>
         </Animated.View>
       </View>
 
@@ -483,7 +504,7 @@ export default function GanhoDiario({
             >
               <Ionicons
                 name={mostrarValor ? "eye" : "eye-off"}
-                size={19}
+                size={21}
                 color="#fff"
               />
             </TouchableOpacity>
@@ -503,7 +524,7 @@ export default function GanhoDiario({
               </Text>
               <Ionicons
                 name={visible ? "chevron-up" : "chevron-down"}
-                size={18}
+                size={20}
                 color="#fff"
               />
             </TouchableOpacity>
@@ -561,14 +582,14 @@ const styles = StyleSheet.create({
   },
   valorButton: {
     marginTop: 8,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    borderRadius: 24,
+    minHeight: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
     backgroundColor: "#111",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 12,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -577,18 +598,18 @@ const styles = StyleSheet.create({
   },
   separator: {
     width: 1,
-    height: 24,
+    height: 26,
     backgroundColor: "#666",
   },
   abrirPainel: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   valorText: {
     color: "#FFF",
-    fontSize: 17,
+    fontSize: 25,
     fontWeight: "800",
   },
   camadaPainel: { zIndex: 8 },
@@ -599,7 +620,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    // a faixa branca da alça chega até a borda de baixo
+    paddingBottom: 0,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 10,
@@ -608,14 +630,27 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
   },
+  cartao: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  cartaoMeta: { marginTop: 12 },
+  rodape: {
+    // vai de ponta a ponta, por cima do respiro lateral da folha
+    marginHorizontal: -20,
+    marginTop: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
   alca: {
     alignSelf: "center",
     width: 36,
     height: 4,
     borderRadius: 2,
-    // mais perto da borda de baixo, sem mudar a altura da folha
-    marginTop: 24,
-    marginBottom: -8,
   },
   tituloLinha: {
     flexDirection: "row",
@@ -641,21 +676,32 @@ const styles = StyleSheet.create({
     gap: 2,
     minHeight: 32,
   },
-  grade: { flexDirection: "row", flexWrap: "wrap", rowGap: 14 },
-  celula: { width: "33.33%", alignItems: "center", paddingHorizontal: 4 },
-  celulaDivisor: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
+  grade: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
+  },
+  celula: {
+    width: "31.5%",
+    minHeight: 104,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 14,
   },
   celulaValor: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "700",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "800",
     color: "#111",
     textAlign: "center",
   },
   celulaRotulo: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     color: "#5F6368",
     textAlign: "center",
   },
@@ -663,16 +709,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
     minHeight: 48,
     borderRadius: 12,
-    backgroundColor: "#111",
+    // o amarelo dos botões principais do app (como o Conectar), com texto preto
+    // nos dois temas
+    backgroundColor: "#FFD600",
     alignItems: "center",
     justifyContent: "center",
   },
-  botaoCentralTexto: { color: "#FFF", fontSize: 17, fontWeight: "700" },
-  meta: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  botaoCentralTexto: { color: "#111", fontSize: 17, fontWeight: "800" },
+  meta: {},
   metaTitulo: {
     fontSize: 18,
     lineHeight: 24,
