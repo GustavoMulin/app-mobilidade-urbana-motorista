@@ -37,7 +37,7 @@ export default function MenuInferiorMotorista({
   onAlternarDisponibilidade,
   onAlturaChange,
 }: props) {
-  const { cores } = useTema();
+  const { escuro, cores } = useTema();
   const [dialogPreferenciasVisible, setDialogPreferenciasVisibleLocal] =
     useState(false);
 
@@ -99,7 +99,10 @@ export default function MenuInferiorMotorista({
         edges={["bottom"]}
         style={[
           styles.bottomMenuWrapper,
-          { backgroundColor: cores.painel, borderTopColor: cores.borda },
+          {
+            backgroundColor: escuro ? cores.painel : "#ffffff",
+            borderTopColor: cores.borda,
+          },
         ]}
         onLayout={({ nativeEvent }) =>
           onAlturaChange?.(Math.ceil(nativeEvent.layout.height))

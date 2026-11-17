@@ -27,7 +27,7 @@ const WORD_DISPLAY_DELAY = 5000; // tempo total antes de trocar (inclui fades)
 const LINE_TRAVEL_DURATION = 700; // duração do movimento completo da linha (ida ou volta)
 
 export default function Buscando() {
-  const { cores } = useTema();
+  const { escuro, cores } = useTema();
 
   // índice da palavra atual
   const [index, setIndex] = useState(0);
@@ -127,7 +127,11 @@ export default function Buscando() {
 
   return (
     <View
-      style={[styles.outer, { backgroundColor: cores.painel }]}
+      style={[
+        styles.outer,
+        // branco no modo claro, como a folha e o menu de baixo
+        { backgroundColor: escuro ? cores.painel : "#ffffff" },
+      ]}
       onLayout={onLayout}
     >
       <View style={styles.center}>

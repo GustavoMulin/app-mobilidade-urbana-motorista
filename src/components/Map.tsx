@@ -247,8 +247,8 @@ export default function Map({
       edgePadding: paddingMapa(
         dimensoesMapa.width,
         dimensoesMapa.height,
-        insets.top + 100,
-        Math.max(alturaFolha, 120) + 16,
+        insets.top + 200,
+        Math.max(alturaFolha, 120) + 150,
       ),
       animated: true,
     });
@@ -279,8 +279,8 @@ export default function Map({
       edgePadding: paddingMapa(
         dimensoesMapa.width,
         dimensoesMapa.height,
-        insets.top + 100,
-        Math.max(alturaFolha, 120) + 16,
+        insets.top + 200,
+        Math.max(alturaFolha, 120) + 150,
       ),
       animated: true,
     });
