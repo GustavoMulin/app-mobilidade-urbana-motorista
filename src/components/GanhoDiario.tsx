@@ -430,9 +430,18 @@ export default function GanhoDiario({
                 Ver Central de ganhos
               </Text>
             </TouchableOpacity>
+          </View>
 
+          {/* a meta de ganhos é um cartão à parte, abaixo do painel */}
+          <View
+            style={[
+              styles.cartao,
+              styles.cartaoMeta,
+              { backgroundColor: cores.cartao },
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.meta, { borderTopColor: cores.borda }]}
+              style={styles.meta}
               onPress={() => setObjetivoVisivel(true)}
               accessibilityRole="button"
             >
@@ -630,6 +639,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 18,
   },
+  cartaoMeta: { marginTop: 12 },
   rodape: {
     // vai de ponta a ponta, por cima do respiro lateral da folha
     marginHorizontal: -20,
@@ -696,11 +706,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   botaoCentralTexto: { color: "#FFF", fontSize: 17, fontWeight: "700" },
-  meta: {
-    marginTop: 20,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  meta: {},
   metaTitulo: {
     fontSize: 18,
     lineHeight: 24,
