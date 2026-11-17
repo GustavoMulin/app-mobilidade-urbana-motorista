@@ -19,6 +19,9 @@ export function paddingMapa(
   altura: number,
   topo: number,
   rodape: number,
+  // false: trajeto comprido (com paradas) já ocupa muito do mapa, então a
+  // folga lateral é pequena para o zoom não ficar aberto demais
+  folgaAberta = true,
 ) {
   const limiteVertical = Math.max(0, altura - Math.min(160, altura * 0.4));
   const desejadoTopo = Math.max(0, topo);
@@ -28,7 +31,9 @@ export function paddingMapa(
     total > limiteVertical && total > 0 ? limiteVertical / total : 1;
   // folga grande dos lados: o trajeto da chamada fica pequeno no mapa, com
   // zoom aberto (como no "Procurando motorista" do passageiro)
-  const lateral = Math.max(0, Math.min(130, largura * 0.32));
+  const lateral = folgaAberta
+    ? Math.max(0, Math.min(130, largura * 0.32))
+    : Math.max(0, Math.min(40, largura * 0.1));
   return {
     top: desejadoTopo * fator,
     bottom: desejadoRodape * fator,
