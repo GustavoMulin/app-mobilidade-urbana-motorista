@@ -127,7 +127,7 @@ export default function Buscando() {
 
   return (
     <View
-      style={[styles.outer, { backgroundColor: cores.superficie }]}
+      style={[styles.outer, { backgroundColor: cores.painel }]}
       onLayout={onLayout}
     >
       <View style={styles.center}>
@@ -162,7 +162,9 @@ export default function Buscando() {
         </Animated.Text>
 
         {/* subtexto menor opcional (pode comentar se não quiser) */}
-        <Text style={[styles.hint, { color: cores.textoApoio }]}>Aguarde, buscando por novas corridas</Text>
+        <Text style={[styles.hint, { color: cores.textoApoio }]}>
+          Aguarde, buscando por novas corridas
+        </Text>
       </View>
 
       {/* indicador inferior: linha/track com barra movendo-se */}

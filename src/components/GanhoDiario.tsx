@@ -342,130 +342,145 @@ export default function GanhoDiario({
           style={[
             styles.painel,
             {
-              backgroundColor: cores.superficie,
+              backgroundColor: cores.painel,
               // abaixo do botão de ganhos, que continua por cima
               paddingTop: insets.top + 72,
               transform: [{ translateY: slideAnim }],
             },
           ]}
         >
-          <View style={styles.tituloLinha}>
-            <Text style={[styles.titulo, { color: cores.texto }]}>Painel</Text>
-            <TouchableOpacity
-              style={[styles.editar, { borderLeftColor: cores.borda }]}
-              onPress={() => setEditarVisivel(true)}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Editar painel"
-            >
-              <Ionicons name="create-outline" size={18} color={cores.textoApoio} />
-              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
-                Editar
+          {/* o conteúdo do painel, do título à meta, num cartão sobre o fundo lilás */}
+          <View style={[styles.cartao, { backgroundColor: cores.cartao }]}>
+            <View style={styles.tituloLinha}>
+              <Text style={[styles.titulo, { color: cores.texto }]}>
+                Painel
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.verMais}
-              onPress={() => setSeusGanhos("semanal")}
-              hitSlop={10}
-              accessibilityRole="button"
-              accessibilityLabel="Mais: abrir Seus ganhos"
-            >
-              <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
-                Mais
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={cores.textoApoio} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.grade}>
-            {/* sempre 3 por fila, com o traço entre as colunas */}
-            {celulas.map((celula, indice) => (
               <TouchableOpacity
-                key={celula.id}
-                style={[
-                  styles.celula,
-                  indice % 3 > 0 && [
-                    styles.celulaDivisor,
-                    { borderLeftColor: cores.borda },
-                  ],
-                ]}
-                onPress={celula.onPress}
+                style={[styles.editar, { borderLeftColor: cores.borda }]}
+                onPress={() => setEditarVisivel(true)}
+                hitSlop={10}
                 accessibilityRole="button"
+                accessibilityLabel="Editar painel"
               >
-                <Text style={[styles.celulaValor, { color: cores.texto }]}>
-                  {celula.valor}
+                <Ionicons
+                  name="create-outline"
+                  size={18}
+                  color={cores.textoApoio}
+                />
+                <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                  Editar
                 </Text>
-                <Text
-                  style={[styles.celulaRotulo, { color: cores.textoApoio }]}
-                >{`${celula.rotulo} ›`}</Text>
               </TouchableOpacity>
-            ))}
-          </View>
+              <TouchableOpacity
+                style={styles.verMais}
+                onPress={() => setSeusGanhos("semanal")}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel="Mais: abrir Seus ganhos"
+              >
+                <Text style={[styles.editarTexto, { color: cores.textoApoio }]}>
+                  Mais
+                </Text>
+                <Ionicons
+                  name="chevron-forward"
+                  size={16}
+                  color={cores.textoApoio}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.grade}>
+              {/* sempre 3 por fila, com o traço entre as colunas */}
+              {celulas.map((celula, indice) => (
+                <TouchableOpacity
+                  key={celula.id}
+                  style={[
+                    styles.celula,
+                    indice % 3 > 0 && [
+                      styles.celulaDivisor,
+                      { borderLeftColor: cores.borda },
+                    ],
+                  ]}
+                  onPress={celula.onPress}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.celulaValor, { color: cores.texto }]}>
+                    {celula.valor}
+                  </Text>
+                  <Text
+                    style={[styles.celulaRotulo, { color: cores.textoApoio }]}
+                  >{`${celula.rotulo} ›`}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-          <TouchableOpacity
-            style={[
-              styles.botaoCentral,
-              { backgroundColor: escuro ? "#F3F4F6" : "#111" },
-            ]}
-            onPress={() => setCentralVisivel(true)}
-            accessibilityRole="button"
-          >
-            <Text
+            <TouchableOpacity
               style={[
-                styles.botaoCentralTexto,
-                { color: escuro ? "#111" : "#FFF" },
+                styles.botaoCentral,
+                { backgroundColor: escuro ? "#F3F4F6" : "#111" },
               ]}
+              onPress={() => setCentralVisivel(true)}
+              accessibilityRole="button"
             >
-              Ver Central de ganhos
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.botaoCentralTexto,
+                  { color: escuro ? "#111" : "#FFF" },
+                ]}
+              >
+                Ver Central de ganhos
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.meta, { borderTopColor: cores.borda }]}
-            onPress={() => setObjetivoVisivel(true)}
-            accessibilityRole="button"
-          >
-            <Text style={[styles.metaTitulo, { color: cores.texto }]}>
-              Meta de ganhos escolhida
-            </Text>
-            <View style={styles.metaLinha}>
-              <Ionicons name="trophy-outline" size={24} color="#F5C518" />
-              <View style={styles.metaTextos}>
-                <Text style={[styles.metaRotulo, { color: cores.texto }]}>
-                  Objetivo semanal
-                </Text>
-                <Text style={[styles.metaSub, { color: cores.textoApoio }]}>
-                  {meta
-                    ? "Continue aumentando seus ganhos"
-                    : "Toque para definir sua meta"}
-                </Text>
+            <TouchableOpacity
+              style={[styles.meta, { borderTopColor: cores.borda }]}
+              onPress={() => setObjetivoVisivel(true)}
+              accessibilityRole="button"
+            >
+              <Text style={[styles.metaTitulo, { color: cores.texto }]}>
+                Meta de ganhos escolhida
+              </Text>
+              <View style={styles.metaLinha}>
+                <Ionicons name="trophy-outline" size={24} color="#F5C518" />
+                <View style={styles.metaTextos}>
+                  <Text style={[styles.metaRotulo, { color: cores.texto }]}>
+                    Objetivo semanal
+                  </Text>
+                  <Text style={[styles.metaSub, { color: cores.textoApoio }]}>
+                    {meta
+                      ? "Continue aumentando seus ganhos"
+                      : "Toque para definir sua meta"}
+                  </Text>
+                </View>
+                {meta !== null && (
+                  <Text style={[styles.metaValores, { color: cores.texto }]}>
+                    {`${reais(painel.ganhosSemana)} / ${reais(meta)}`}
+                  </Text>
+                )}
               </View>
               {meta !== null && (
-                <Text style={[styles.metaValores, { color: cores.texto }]}>
-                  {`${reais(painel.ganhosSemana)} / ${reais(meta)}`}
-                </Text>
+                <View style={[styles.barra, { backgroundColor: cores.neutro }]}>
+                  <View
+                    style={[
+                      styles.barraCheia,
+                      {
+                        width: `${Math.min(100, (painel.ganhosSemana / meta) * 100)}%`,
+                      },
+                    ]}
+                  />
+                </View>
               )}
-            </View>
-            {meta !== null && (
-              <View style={[styles.barra, { backgroundColor: cores.neutro }]}>
-                <View
-                  style={[
-                    styles.barraCheia,
-                    {
-                      width: `${Math.min(100, (painel.ganhosSemana / meta) * 100)}%`,
-                    },
-                  ]}
-                />
-              </View>
-            )}
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
 
-          {/* alça no fim da folha, como a da folha de baixo */}
-          <View
-            style={[
-              styles.alca,
-              { backgroundColor: escuro ? "#6B727D" : "#C9CDD2" },
-            ]}
-          />
+          {/* faixa branca no fim da folha, com a alça, como a da folha de baixo */}
+          <View style={[styles.rodape, { backgroundColor: cores.cartao }]}>
+            <View
+              style={[
+                styles.alca,
+                { backgroundColor: escuro ? "#6B727D" : "#C9CDD2" },
+              ]}
+            />
+          </View>
         </Animated.View>
       </View>
 
@@ -599,7 +614,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 20,
-    paddingBottom: 20,
+    // a faixa branca da alça chega até a borda de baixo
+    paddingBottom: 0,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     elevation: 10,
@@ -608,14 +624,26 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
   },
+  cartao: {
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 18,
+  },
+  rodape: {
+    // vai de ponta a ponta, por cima do respiro lateral da folha
+    marginHorizontal: -20,
+    marginTop: 16,
+    paddingTop: 14,
+    paddingBottom: 14,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+  },
   alca: {
     alignSelf: "center",
     width: 36,
     height: 4,
     borderRadius: 2,
-    // mais perto da borda de baixo, sem mudar a altura da folha
-    marginTop: 24,
-    marginBottom: -8,
   },
   tituloLinha: {
     flexDirection: "row",

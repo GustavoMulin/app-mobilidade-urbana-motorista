@@ -444,6 +444,8 @@ export default function Home() {
         <Map
           region={regiaoSimulada ?? region}
           dinamica={dinamicaExibida}
+          // enquanto a chamada toca o mapa fica travado no trajeto
+          travado={chamadaNoMapa}
           onRegionChange={simuladorCorrida.ativa ? () => undefined : setRegion}
           onUserLocationFound={
             simuladorCorrida.ativa ? undefined : handleUserLocationFound
