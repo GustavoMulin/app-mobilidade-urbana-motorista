@@ -1,42 +1,47 @@
-import { useEffect, useState } from "react";
-import { Image, StyleSheet } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
 import { type LatLng, Marker } from "react-native-maps";
 
-// ponto azul com aro branco e halo. É imagem (não View) e o mapa só congela o
-// desenho depois que ela carrega: com View, o Android às vezes fotografava o
-// marcador pela metade e sobrava só o halo azul transparente
+const AZUL = "#2F7BE8";
+
+// ícone "navigation" do Material dentro de um círculo claro com aro azul. O
+// marcador acompanha as mudanças sempre: o ícone vem de uma fonte que carrega
+// depois do primeiro desenho, e congelar cedo deixava o círculo vazio (é o
+// mesmo cuidado dos outros marcadores do mapa)
 export default function MarcadorMinhaLocalizacao({
   coordenada,
 }: {
   coordenada: LatLng;
 }) {
-  const [carregada, setCarregada] = useState(false);
-  const [congelado, setCongelado] = useState(false);
-
-  useEffect(() => {
-    if (!carregada) return;
-    const espera = setTimeout(() => setCongelado(true), 300);
-    return () => clearTimeout(espera);
-  }, [carregada]);
-
   return (
     <Marker
       coordinate={coordenada}
       anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={!congelado}
+      tracksViewChanges
       zIndex={20}
       accessibilityLabel="Sua localização"
     >
-      <Image
-        source={require("../../assets/images/minha-localizacao.png")}
-        style={styles.imagem}
-        fadeDuration={0}
-        onLoad={() => setCarregada(true)}
-      />
+      <View style={styles.circulo}>
+        <MaterialIcons name="navigation" size={24} color={AZUL} />
+      </View>
     </Marker>
   );
 }
 
 const styles = StyleSheet.create({
-  imagem: { width: 44, height: 44 },
+  circulo: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#FFFDF8",
+    borderWidth: 2,
+    borderColor: AZUL,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
 });
