@@ -285,10 +285,21 @@ export default function Home() {
   const {
     corrida: corridaParaAvaliar,
     enviando: enviandoAvaliacao,
+    verificando: verificandoAvaliacao,
     avaliar,
     bloquear: bloquearPassageiro,
     dispensar: dispensarAvaliacao,
   } = useAvaliacaoPendente(corrida?.id ?? null);
+  // a avaliação vem antes: a tela inicial (menu, folha, topo) e a animação do
+  // dinheiro só voltam depois que ela é fechada. Com uma chamada tocando, a
+  // tela inicial precisa aparecer para a chamada.
+  const aguardandoAvaliacao =
+    (corridaParaAvaliar !== null ||
+      verificandoAvaliacao ||
+      simuladorCorrida.avaliando) &&
+    corridaExibida === null &&
+    ofertaExibida === null &&
+    !simuladorCorrida.finalizada;
   const encerrarSimulacao = simuladorCorrida.encerrar;
 
   useEffect(() => {
@@ -483,7 +494,10 @@ export default function Home() {
           }
           botaoAcima={
             // os atalhos de cima só aparecem com o motorista conectado
-            corridaExibida === null && !chamadaNoMapa && disponivelExibido ? (
+            corridaExibida === null &&
+            !chamadaNoMapa &&
+            !aguardandoAvaliacao &&
+            disponivelExibido ? (
               <>
                 {gestosDisponiveis ? (
                   <Suspense fallback={null}>
@@ -658,7 +672,8 @@ export default function Home() {
         />
       )}
 
-      {ganhoRecebido !== null && (
+      {/* a animação do dinheiro só aparece depois da avaliação */}
+      {ganhoRecebido !== null && !aguardandoAvaliacao && (
         <DinheiroRecebido
           key={ganhoRecebido.corridaId}
           valor={ganhoRecebido.valor}
@@ -678,7 +693,7 @@ export default function Home() {
           />
         )}
 
-      {avisoNoRodape && (
+      {avisoNoRodape && !aguardandoAvaliacao && (
         <PropostaEnviadaAviso
           valorMotorista={
             propostasPendentes[0].minha_proposta?.valor_motorista ?? null
@@ -770,22 +785,24 @@ export default function Home() {
         }}
       />
 
-      <Reanimated.View
-        pointerEvents="box-none"
-        style={[styles.topoDoMapa, topoDoMapa]}
-      >
-        <GanhoDiario
-          visible={ganhoModalVisivel}
-          setVisible={setGanhoModalVisivel}
-          corridaAtivaId={corridaExibida?.id ?? null}
-          ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
-        />
-        {/* com a chamada na tela o topo fica livre, como no 99 */}
-        {!statusComNavegacao &&
-          !telaDeEspera &&
-          !chamadaNoMapa &&
-          !folhaAberta && <TopMenu onMenuPress={handleMenuOpen} />}
-      </Reanimated.View>
+      {!aguardandoAvaliacao && (
+        <Reanimated.View
+          pointerEvents="box-none"
+          style={[styles.topoDoMapa, topoDoMapa]}
+        >
+          <GanhoDiario
+            visible={ganhoModalVisivel}
+            setVisible={setGanhoModalVisivel}
+            corridaAtivaId={corridaExibida?.id ?? null}
+            ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
+          />
+          {/* com a chamada na tela o topo fica livre, como no 99 */}
+          {!statusComNavegacao &&
+            !telaDeEspera &&
+            !chamadaNoMapa &&
+            !folhaAberta && <TopMenu onMenuPress={handleMenuOpen} />}
+        </Reanimated.View>
+      )}
 
       {/* Backdrop para SideMenu */}
       {menuVisible && <Pressable style={styles.backdrop} onPress={closeMenu} />}
@@ -835,56 +852,60 @@ export default function Home() {
       )}
 
       {/* FolhaInferior */}
-      {ofertaExibida === null && corridaExibida === null && (
-        <>
-          {menuVisible && (
-            <Pressable style={styles.backdrop} onPress={closeMenu} />
-          )}
+      {ofertaExibida === null &&
+        corridaExibida === null &&
+        !aguardandoAvaliacao && (
+          <>
+            {menuVisible && (
+              <Pressable style={styles.backdrop} onPress={closeMenu} />
+            )}
 
-          <FolhaInferiorMotorista
-            onSheetChange={onChangeBottomSheetMotorista}
-            indiceAnimado={bottomSheetAnimatedIndex}
-            alturaMenuInferior={alturaMenuInferior}
-            aviso={avisoBloqueio}
-            acoes={acoesNecessarias}
-            onAlturaAcoes={setAlturaAcoes}
-          />
+            <FolhaInferiorMotorista
+              onSheetChange={onChangeBottomSheetMotorista}
+              indiceAnimado={bottomSheetAnimatedIndex}
+              alturaMenuInferior={alturaMenuInferior}
+              aviso={avisoBloqueio}
+              acoes={acoesNecessarias}
+              onAlturaAcoes={setAlturaAcoes}
+            />
 
-          <SolicitarCorrida
-            visible={destinationModalVisible}
-            onClose={() => setDestinationModalVisible(false)}
-          />
+            <SolicitarCorrida
+              visible={destinationModalVisible}
+              onClose={() => setDestinationModalVisible(false)}
+            />
 
-          <SolicitacoesCorrida
-            visible={solicitacoesCorrida}
-            onClose={() => setSolicitacoesCorrida(false)}
-            disponivel={disponivelExibido}
-            carregando={carregandoOfertas}
-            ofertas={ofertas}
-            ocupado={ocupadoExibido}
-            onAtualizar={recarregarOfertas}
-            onAceitar={(corridaId) => {
-              setSolicitacoesCorrida(false);
-              void aceitar(corridaId);
-            }}
-            onPropor={(corridaId, valorMotorista) =>
-              propor(corridaId, valorMotorista)
-            }
-            onRecusar={(corridaId) => recusar(corridaId)}
-          />
+            <SolicitacoesCorrida
+              visible={solicitacoesCorrida}
+              onClose={() => setSolicitacoesCorrida(false)}
+              disponivel={disponivelExibido}
+              carregando={carregandoOfertas}
+              ofertas={ofertas}
+              ocupado={ocupadoExibido}
+              onAtualizar={recarregarOfertas}
+              onAceitar={(corridaId) => {
+                setSolicitacoesCorrida(false);
+                void aceitar(corridaId);
+              }}
+              onPropor={(corridaId, valorMotorista) =>
+                propor(corridaId, valorMotorista)
+              }
+              onRecusar={(corridaId) => recusar(corridaId)}
+            />
 
-          <MenuInferiorMotorista
-            setSolicitacoesCorrida={() => setSolicitacoesCorrida(true)}
-            disponivel={disponivelExibido}
-            emCorrida={corridaExibida !== null}
-            ocupado={ocupadoExibido}
-            comPendencias={naoPodeFicarOnline}
-            onConectarBloqueado={() => setAvisoBloqueio((toques) => toques + 1)}
-            onAlternarDisponibilidade={alternarDisponibilidade}
-            onAlturaChange={setAlturaMenuInferior}
-          />
-        </>
-      )}
+            <MenuInferiorMotorista
+              setSolicitacoesCorrida={() => setSolicitacoesCorrida(true)}
+              disponivel={disponivelExibido}
+              emCorrida={corridaExibida !== null}
+              ocupado={ocupadoExibido}
+              comPendencias={naoPodeFicarOnline}
+              onConectarBloqueado={() =>
+                setAvisoBloqueio((toques) => toques + 1)
+              }
+              onAlternarDisponibilidade={alternarDisponibilidade}
+              onAlturaChange={setAlturaMenuInferior}
+            />
+          </>
+        )}
 
       {corridaExibida?.status_corrida === "aguardando_pagamento" && (
         <AguardandoPagamentoNegocia
