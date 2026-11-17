@@ -99,7 +99,7 @@ export default function MenuInferiorMotorista({
         edges={["bottom"]}
         style={[
           styles.bottomMenuWrapper,
-          { backgroundColor: cores.superficie, borderTopColor: cores.borda },
+          { backgroundColor: cores.painel, borderTopColor: cores.borda },
         ]}
         onLayout={({ nativeEvent }) =>
           onAlturaChange?.(Math.ceil(nativeEvent.layout.height))

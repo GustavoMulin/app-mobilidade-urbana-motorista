@@ -20,6 +20,8 @@ export interface CoresDoTema {
   fundo: string;
   /** cabeçalhos, folhas e rodapés */
   superficie: string;
+  /** painel de baixo da tela do mapa (folha, Buscando e menu): combina com o mapa */
+  painel: string;
   /** grupos de cartões sobre o fundo */
   cartao: string;
   /** itens dentro de um cartão */
@@ -38,6 +40,8 @@ export interface CoresDoTema {
 const CLARO: CoresDoTema = {
   fundo: "#f7f7f7",
   superficie: "#ffffff",
+  // o mesmo lilás-acinzentado do mapa claro
+  painel: "#ECEEF5",
   cartao: "#ffffff",
   item: "#f9f9f9",
   texto: "#111111",
@@ -52,6 +56,7 @@ const CLARO: CoresDoTema = {
 const ESCURO: CoresDoTema = {
   fundo: "#0F1114",
   superficie: "#181B20",
+  painel: "#181B20",
   cartao: "#181B20",
   item: "#22262C",
   texto: "#F3F4F6",
@@ -65,7 +70,13 @@ const ESCURO: CoresDoTema = {
 
 // Estilo do Google Maps para o modo escuro (Android). No iOS o mapa escurece
 // por `userInterfaceStyle`.
-export const ESTILO_MAPA_ESCURO = [
+type EstiloDoMapa = {
+  featureType?: string;
+  elementType?: string;
+  stylers: Record<string, string>[];
+}[];
+
+export const ESTILO_MAPA_ESCURO: EstiloDoMapa = [
   { elementType: "geometry", stylers: [{ color: "#1d2127" }] },
   { elementType: "labels.icon", stylers: [{ visibility: "off" }] },
   { elementType: "labels.text.fill", stylers: [{ color: "#9aa3ad" }] },
@@ -136,7 +147,92 @@ export const ESTILO_MAPA_ESCURO = [
   },
 ];
 
-const ESTILO_MAPA_CLARO: typeof ESTILO_MAPA_ESCURO = [];
+// Mapa claro de fundo lilás-acinzentado, ruas brancas e rodovias azul-acinzentadas
+// (como o mapa do motorista da Uber). Poucos comércios: só parques, órgãos
+// públicos e os nomes de bairros e ruas, para o mapa não poluir.
+const ESTILO_MAPA_CLARO: EstiloDoMapa = [
+  { elementType: "geometry", stylers: [{ color: "#ECEEF5" }] },
+  // quarteirões e áreas construídas vêm em cinza no mapa padrão: ficam da cor
+  // do chão, para o mapa não escurecer nos bairros densos
+  {
+    featureType: "landscape",
+    elementType: "geometry",
+    stylers: [{ color: "#ECEEF5" }],
+  },
+  {
+    featureType: "landscape.man_made",
+    elementType: "geometry.fill",
+    stylers: [{ color: "#ECEEF5" }],
+  },
+  {
+    featureType: "landscape.man_made",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#ECEEF5" }],
+  },
+  { elementType: "labels.text.fill", stylers: [{ color: "#5F6677" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#F6F7FB" }] },
+  {
+    featureType: "administrative.land_parcel",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "administrative.neighborhood",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8A90A6" }],
+  },
+  { featureType: "poi.business", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "poi",
+    elementType: "geometry",
+    stylers: [{ color: "#E3E6F1" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "geometry",
+    stylers: [{ color: "#DCE8E3" }],
+  },
+  {
+    featureType: "poi.park",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#2E7D5B" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#FFFFFF" }],
+  },
+  {
+    featureType: "road",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#E1E4EF" }],
+  },
+  {
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#6E768B" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#C3CBE3" }],
+  },
+  {
+    featureType: "road.highway",
+    elementType: "geometry.stroke",
+    stylers: [{ color: "#A9B3D3" }],
+  },
+  { featureType: "transit", stylers: [{ visibility: "off" }] },
+  {
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#D5E1F3" }],
+  },
+  {
+    featureType: "water",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#8EA0BF" }],
+  },
+];
 
 interface ContextoDoTema {
   modo: Modo;
@@ -147,7 +243,7 @@ interface ContextoDoTema {
   /** props prontas para o `MapView` */
   mapa: {
     userInterfaceStyle: "light" | "dark";
-    customMapStyle: typeof ESTILO_MAPA_ESCURO;
+    customMapStyle: EstiloDoMapa;
   };
 }
 
