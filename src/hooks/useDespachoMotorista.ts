@@ -32,8 +32,8 @@ const chamadaDaVez = (
   ) ?? null;
 
 // recusada ou ignorada não some para sempre: se o passageiro continua
-// esperando, a chamada volta a tocar para o mesmo motorista depois de 1 min
-const VOLTA_A_TOCAR_MS = 60_000;
+// esperando, a chamada volta a tocar para o mesmo motorista depois de 7 s
+const VOLTA_A_TOCAR_MS = 7_000;
 
 const aindaFora = (fora: Map<number, number>, corridaId: number) => {
   const desde = fora.get(corridaId);
@@ -542,11 +542,16 @@ export function useDespachoMotorista(pausado = false) {
           recusada_localmente: aindaFora(recusadas.current, item.corrida_id),
         }));
         // proposta que venceu ou foi recusada conta como chamada ignorada: se o
-        // passageiro continua esperando, volta a tocar depois de 1 min
+        // passageiro continua esperando, volta a tocar depois de 7 s
         esperandoAntes.current.forEach((_, corridaId) => {
           const item = atuais.find((atual) => atual.corrida_id === corridaId);
-          if (item && !esperandoPassageiro(item))
+          if (item && !esperandoPassageiro(item)) {
             dispensadas.current.set(corridaId, Date.now());
+            setTimeout(
+              () => setGatilho((atual) => atual + 1),
+              VOLTA_A_TOCAR_MS + 200,
+            );
+          }
         });
         setOfertas(atuais);
         setOferta(chamadaDaVez(atuais, dispensadas.current));
@@ -830,11 +835,18 @@ export function useDespachoMotorista(pausado = false) {
       .catch(() => toquesAvisados.current.delete(corridaDaChamada));
   }, [corridaDaChamada, pausado]);
 
+  // a consulta de ofertas só roda a cada 30 s com o socket ligado: ao fim da
+  // espera, força uma consulta para a chamada voltar a tocar na hora
+  const agendarVolta = useCallback(() => {
+    setTimeout(() => setGatilho((atual) => atual + 1), VOLTA_A_TOCAR_MS + 200);
+  }, []);
+
   const recusar = useCallback(
     (corridaId?: number) => {
       const id = corridaId ?? oferta?.corrida_id;
       if (id !== undefined) {
         recusadas.current.set(id, Date.now());
+        agendarVolta();
         void api
           .post(`/motorista/corridas/${id}/recusar`)
           .catch(() => undefined);
@@ -849,19 +861,20 @@ export function useDespachoMotorista(pausado = false) {
         tipo: "info",
         titulo: "Solicitação recusada",
         mensagem:
-          "Se o passageiro continuar esperando, ela volta a tocar em 1 minuto.",
+          "Se o passageiro continuar esperando, ela volta a tocar em 7 segundos.",
       });
     },
-    [oferta, ofertas, mostrarToast],
+    [oferta, ofertas, mostrarToast, agendarVolta],
   );
 
   // Negocia: a chamada some sem recusar; a corrida continua na lista
   const dispensarChamada = useCallback(
     (corridaId: number) => {
       dispensadas.current.set(corridaId, Date.now());
+      agendarVolta();
       setOferta(chamadaDaVez(ofertas, dispensadas.current));
     },
-    [ofertas],
+    [ofertas, agendarVolta],
   );
 
   const propor = useCallback(
