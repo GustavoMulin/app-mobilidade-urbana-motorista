@@ -344,7 +344,7 @@ export default function GanhoDiario({
             {
               backgroundColor: cores.painel,
               // abaixo do botão de ganhos, que continua por cima
-              paddingTop: insets.top + 72,
+              paddingTop: insets.top + 76,
               transform: [{ translateY: slideAnim }],
             },
           ]}
@@ -389,44 +389,41 @@ export default function GanhoDiario({
               </TouchableOpacity>
             </View>
             <View style={styles.grade}>
-              {/* sempre 3 por fila, com o traço entre as colunas */}
-              {celulas.map((celula, indice) => (
+              {/* blocos cinza, 3 por fila: valor e legenda */}
+              {celulas.map((celula) => (
                 <TouchableOpacity
                   key={celula.id}
                   style={[
                     styles.celula,
-                    indice % 3 > 0 && [
-                      styles.celulaDivisor,
-                      { borderLeftColor: cores.borda },
-                    ],
+                    { backgroundColor: escuro ? cores.item : "#EDEEF3" },
                   ]}
                   onPress={celula.onPress}
                   accessibilityRole="button"
+                  accessibilityLabel={`${celula.rotulo}: ${celula.valor}`}
                 >
-                  <Text style={[styles.celulaValor, { color: cores.texto }]}>
+                  <Text
+                    style={[styles.celulaValor, { color: cores.texto }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
                     {celula.valor}
                   </Text>
                   <Text
                     style={[styles.celulaRotulo, { color: cores.textoApoio }]}
-                  >{`${celula.rotulo} ›`}</Text>
+                    numberOfLines={2}
+                  >
+                    {celula.rotulo}
+                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <TouchableOpacity
-              style={[
-                styles.botaoCentral,
-                { backgroundColor: escuro ? "#F3F4F6" : "#111" },
-              ]}
+              style={styles.botaoCentral}
               onPress={() => setCentralVisivel(true)}
               accessibilityRole="button"
             >
-              <Text
-                style={[
-                  styles.botaoCentralTexto,
-                  { color: escuro ? "#111" : "#FFF" },
-                ]}
-              >
+              <Text style={styles.botaoCentralTexto}>
                 Ver Central de ganhos
               </Text>
             </TouchableOpacity>
@@ -507,7 +504,7 @@ export default function GanhoDiario({
             >
               <Ionicons
                 name={mostrarValor ? "eye" : "eye-off"}
-                size={19}
+                size={21}
                 color="#fff"
               />
             </TouchableOpacity>
@@ -527,7 +524,7 @@ export default function GanhoDiario({
               </Text>
               <Ionicons
                 name={visible ? "chevron-up" : "chevron-down"}
-                size={18}
+                size={20}
                 color="#fff"
               />
             </TouchableOpacity>
@@ -585,14 +582,14 @@ const styles = StyleSheet.create({
   },
   valorButton: {
     marginTop: 8,
-    minHeight: 48,
-    paddingHorizontal: 18,
-    borderRadius: 24,
+    minHeight: 52,
+    paddingHorizontal: 20,
+    borderRadius: 26,
     backgroundColor: "#111",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 12,
     elevation: 5,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -601,18 +598,18 @@ const styles = StyleSheet.create({
   },
   separator: {
     width: 1,
-    height: 24,
+    height: 26,
     backgroundColor: "#666",
   },
   abrirPainel: {
-    minHeight: 48,
+    minHeight: 52,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
   valorText: {
     color: "#FFF",
-    fontSize: 17,
+    fontSize: 25,
     fontWeight: "800",
   },
   camadaPainel: { zIndex: 8 },
@@ -679,21 +676,32 @@ const styles = StyleSheet.create({
     gap: 2,
     minHeight: 32,
   },
-  grade: { flexDirection: "row", flexWrap: "wrap", rowGap: 14 },
-  celula: { width: "33.33%", alignItems: "center", paddingHorizontal: 4 },
-  celulaDivisor: {
-    borderLeftWidth: StyleSheet.hairlineWidth,
+  grade: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    rowGap: 10,
+  },
+  celula: {
+    width: "31.5%",
+    minHeight: 104,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderRadius: 14,
   },
   celulaValor: {
-    fontSize: 18,
-    lineHeight: 24,
-    fontWeight: "700",
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: "800",
     color: "#111",
     textAlign: "center",
   },
   celulaRotulo: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
     color: "#5F6368",
     textAlign: "center",
   },
@@ -701,11 +709,13 @@ const styles = StyleSheet.create({
     marginTop: 20,
     minHeight: 48,
     borderRadius: 12,
-    backgroundColor: "#111",
+    // o amarelo dos botões principais do app (como o Conectar), com texto preto
+    // nos dois temas
+    backgroundColor: "#FFD600",
     alignItems: "center",
     justifyContent: "center",
   },
-  botaoCentralTexto: { color: "#FFF", fontSize: 17, fontWeight: "700" },
+  botaoCentralTexto: { color: "#111", fontSize: 17, fontWeight: "800" },
   meta: {},
   metaTitulo: {
     fontSize: 18,
