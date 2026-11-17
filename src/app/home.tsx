@@ -9,7 +9,7 @@ import CorridaEmAndamento from "@/components/CorridaEmAndamento";
 import DinheiroRecebido from "@/components/DinheiroRecebido";
 import FolhaInferiorMotorista from "@/components/FolhaInferiorMotorista";
 import GanhoDiario from "@/components/GanhoDiario";
-import Map from "@/components/Map";
+import Map, { ABERTURA_DO_MAPA } from "@/components/Map";
 import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
 import {
@@ -51,6 +51,8 @@ import { useMensagensRapidas } from "@/hooks/useMensagensRapidas";
 import { usePermissoesPendentes } from "@/hooks/usePermissoesPendentes";
 import { useRotaDaCorrida } from "@/hooks/useRotaDaCorrida";
 import { useRotaDaOferta } from "@/hooks/useRotaDaOferta";
+import { mapaDeDemonstracao, type Ponto } from "@/domain/dinamica";
+import { useMapaDinamico } from "@/hooks/useMapaDinamico";
 import {
   CORRIDA_SIMULADA_PARA_AVALIAR,
   useSimuladorCorridaMotorista,
@@ -233,6 +235,22 @@ export default function Home() {
   );
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
+  // preço dinâmico: o mapa quente do servidor (só com o motorista online) ou a
+  // demonstração do simulador, centrada onde o mapa estava ao ligar
+  const mapaDinamico = useMapaDinamico(disponivelExibido);
+  const [centroDaDemonstracao, setCentroDaDemonstracao] = useState<Ponto>({
+    latitude: -8.7023595,
+    longitude: -63.8765456,
+  });
+  const modoDaDemonstracao = simuladorCorrida.dinamicaSimulada;
+  const dinamicaExibida = useMemo(
+    () =>
+      modoDaDemonstracao
+        ? mapaDeDemonstracao(centroDaDemonstracao, modoDaDemonstracao)
+        : mapaDinamico,
+    [modoDaDemonstracao, centroDaDemonstracao, mapaDinamico],
+  );
+
   // a lista de solicitações fecha quando uma corrida começa; sem isso ela
   // continuava "aberta" por baixo e voltava à tela quando a corrida acabava
   useEffect(() => {
@@ -379,15 +397,15 @@ export default function Home() {
   const handleUserLocationFound = useCallback((userRegion: Region) => {
     userInitialRegion.current = {
       ...userRegion,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      latitudeDelta: ABERTURA_DO_MAPA,
+      longitudeDelta: ABERTURA_DO_MAPA,
     };
 
     const adjustedRegion: Region = {
       ...userRegion,
       latitude: userRegion.latitude,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      latitudeDelta: ABERTURA_DO_MAPA,
+      longitudeDelta: ABERTURA_DO_MAPA,
     };
     setRegion(adjustedRegion);
   }, []);
@@ -425,6 +443,7 @@ export default function Home() {
       {!statusComNavegacao && (
         <Map
           region={regiaoSimulada ?? region}
+          dinamica={dinamicaExibida}
           onRegionChange={simuladorCorrida.ativa ? () => undefined : setRegion}
           onUserLocationFound={
             simuladorCorrida.ativa ? undefined : handleUserLocationFound
@@ -903,6 +922,16 @@ export default function Home() {
         onFinalizar={simuladorCorrida.finalizar}
         onEncerrar={simuladorCorrida.encerrar}
         onAvaliarPassageiro={simuladorCorrida.avaliarPassageiro}
+        dinamicaSimulada={simuladorCorrida.dinamicaSimulada}
+        onSimularDinamica={(modo) => {
+          if (region) {
+            setCentroDaDemonstracao({
+              latitude: region.latitude,
+              longitude: region.longitude,
+            });
+          }
+          simuladorCorrida.simularDinamica(modo);
+        }}
       />
     </View>
   );

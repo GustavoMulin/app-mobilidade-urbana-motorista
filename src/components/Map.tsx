@@ -28,6 +28,8 @@ import MapView, {
   Region,
 } from "react-native-maps";
 import RotaAnimada from "@/components/RotaAnimada";
+import RegioesDinamicas from "@/components/RegioesDinamicas";
+import type { MapaDinamico } from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -58,6 +60,8 @@ interface MapProps {
   alturaMinimaRodape?: number;
   // botão flutuante extra, empilhado acima do "centralizar"
   botaoAcima?: React.ReactNode;
+  // preço dinâmico: hexágonos de alta demanda pintados do amarelo ao vermelho
+  dinamica?: MapaDinamico | null;
   // embarque, paradas e destino da chamada que está tocando
   marcadores?: {
     latitude: number;
@@ -78,14 +82,18 @@ const REGIAO_BRASIL: Region = {
 const CHAVE_ULTIMA_REGIAO = "@motorista_ultima_regiao";
 const LIMITE_POSICAO_MS = 15_000;
 
+// Abertura do mapa: ~3 km de ponta a ponta, o suficiente para ler os nomes dos
+// bairros (com 0,01 só se via o quarteirão em volta).
+export const ABERTURA_DO_MAPA = 0.03;
+
 const regiaoDaPosicao = (coords: {
   latitude: number;
   longitude: number;
 }): Region => ({
   latitude: coords.latitude,
   longitude: coords.longitude,
-  latitudeDelta: 0.01,
-  longitudeDelta: 0.01,
+  latitudeDelta: ABERTURA_DO_MAPA,
+  longitudeDelta: ABERTURA_DO_MAPA,
 });
 
 type Permissao = "verificando" | "concedida" | "negada";
@@ -108,6 +116,7 @@ export default function Map({
   alturaMinimaRodape = 0,
   botaoAcima,
   marcadores = [],
+  dinamica = null,
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -391,12 +400,12 @@ export default function Map({
 
     const fracaoOcupada = [0.13, 0.34, 1][bottomSheetIndex] ?? 0.13;
     const base = userInitialRegion.current;
-    const latitudeDelta = base.latitudeDelta ?? 0.01;
+    const latitudeDelta = base.latitudeDelta ?? ABERTURA_DO_MAPA;
     const novaRegiao: Region = {
       ...base,
       latitude: base.latitude - (latitudeDelta * fracaoOcupada) / 2,
       latitudeDelta,
-      longitudeDelta: base.longitudeDelta ?? 0.01,
+      longitudeDelta: base.longitudeDelta ?? ABERTURA_DO_MAPA,
     };
 
     mapRef.current?.animateToRegion(novaRegiao, 450);
@@ -445,6 +454,8 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
+        {dinamica && <RegioesDinamicas mapa={dinamica} />}
+
         {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
         <RotaAnimada
