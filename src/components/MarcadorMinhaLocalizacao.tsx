@@ -10,13 +10,18 @@ const AZUL = "#2F7BE8";
 // mesmo cuidado dos outros marcadores do mapa)
 export default function MarcadorMinhaLocalizacao({
   coordenada,
+  rumo,
 }: {
   coordenada: LatLng;
+  // graus a partir do norte: na navegação o marcador gira com o carro
+  rumo?: number;
 }) {
   return (
     <Marker
       coordinate={coordenada}
       anchor={{ x: 0.5, y: 0.5 }}
+      flat={rumo !== undefined}
+      rotation={rumo ?? 0}
       tracksViewChanges
       zIndex={20}
       accessibilityLabel="Sua localização"

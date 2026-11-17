@@ -13,6 +13,7 @@ import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
+import MarcadorMinhaLocalizacao from "@/components/MarcadorMinhaLocalizacao";
 import { enderecoCurto } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
@@ -701,18 +702,12 @@ export default function NavegacaoAtiva({
             </View>
           </Marker>
         )}
+        {/* o mesmo marcador de localização do mapa da home */}
         {posicao && (
-          <Marker
-            coordinate={posicao}
-            anchor={{ x: 0.5, y: 0.5 }}
-            flat
-            rotation={ultimoHeading.current}
-            tracksViewChanges={false}
-          >
-            <View style={styles.marcadorMotoristaSimulado}>
-              <Ionicons name="navigate" size={17} color="#FFFFFF" />
-            </View>
-          </Marker>
+          <MarcadorMinhaLocalizacao
+            coordenada={posicao}
+            rumo={ultimoHeading.current}
+          />
         )}
       </MapView>
 
@@ -1141,17 +1136,6 @@ const estilosBase = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     elevation: 4,
-  },
-  marcadorMotoristaSimulado: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563EB",
-    elevation: 5,
   },
   avisoLimiteChegada: {
     minHeight: 36,
