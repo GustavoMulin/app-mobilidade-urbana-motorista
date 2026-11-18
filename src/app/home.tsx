@@ -711,6 +711,11 @@ export default function Home() {
       {ofertaExibida !== null && corridaExibida === null && (
         <RecebendoChamada
           key={ofertaExibida.corrida_id}
+          duracaoMs={
+            ofertaExibida.chamada_segundos
+              ? ofertaExibida.chamada_segundos * 1000
+              : undefined
+          }
           valor={ofertaExibida.valor_motorista}
           dinamico={ofertaExibida.dinamico}
           distanciaAteOrigem={ofertaExibida.distancia_ate_origem_km}

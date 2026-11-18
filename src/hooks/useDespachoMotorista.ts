@@ -10,7 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 const INTERVALO_BUSCA_SEM_SOCKET_MS = 5000;
-const INTERVALO_BUSCA_COM_SOCKET_MS = 30000;
+// a vez de cada motorista na fila do servidor dura só ~20 s: com 30 s entre
+// consultas, a maioria das chamadas vencia antes de o app buscar (o aviso do
+// socket só chega se o servidor transmitir de verdade)
+const INTERVALO_BUSCA_COM_SOCKET_MS = 5000;
 const INTERVALO_POSICAO_MS = 8000;
 
 const esperandoPassageiro = (item: OfertaCorrida) =>
@@ -71,6 +74,9 @@ export interface OfertaCorrida {
   passageiro_corridas: number;
   passageiro_novo?: boolean;
   recusada_localmente?: boolean;
+  // fila de prioridade: quanto tempo a chamada ainda toca para este motorista
+  chamada_expira_em?: string;
+  chamada_segundos?: number;
   // viagem compartilhada: uma chamada para o grupo inteiro
   compartilhada?: {
     passageiros: number;

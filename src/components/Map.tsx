@@ -705,7 +705,7 @@ export default function Map({
               />
             </TouchableOpacity>
           )}
-          {dinamica && !travado && (
+          {!travado && (
             <TouchableOpacity
               accessibilityLabel="Camadas do mapa"
               accessibilityRole="button"
