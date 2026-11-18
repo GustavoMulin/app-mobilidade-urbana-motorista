@@ -136,7 +136,7 @@ function BonequinhosDaRegiao({
 }) {
   const rastrear = useRastrearPorUmMomento();
   const { escuro } = useTema();
-  const cor = escuro ? "#FFC83D" : "#7A4300";
+  const cor = "#FFFFFF";
 
   return (
     <Marker
