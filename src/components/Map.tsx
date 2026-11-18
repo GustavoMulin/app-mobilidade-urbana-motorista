@@ -29,7 +29,12 @@ import MapView, {
 } from "react-native-maps";
 import RotaAnimada from "@/components/RotaAnimada";
 import RegioesDinamicas from "@/components/RegioesDinamicas";
-import type { MapaDinamico } from "@/domain/dinamica";
+import CamadasDoMapa from "@/components/CamadasDoMapa";
+import {
+  CAMADAS_PADRAO,
+  type CamadasDoMapa as Camadas,
+  type MapaDinamico,
+} from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -124,6 +129,10 @@ export default function Map({
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tema = useTema();
+  // os botões brancos do mapa ficam escuros no tema escuro
+  const botaoEscuro = tema.escuro
+    ? { backgroundColor: tema.cores.superficie }
+    : null;
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState<Region | null>(null);
   const [permissao, setPermissao] = useState<Permissao>("verificando");
@@ -131,6 +140,9 @@ export default function Map({
   const [localizacaoIndisponivel, setLocalizacaoIndisponivel] = useState(false);
   // o botão de centralizar só aparece depois que o motorista arrasta o mapa
   const [mapaMovido, setMapaMovido] = useState(false);
+  // camadas do mapa de calor (demanda e tarifas) e a janela que as liga
+  const [camadas, setCamadas] = useState<Camadas>(CAMADAS_PADRAO);
+  const [camadasAbertas, setCamadasAbertas] = useState(false);
   const [regiaoReserva, setRegiaoReserva] = useState<Region>(REGIAO_BRASIL);
   const temPosicaoReal = useRef(false);
   const {
@@ -517,7 +529,7 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
-        {dinamica && <RegioesDinamicas mapa={dinamica} />}
+        {dinamica && <RegioesDinamicas mapa={dinamica} camadas={camadas} />}
 
         {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
@@ -671,7 +683,7 @@ export default function Map({
             <TouchableOpacity
               accessibilityLabel="Centralizar na minha localização"
               accessibilityRole="button"
-              style={styles.centerButton}
+              style={[styles.centerButton, botaoEscuro]}
               onPress={centerOnUser}
               disabled={buscandoPosicao}
             >
@@ -682,8 +694,32 @@ export default function Map({
               />
             </TouchableOpacity>
           )}
+          {dinamica && !travado && (
+            <TouchableOpacity
+              accessibilityLabel="Camadas do mapa"
+              accessibilityRole="button"
+              style={[styles.centerButton, botaoEscuro]}
+              onPress={() => setCamadasAbertas(true)}
+            >
+              <MaterialIcons
+                name="layers"
+                size={24}
+                color={tema.escuro ? "#F3F4F6" : "#111111"}
+              />
+            </TouchableOpacity>
+          )}
         </Animated.View>
       )}
+
+      <CamadasDoMapa
+        visivel={camadasAbertas}
+        camadas={camadas}
+        onFechar={() => setCamadasAbertas(false)}
+        onConfirmar={(novas) => {
+          setCamadas(novas);
+          setCamadasAbertas(false);
+        }}
+      />
     </View>
   );
 }

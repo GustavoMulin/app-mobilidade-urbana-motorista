@@ -72,7 +72,14 @@ test("a demonstração tem o hexágono mais quente no centro e rótulos do modo"
   const multiplicador = mapaDeDemonstracao(PORTO_VELHO, "multiplicador");
   const fixo = mapaDeDemonstracao(PORTO_VELHO, "valor_fixo");
 
-  assert.ok(multiplicador.regioes.length >= 12);
+  assert.ok(multiplicador.regioes.length >= 4);
+  // a demanda cobre bem mais que as tarifas (nem toda procura tem preço extra)
+  assert.ok(multiplicador.demandas.length > multiplicador.regioes.length * 2);
+  assert.ok(
+    multiplicador.regioes.every((x) =>
+      multiplicador.demandas.some((d) => d.celula === x.celula),
+    ),
+  );
   assert.equal(multiplicador.ativa, true);
 
   const [q, r] = celulaDe(PORTO_VELHO, 600);
