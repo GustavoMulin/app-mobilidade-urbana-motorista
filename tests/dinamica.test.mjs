@@ -5,6 +5,7 @@ import {
   celulaDe,
   centroDaCelula,
   corDaIntensidade,
+  iconesDaDemanda,
   mapaDeDemonstracao,
   verticesDoHexagono,
 } from "../src/domain/dinamica.ts";
@@ -100,5 +101,34 @@ test("a demonstração tem o hexágono mais quente no centro e rótulos do modo"
   assert.equal(
     new Set(multiplicador.regioes.map((x) => x.celula)).size,
     multiplicador.regioes.length,
+  );
+});
+
+test("áreas vizinhas do mesmo nível ganham um ícone, ou dois se forem grandes", () => {
+  const celula = (q, r, demanda) => ({
+    celula: `${q}:${r}`,
+    latitude: -8.7 + r * 0.01,
+    longitude: -63.9 + (q + r / 2) * 0.01,
+    demanda,
+  });
+  // 3 células leves coladas (um ícone) + 6 células altas coladas (dois ícones)
+  // + uma leve isolada (um ícone)
+  const areas = [
+    celula(0, 0, 0.3),
+    celula(1, 0, 0.35),
+    celula(2, 0, 0.4),
+    ...[0, 1, 2].flatMap((q) => [celula(q, 5, 0.7), celula(q, 6, 0.65)]),
+    celula(10, 10, 0.3),
+  ];
+  const icones = iconesDaDemanda(areas);
+
+  assert.equal(icones.filter((i) => i.nivel === 1).length, 2);
+  assert.equal(icones.filter((i) => i.nivel === 2).length, 2);
+  // o ícone cai numa célula da própria área
+  assert.ok(icones.every((i) => areas.some((a) => a.celula === i.celula)));
+  // níveis diferentes vizinhos não se juntam
+  assert.equal(
+    iconesDaDemanda([celula(0, 0, 0.3), celula(1, 0, 0.9)]).length,
+    2,
   );
 });

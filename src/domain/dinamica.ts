@@ -127,6 +127,110 @@ export const demandaDaRegiao = (regiao: RegiaoDinamica): number =>
 export const nivelDaDemanda = (demanda: number): 1 | 2 | 3 =>
   demanda >= 0.8 ? 3 : demanda >= 0.55 ? 2 : 1;
 
+export interface IconeDeDemanda {
+  celula: string;
+  latitude: number;
+  longitude: number;
+  nivel: 1 | 2 | 3;
+}
+
+// vizinhos de uma célula na grade axial hexagonal
+const VIZINHOS_AXIAIS: [number, number][] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, -1],
+  [-1, 1],
+];
+
+// até este tamanho a área ganha um ícone só; acima disso, dois
+const CELULAS_PARA_DOIS_ICONES = 5;
+
+const distancia2 = (
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+) => (a.latitude - b.latitude) ** 2 + (a.longitude - b.longitude) ** 2;
+
+/**
+ * Menos ícones em cenário de muita demanda: células vizinhas do mesmo nível
+ * (leve, alta ou extrema) formam uma área, e a área é representada por um
+ * ícone, ou por dois quando é grande, em vez de um por célula.
+ */
+export function iconesDaDemanda(areas: DemandaDaRegiao[]): IconeDeDemanda[] {
+  const porCelula = new Map(areas.map((area) => [area.celula, area]));
+  const visitadas = new Set<string>();
+  const icones: IconeDeDemanda[] = [];
+
+  for (const inicio of areas) {
+    if (visitadas.has(inicio.celula)) continue;
+
+    const nivel = nivelDaDemanda(inicio.demanda);
+    const grupo: DemandaDaRegiao[] = [];
+    const fila = [inicio];
+    visitadas.add(inicio.celula);
+
+    // área = células vizinhas encadeadas do mesmo nível
+    while (fila.length > 0) {
+      const atual = fila.pop() as DemandaDaRegiao;
+      const [q, r] = atual.celula.split(":").map(Number);
+      grupo.push(atual);
+
+      for (const [dq, dr] of VIZINHOS_AXIAIS) {
+        const chave = `${q + dq}:${r + dr}`;
+        const vizinha = porCelula.get(chave);
+
+        if (
+          vizinha &&
+          !visitadas.has(chave) &&
+          nivelDaDemanda(vizinha.demanda) === nivel
+        ) {
+          visitadas.add(chave);
+          fila.push(vizinha);
+        }
+      }
+    }
+
+    const centro = {
+      latitude: grupo.reduce((soma, g) => soma + g.latitude, 0) / grupo.length,
+      longitude:
+        grupo.reduce((soma, g) => soma + g.longitude, 0) / grupo.length,
+    };
+    const maisPerto = (alvo: typeof centro) =>
+      grupo.reduce((melhor, g) =>
+        distancia2(g, alvo) < distancia2(melhor, alvo) ? g : melhor,
+      );
+
+    let escolhidas: DemandaDaRegiao[];
+
+    if (grupo.length < CELULAS_PARA_DOIS_ICONES) {
+      escolhidas = [maisPerto(centro)];
+    } else {
+      // dois ícones afastados entre si: a ponta mais longe do centro e a ponta
+      // mais longe dela
+      const a = grupo.reduce((melhor, g) =>
+        distancia2(g, centro) > distancia2(melhor, centro) ? g : melhor,
+      );
+      const b = grupo.reduce((melhor, g) =>
+        distancia2(g, a) > distancia2(melhor, a) ? g : melhor,
+      );
+
+      escolhidas = [a, b];
+    }
+
+    for (const g of escolhidas) {
+      icones.push({
+        celula: g.celula,
+        latitude: g.latitude,
+        longitude: g.longitude,
+        nivel,
+      });
+    }
+  }
+
+  return icones;
+}
+
 /** Cor da mancha de demanda, sem borda: do amarelo-claro ao laranja forte. */
 export function corDaDemanda(demanda: number): string {
   const d = Math.min(Math.max(demanda, 0), 1);

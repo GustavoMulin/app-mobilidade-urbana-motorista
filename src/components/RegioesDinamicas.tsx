@@ -1,6 +1,6 @@
 import { Text } from "@/components/common/Texto";
 import {
-  nivelDaDemanda,
+  iconesDaDemanda,
   corDaDemanda,
   corDaIntensidade,
   demandaDaRegiao,
@@ -40,24 +40,28 @@ function RegioesDinamicas({ mapa, camadas }: Props) {
   );
 
   // a demanda vale sozinha: cobre também onde não há tarifa
-  const manchas = useMemo(() => {
+  const { manchas, icones, comTarifa } = useMemo(() => {
     const comTarifa = new Set(mapa.regioes.map((regiao) => regiao.celula));
-    const lista =
+    const lista = (
       mapa.demandas ??
       mapa.regioes.map((regiao) => ({
         celula: regiao.celula,
         latitude: regiao.latitude,
         longitude: regiao.longitude,
         demanda: demandaDaRegiao(regiao),
-      }));
+      }))
+    ).filter((area) => area.demanda >= 0.2);
 
-    return lista.map((area) => ({
-      area,
-      corDaMancha: corDaDemanda(area.demanda),
-      bonequinhos: nivelDaDemanda(area.demanda),
-      vertices: verticesDoHexagono(area, mapa.raio_metros),
-      temTarifa: comTarifa.has(area.celula),
-    }));
+    return {
+      comTarifa,
+      manchas: lista.map((area) => ({
+        area,
+        corDaMancha: corDaDemanda(area.demanda),
+        vertices: verticesDoHexagono(area, mapa.raio_metros),
+      })),
+      // um ícone (ou dois) por área do mesmo nível, não um por célula
+      icones: iconesDaDemanda(lista),
+    };
   }, [mapa]);
 
   return (
@@ -87,18 +91,19 @@ function RegioesDinamicas({ mapa, camadas }: Props) {
           />
         ))}
       {camadas.demanda &&
-        manchas
-          // só onde a procura é relevante: um marcador por célula pesa
-          .filter(({ area }) => area.demanda >= 0.2)
-          .map(({ area, bonequinhos, temTarifa }) => (
+        icones.map((icone) => {
+          const abaixo = camadas.tarifas && comTarifa.has(icone.celula);
+
+          return (
             <BonequinhosDaRegiao
-              key={`gente:${area.celula}:${bonequinhos}:${camadas.tarifas && temTarifa}`}
-              regiao={area}
-              quantidade={bonequinhos}
+              key={`gente:${icone.celula}:${icone.nivel}:${abaixo}`}
+              regiao={icone}
+              quantidade={icone.nivel}
               // com o valor no centro, os bonequinhos descem para não cobri-lo
-              abaixoDoCentro={camadas.tarifas && temTarifa}
+              abaixoDoCentro={abaixo}
             />
-          ))}
+          );
+        })}
       {camadas.tarifas &&
         desenhos.map(({ regiao, cores }) => (
           <RotuloDaRegiao
