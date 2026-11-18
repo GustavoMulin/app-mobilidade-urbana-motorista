@@ -235,9 +235,12 @@ export default function Home() {
   );
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
-  // preço dinâmico: o mapa quente do servidor (só com o motorista online) ou a
-  // demonstração do simulador, centrada onde o mapa estava ao ligar
-  const mapaDinamico = useMapaDinamico(disponivelExibido);
+  // preço dinâmico: o mapa quente do servidor (também com o motorista
+  // desconectado, para ele ver onde vale a pena ligar) ou a demonstração do
+  // simulador, centrada onde o mapa estava ao ligar
+  const mapaDinamico = useMapaDinamico(
+    Boolean(user) && !simuladorCorrida.ativa,
+  );
   const [centroDaDemonstracao, setCentroDaDemonstracao] = useState<Ponto>({
     latitude: -8.7023595,
     longitude: -63.8765456,
@@ -709,6 +712,7 @@ export default function Home() {
         <RecebendoChamada
           key={ofertaExibida.corrida_id}
           valor={ofertaExibida.valor_motorista}
+          dinamico={ofertaExibida.dinamico}
           distanciaAteOrigem={ofertaExibida.distancia_ate_origem_km}
           distanciaDaCorrida={ofertaExibida.distancia_corrida_km}
           origem={ofertaExibida.origem}

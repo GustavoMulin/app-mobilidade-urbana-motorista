@@ -99,7 +99,12 @@ const oferta: OfertaCorrida = {
   paradas: 0,
   passageiro_nota: passageiro.nota,
   passageiro_corridas: passageiro.corridas,
+  // 15,21 = 10,14 normais + 5,07 do dinâmico de 1,5x
+  dinamico: { multiplicador: 1.5, valor: 5.07 },
 };
+
+// multiplicador de cada chamada da sequência (null = sem dinâmico)
+const DINAMICO_DA_SEQUENCIA: (number | null)[] = [1.5, null, 1.3, null, 2];
 
 // várias chamadas seguidas: uma aparece assim que a anterior é aceita ou
 // recusada, para treinar a sequência (inclusive pelo gesto)
@@ -151,6 +156,17 @@ const OFERTAS_EM_SEQUENCIA: OfertaCorrida[] = variacoes.map(
     distancia_corrida_km: corridaKm,
     passageiro_nota: nota,
     passageiro_corridas: 12 + indice * 17,
+    dinamico:
+      DINAMICO_DA_SEQUENCIA[indice] === null
+        ? null
+        : {
+            multiplicador: DINAMICO_DA_SEQUENCIA[indice],
+            valor:
+              Math.round(
+                (valor - valor / (DINAMICO_DA_SEQUENCIA[indice] as number)) *
+                  100,
+              ) / 100,
+          },
   }),
 );
 export const QUANTIDADE_EM_SEQUENCIA = OFERTAS_EM_SEQUENCIA.length;

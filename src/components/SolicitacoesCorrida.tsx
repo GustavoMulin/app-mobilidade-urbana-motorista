@@ -44,7 +44,14 @@ interface Props {
 }
 
 const emKm = (valor: number) => `${valor.toFixed(1).replace(".", ",")} km`;
-const emReais = (valor: number) => `R$${valor.toFixed(2).replace(".", ",")}`;
+const emReais = (valor: number) => `R${valor.toFixed(2).replace(".", ",")}`;
+const textoDoDinamico = (dinamico: {
+  multiplicador: number | null;
+  valor: number;
+}) =>
+  dinamico.multiplicador
+    ? `${dinamico.multiplicador.toFixed(1).replace(".", ",")}x · +${emReais(dinamico.valor)}`
+    : `Dinâmico +${emReais(dinamico.valor)}`;
 
 export default function SolicitacoesCorrida({
   visible,
@@ -260,6 +267,14 @@ export default function SolicitacoesCorrida({
                   <Text style={styles.valor}>
                     {emReais(item.valor_motorista)}
                   </Text>
+                  {item.dinamico ? (
+                    <View style={styles.dinamicoChip}>
+                      <Ionicons name="flame" size={14} color="#E8590C" />
+                      <Text style={styles.dinamicoTexto}>
+                        {textoDoDinamico(item.dinamico)}
+                      </Text>
+                    </View>
+                  ) : null}
                   {item.negociavel ? (
                     <View style={styles.ganhosChip}>
                       <Ionicons name="ribbon" size={14} color="#D69D00" />
@@ -538,6 +553,16 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   valor: { color: "#111", fontSize: 29, fontWeight: "800" },
+  dinamicoChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 999,
+    backgroundColor: "#FFE8D6",
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  dinamicoTexto: { color: "#C2410C", fontSize: 13, fontWeight: "800" },
   ganhosChip: {
     flexDirection: "row",
     alignItems: "center",

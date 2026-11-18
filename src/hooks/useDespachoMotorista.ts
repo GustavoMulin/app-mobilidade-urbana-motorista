@@ -49,6 +49,8 @@ export interface OfertaCorrida {
   distancia_ate_origem_km: number;
   distancia_corrida_km: number;
   valor_motorista: number;
+  // chamada de região com preço dinâmico: o multiplicador (1,5x) e quanto ele soma em R$
+  dinamico?: { multiplicador: number | null; valor: number } | null;
   origem: string;
   destino: string | null;
   paradas: number;

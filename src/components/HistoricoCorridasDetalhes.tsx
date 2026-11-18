@@ -247,7 +247,32 @@ export default function HistoricoCorridasDetalhes({
                   label="Pago pelo passageiro"
                   value={item.passengerPaid}
                 />
-                <InfoRow label="Tarifa base" value={item.baseFare} />
+                {item.breakdown ? (
+                  <>
+                    <InfoRow
+                      label="Valor da corrida (tempo + distância)"
+                      value={item.breakdown.rideValue}
+                    />
+                    {item.breakdown.dynamicValue !== null ? (
+                      <InfoRow
+                        label="Preço dinâmico"
+                        value={item.breakdown.dynamicValue}
+                      />
+                    ) : null}
+                    <InfoRow
+                      label="Tarifa base"
+                      value={item.breakdown.baseFare}
+                    />
+                    {item.breakdown.extraFees !== null ? (
+                      <InfoRow
+                        label="Taxas extras"
+                        value={item.breakdown.extraFees}
+                      />
+                    ) : null}
+                  </>
+                ) : (
+                  <InfoRow label="Tarifa base" value={item.baseFare} />
+                )}
                 <InfoRow label="Taxa da plataforma" value={item.platformFee} />
                 <InfoRow
                   label="Percentual da plataforma"

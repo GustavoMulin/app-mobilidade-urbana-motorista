@@ -24,6 +24,17 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // carregado só quando usado: a câmera nativa não existe no Expo Go
 const DetectorDeGesto = lazy(() => import("./DetectorDeGesto"));
 
+const textoDoDinamico = (dinamico: {
+  multiplicador: number | null;
+  valor: number;
+}) => {
+  const extra = `+R${dinamico.valor.toFixed(2).replace(".", ",")}`;
+
+  return dinamico.multiplicador
+    ? `${dinamico.multiplicador.toFixed(1).replace(".", ",")}x · ${extra}`
+    : `Dinâmico ${extra}`;
+};
+
 interface RecebendoChamadaProps {
   onAceitar: () => void;
   onRecusar: () => void;
@@ -33,6 +44,8 @@ interface RecebendoChamadaProps {
   negociavel?: boolean;
   onPropor?: (valorMotorista?: number) => void;
   valor?: number;
+  // preço dinâmico embutido no valor: aparece como chip quando a chamada é dinâmica
+  dinamico?: { multiplicador: number | null; valor: number } | null;
   distanciaAteOrigem?: number;
   distanciaDaCorrida?: number;
   origem?: string;
@@ -98,6 +111,7 @@ export default function RecebendoChamadas({
   negociavel = false,
   onPropor,
   valor = 8.2,
+  dinamico = null,
   distanciaAteOrigem,
   distanciaDaCorrida,
   origem,
@@ -296,6 +310,14 @@ export default function RecebendoChamadas({
                   {compartilhada.bonus_percentual > 0
                     ? ` · +${compartilhada.bonus_percentual}% bônus`
                     : ""}
+                </Text>
+              </View>
+            ) : null}
+            {dinamico ? (
+              <View style={styles.chipDinamico}>
+                <Ionicons name="flame" size={15} color="#FF6A00" />
+                <Text style={styles.chipDinamicoTexto}>
+                  {textoDoDinamico(dinamico)}
                 </Text>
               </View>
             ) : null}
@@ -546,6 +568,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   chipPagamentoTexto: { color: "#F5C542", fontSize: 14, fontWeight: "600" },
+  chipDinamico: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,106,0,0.16)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 8,
+  },
+  chipDinamicoTexto: { color: "#FF9A4D", fontSize: 14, fontWeight: "700" },
   chipsLinha: {
     flexDirection: "row",
     flexWrap: "wrap",
