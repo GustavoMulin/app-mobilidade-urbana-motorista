@@ -1,7 +1,7 @@
 import { api } from "@/Services/api";
 import { useToast } from "@/context/ToastContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const TEMPO_LEMBRETE_MS = 12 * 60 * 60 * 1000;
 const chaveLembrete = (corridaId: number) =>
@@ -70,7 +70,18 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
     }
   }, []);
 
+  // a avaliação só aparece ao fim de uma corrida desta sessão: abrir o app não
+  // busca nada (uma corrida antiga sem nota não pode saltar na primeira tela)
+  const corridaAnterior = useRef<unknown>(recarregarQuando);
+
   useEffect(() => {
+    const terminou =
+      corridaAnterior.current !== null && recarregarQuando === null;
+
+    corridaAnterior.current = recarregarQuando;
+
+    if (!terminou) return;
+
     const timer = setTimeout(() => void buscar(), 0);
 
     return () => clearTimeout(timer);
