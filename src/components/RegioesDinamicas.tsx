@@ -1,6 +1,6 @@
 import { Text } from "@/components/common/Texto";
 import {
-  bonequinhosDaDemanda,
+  nivelDaDemanda,
   corDaDemanda,
   corDaIntensidade,
   demandaDaRegiao,
@@ -8,7 +8,7 @@ import {
   type CamadasDoMapa,
   type MapaDinamico,
 } from "@/domain/dinamica";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { memo, useEffect, useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { Marker, Polygon } from "react-native-maps";
@@ -54,7 +54,7 @@ function RegioesDinamicas({ mapa, camadas }: Props) {
     return lista.map((area) => ({
       area,
       corDaMancha: corDaDemanda(area.demanda),
-      bonequinhos: bonequinhosDaDemanda(area.demanda),
+      bonequinhos: nivelDaDemanda(area.demanda),
       vertices: verticesDoHexagono(area, mapa.raio_metros),
       temTarifa: comTarifa.has(area.celula),
     }));
@@ -89,14 +89,14 @@ function RegioesDinamicas({ mapa, camadas }: Props) {
       {camadas.demanda &&
         manchas
           // só onde a procura é relevante: um marcador por célula pesa
-          .filter(({ area }) => area.demanda >= 0.3)
+          .filter(({ area }) => area.demanda >= 0.2)
           .map(({ area, bonequinhos, temTarifa }) => (
             <BonequinhosDaRegiao
               key={`gente:${area.celula}:${bonequinhos}:${camadas.tarifas && temTarifa}`}
               regiao={area}
               quantidade={bonequinhos}
-              // com o valor no centro, os bonequinhos sobem para não cobri-lo
-              acimaDoCentro={camadas.tarifas && temTarifa}
+              // com o valor no centro, os bonequinhos descem para não cobri-lo
+              abaixoDoCentro={camadas.tarifas && temTarifa}
             />
           ))}
       {camadas.tarifas &&
@@ -128,34 +128,36 @@ function useRastrearPorUmMomento() {
 function BonequinhosDaRegiao({
   regiao,
   quantidade,
-  acimaDoCentro,
+  abaixoDoCentro,
 }: {
   regiao: { latitude: number; longitude: number };
   quantidade: number;
-  acimaDoCentro: boolean;
+  abaixoDoCentro: boolean;
 }) {
   const rastrear = useRastrearPorUmMomento();
   const { escuro } = useTema();
+  const cor = escuro ? "#FFC83D" : "#7A4300";
 
   return (
     <Marker
       // o tema entra na chave de desenho: o marcador congela depois do 1º quadro
       key={escuro ? "escuro" : "claro"}
       coordinate={regiao}
-      anchor={{ x: 0.5, y: acimaDoCentro ? 1.35 : 0.5 }}
+      anchor={{ x: 0.5, y: abaixoDoCentro ? -0.45 : 0.5 }}
       tracksViewChanges={rastrear}
       tappable={false}
       zIndex={2}
     >
       <View style={[styles.bonequinhos, escuro && styles.bonequinhosEscuro]}>
-        {Array.from({ length: quantidade }, (_, i) => (
-          <Ionicons
-            key={i}
-            name="person"
-            size={13}
-            color={escuro ? "#FFC83D" : "#7A4300"}
-          />
-        ))}
+        {quantidade === 3 ? (
+          // demanda extrema: o ícone de grupo com 3 pessoas
+          <MaterialIcons name="groups" size={24} color={cor} />
+        ) : quantidade === 2 ? (
+          // demanda alta: o ícone de duas pessoas
+          <Ionicons name="people" size={19} color={cor} />
+        ) : (
+          <Ionicons name="person" size={16} color={cor} />
+        )}
       </View>
     </Marker>
   );
@@ -199,10 +201,8 @@ const styles = StyleSheet.create({
   texto: { color: "#FFFFFF", fontSize: 13, fontWeight: "800" },
   bonequinhos: {
     flexDirection: "row",
-    paddingHorizontal: 5,
-    paddingVertical: 2,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.85)",
+    // sem fundo: só as silhuetas, para ocupar o mínimo do hexágono
+    marginHorizontal: -1,
   },
-  bonequinhosEscuro: { backgroundColor: "rgba(24,27,32,0.9)" },
+  bonequinhosEscuro: {},
 });

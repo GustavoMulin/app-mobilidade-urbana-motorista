@@ -120,9 +120,12 @@ export const CAMADAS_PADRAO: CamadasDoMapa = { demanda: true, tarifas: true };
 export const demandaDaRegiao = (regiao: RegiaoDinamica): number =>
   Math.min(Math.max(regiao.demanda ?? regiao.intensidade, 0), 1);
 
-/** Quantos bonequinhos mostrar: 1 (baixa) a 4 (altíssima). */
-export const bonequinhosDaDemanda = (demanda: number): number =>
-  Math.min(Math.max(Math.ceil(Math.min(Math.max(demanda, 0), 1) * 4), 1), 4);
+/**
+ * Nível da demanda para o ícone: 1 leve ou moderada (uma pessoa), 2 alta
+ * (duas pessoas) e 3 extrema (grupo).
+ */
+export const nivelDaDemanda = (demanda: number): 1 | 2 | 3 =>
+  demanda >= 0.8 ? 3 : demanda >= 0.55 ? 2 : 1;
 
 /** Cor da mancha de demanda, sem borda: do amarelo-claro ao laranja forte. */
 export function corDaDemanda(demanda: number): string {
@@ -218,10 +221,13 @@ export function mapaDeDemonstracao(
 
       demandas.push({ celula, ...posicao, demanda });
 
-      // só as mais quentes viram tarifa
-      if (!ehCentro && demanda < 0.62) continue;
+      // nem toda procura tem tarifa: parte das células com demanda entra, de
+      // qualquer força (a dinâmica começa em 1,1x)
+      if (!ehCentro && (demanda < 0.2 || ruido(dq + 7, dr - 3) < 0.6)) continue;
 
-      const multiplicador = Math.round((1.1 + demanda * 1.4) * 10) / 10;
+      // 1,1x na demanda mais fraca até 2,5x no teto
+      const multiplicador =
+        Math.round((1.1 + Math.max(demanda - 0.3, 0) * 2) * 10) / 10;
       const valor = Math.max(Math.round(demanda * 9 * 4) / 4, 0.5);
 
       regioes.push({
@@ -230,7 +236,8 @@ export function mapaDeDemonstracao(
         ...posicao,
         multiplicador,
         valor_adicional: valor,
-        intensidade: demanda,
+        // cor da borda pelo multiplicador: de 1,1x (amarelo) a 2,5x (vermelho)
+        intensidade: Math.round(((multiplicador - 1.1) / 1.4) * 100) / 100,
         rotulo:
           modo === "multiplicador"
             ? `${formatar(multiplicador, 1)}x`

@@ -74,7 +74,11 @@ test("a demonstração tem o hexágono mais quente no centro e rótulos do modo"
 
   assert.ok(multiplicador.regioes.length >= 4);
   // a demanda cobre bem mais que as tarifas (nem toda procura tem preço extra)
-  assert.ok(multiplicador.demandas.length > multiplicador.regioes.length * 2);
+  assert.ok(multiplicador.demandas.length > multiplicador.regioes.length * 1.5);
+  // a dinâmica vai de 1,1x até o teto, não só de 2x para cima
+  const valores = multiplicador.regioes.map((x) => x.multiplicador);
+  assert.ok(Math.min(...valores) === 1.1);
+  assert.ok(Math.max(...valores) >= 2);
   assert.ok(
     multiplicador.regioes.every((x) =>
       multiplicador.demandas.some((d) => d.celula === x.celula),

@@ -195,17 +195,6 @@ export default function SimuladorCorridaMotorista({
 
               <TouchableOpacity
                 accessibilityRole="button"
-                disabled={!ativa}
-                style={[styles.finalizar, !ativa && styles.desabilitada]}
-                onPress={escolher(onFinalizar)}
-              >
-                <Text style={styles.finalizarTexto}>
-                  Finalizar corrida simulada
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                accessibilityRole="button"
                 disabled={bloqueado && !ativa}
                 style={[
                   styles.etapa,
@@ -218,10 +207,10 @@ export default function SimuladorCorridaMotorista({
               </TouchableOpacity>
 
               {(
-                [
-                  ["multiplicador", "Mapa com dinâmica (1,5x)"],
-                  ["valor_fixo", "Mapa com dinâmica (+R$)"],
-                ] as [ModoDinamica, string][]
+                [["multiplicador", "Mapa com dinâmica (1,5x)"]] as [
+                  ModoDinamica,
+                  string,
+                ][]
               ).map(([modo, rotulo]) => (
                 <TouchableOpacity
                   key={modo}
@@ -248,6 +237,17 @@ export default function SimuladorCorridaMotorista({
                   />
                 </TouchableOpacity>
               ))}
+
+              <TouchableOpacity
+                accessibilityRole="button"
+                disabled={!ativa}
+                style={[styles.finalizar, !ativa && styles.desabilitada]}
+                onPress={escolher(onFinalizar)}
+              >
+                <Text style={styles.finalizarTexto}>
+                  Finalizar corrida simulada
+                </Text>
+              </TouchableOpacity>
 
               {(ativa || finalizada) && (
                 <TouchableOpacity

@@ -93,6 +93,11 @@ const LIMITE_POSICAO_MS = 15_000;
 // bairros (com 0,01 só se via o quarteirão em volta).
 export const ABERTURA_DO_MAPA = 0.03;
 
+// Acima disso (~55 km de ponta a ponta, a cidade inteira e arredores) o mapa de calor some: os hexágonos de
+// centenas de metros viram pontinhos e os marcadores se amontoam. Volta ao
+// aproximar.
+const ZOOM_MAXIMO_DO_MAPA_DE_CALOR = 0.5;
+
 const regiaoDaPosicao = (coords: {
   latitude: number;
   longitude: number;
@@ -143,6 +148,7 @@ export default function Map({
   // camadas do mapa de calor (demanda e tarifas) e a janela que as liga
   const [camadas, setCamadas] = useState<Camadas>(CAMADAS_PADRAO);
   const [camadasAbertas, setCamadasAbertas] = useState(false);
+  const [afastadoDemais, setAfastadoDemais] = useState(false);
   const [regiaoReserva, setRegiaoReserva] = useState<Region>(REGIAO_BRASIL);
   const temPosicaoReal = useRef(false);
   const {
@@ -505,6 +511,9 @@ export default function Map({
         onPanDrag={() => setMapaMovido(true)}
         onRegionChangeComplete={(regiao) => {
           regiaoDoMapa.current = regiao;
+          setAfastadoDemais(
+            regiao.latitudeDelta > ZOOM_MAXIMO_DO_MAPA_DE_CALOR,
+          );
           onRegionChange(regiao);
         }}
         // sem rota (esperando no embarque), o centro do mapa fica na parte que
@@ -529,7 +538,9 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
-        {dinamica && <RegioesDinamicas mapa={dinamica} camadas={camadas} />}
+        {dinamica && !afastadoDemais && (
+          <RegioesDinamicas mapa={dinamica} camadas={camadas} />
+        )}
 
         {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
