@@ -174,6 +174,8 @@ export interface PassageiroDaCorrida {
   solicitante?: string | null;
   foto: string | null;
   foto_oculta?: boolean;
+  // a imagem é o avatar que o passageiro escolheu (não a foto dele)
+  foto_e_avatar?: boolean;
   telefone: string | null;
   nota: number | null;
   corridas: number;
