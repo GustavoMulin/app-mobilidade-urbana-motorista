@@ -1,16 +1,17 @@
 // CODEX: 6 linhas alteradas (4 adicionadas, 2 removidas); permite contraste próprio no rótulo do deslizador. Remover após validação/commit.
 import { Text } from "@/components/common/Texto";
-import { Feather } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import {
   Animated,
+  Easing,
   LayoutChangeEvent,
   PanResponder,
   StyleSheet,
   View,
 } from "react-native";
 
-const TAMANHO_ALCA = 52;
+const TAMANHO_ALCA = 60;
 const MARGEM = 4;
 
 interface props {
@@ -30,6 +31,8 @@ export default function BotaoDeslizar({
 }: props) {
   const [largura, setLargura] = useState(0);
   const [deslocamento] = useState(() => new Animated.Value(0));
+  // onda nas setas da alça: uma clareia enquanto a outra escurece, em vai e vem
+  const [onda] = useState(() => new Animated.Value(0));
   const confirmado = useRef(false);
   const desabilitadoRef = useRef(desabilitado);
 
@@ -53,6 +56,38 @@ export default function BotaoDeslizar({
       bounciness: 0,
     }).start();
   };
+
+  useEffect(() => {
+    const laco = Animated.loop(
+      Animated.sequence([
+        Animated.timing(onda, {
+          toValue: 1,
+          duration: 900,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(onda, {
+          toValue: 0,
+          duration: 900,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    laco.start();
+
+    return () => laco.stop();
+  }, [onda]);
+
+  const opacidadeSeta1 = onda.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 0.2],
+  });
+  const opacidadeSeta2 = onda.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.2, 1],
+  });
 
   // mantém o callback atual sem recriar o PanResponder
   const onConfirmarRef = useRef(onConfirmar);
@@ -140,7 +175,16 @@ export default function BotaoDeslizar({
         style={[styles.alca, { transform: [{ translateX: deslocamento }] }]}
         {...(desabilitado ? {} : responder.panHandlers)}
       >
-        <Feather name="chevrons-right" size={24} color={cor} />
+        <View style={styles.setas}>
+          <Animated.View style={{ opacity: opacidadeSeta1 }}>
+            <Ionicons name="chevron-forward" size={30} color={cor} />
+          </Animated.View>
+          <Animated.View
+            style={[styles.segundaSeta, { opacity: opacidadeSeta2 }]}
+          >
+            <Ionicons name="chevron-forward" size={30} color={cor} />
+          </Animated.View>
+        </View>
       </Animated.View>
     </View>
   );
@@ -160,16 +204,21 @@ const styles = StyleSheet.create({
 
   rotuloContainer: {
     alignSelf: "stretch",
+    // o texto começa logo depois da alça, no início do botão
     paddingLeft: TAMANHO_ALCA + MARGEM * 3,
     paddingRight: MARGEM * 3,
   },
 
   rotulo: {
-    textAlign: "center",
+    textAlign: "left",
+    alignSelf: "stretch",
     color: "#FFF",
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: "700",
   },
+
+  setas: { flexDirection: "row", alignItems: "center" },
+  segundaSeta: { marginLeft: -21 },
 
   alca: {
     position: "absolute",
