@@ -1,4 +1,9 @@
-import { useEstilos, type CoresDoTema } from "@/theme/tema";
+import {
+  extrasDaCorrida,
+  useEstilos,
+  useTema,
+  type CoresDoTema,
+} from "@/theme/tema";
 import SelosEmGrade from "@/components/avaliacao/SelosEmGrade";
 import { Text } from "@/components/common/Texto";
 import {
@@ -12,7 +17,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
-  ScrollView,
+  Animated,
+  Modal,
   StyleSheet,
   TouchableOpacity,
   View,
@@ -33,6 +39,7 @@ interface Props {
 
 const ESTRELAS = [1, 2, 3, 4, 5];
 const TEMPO_MAXIMO_ABERTA_MS = 20_000;
+const ALTURA_DA_LINHA_DO_CABECALHO = 44;
 
 export default function AvaliarPassageiro({
   corrida,
@@ -42,9 +49,18 @@ export default function AvaliarPassageiro({
   onDispensar,
   selosProntos,
 }: Props) {
-  const tema = useEstilos(estilosBase, extrasAvaliar);
+  const { cores } = useTema();
+  const tema = useEstilos(estilosBase, extrasDaTela);
   const styles = { ...tema, textoBotao: estilosBase.textoBotao };
   const insets = useSafeAreaInsets();
+  // rolando o conteúdo, o fundo do cabeçalho vai aparecendo
+  const [rolagem] = useState(() => new Animated.Value(0));
+  const topoDoCabecalho = Math.max(insets.top + 12, 50);
+  const fundoDoCabecalho = rolagem.interpolate({
+    inputRange: [0, 150],
+    outputRange: [0, 1],
+    extrapolate: "clamp",
+  });
   const selosDoServidor = useSelosAvaliacao(!selosProntos);
   const selos = selosProntos ?? selosDoServidor;
 
@@ -110,155 +126,195 @@ export default function AvaliarPassageiro({
   const selosLiberados = podeEscolherSelos(nota);
 
   return (
-    <View style={styles.sobreposicao} onTouchStart={reiniciarInatividade}>
-      {/* o painel sobe até perto do topo: nota e selos cabem na mesma visão */}
-      <View style={[styles.painel, { top: insets.top + 12 }]}>
-        <ScrollView
-          style={styles.corpo}
-          contentContainerStyle={styles.corpoConteudo}
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={styles.pergunta}>Como foi a viagem?</Text>
-          <Text style={styles.nomePassageiro} numberOfLines={1}>
-            {passageiro ?? "Passageiro"}
-          </Text>
-
-          <View style={styles.estrelas}>
-            {ESTRELAS.map((valorEstrela) => (
-              <TouchableOpacity
-                key={valorEstrela}
-                accessibilityRole="button"
-                accessibilityLabel={`${valorEstrela} ${valorEstrela === 1 ? "estrela" : "estrelas"}`}
-                onPress={() => setNota(valorEstrela)}
-                disabled={enviando}
-                hitSlop={6}
-                style={styles.estrela}
-              >
-                <Ionicons
-                  name={valorEstrela <= nota ? "star" : "star-outline"}
-                  size={52}
-                  color={valorEstrela <= nota ? "#fbc02d" : "#C9CDD2"}
-                />
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* selos na mesma visão das estrelas; liberados com 4 ou 5 estrelas */}
-          {selos.length > 0 && (
-            <View style={styles.selos}>
-              <Text style={styles.selosTitulo}>Deixe um selo</Text>
-              <Text style={styles.selosApoio}>
-                {selosLiberados
-                  ? "Opcional: toque nos selos que combinam com o passageiro"
-                  : "Disponível com 4 ou 5 estrelas"}
-              </Text>
-              <View style={!selosLiberados && styles.selosBloqueados}>
-                <SelosEmGrade
-                  selos={selos}
-                  escolhidos={selosLiberados ? escolhidos : []}
-                  onAlternar={(chave) =>
-                    setEscolhidos((atuais) => alternarSelo(atuais, chave))
-                  }
-                  desabilitado={enviando || !selosLiberados}
-                />
-              </View>
-            </View>
-          )}
-        </ScrollView>
-
-        {/* rodapé fixo: enviar fica à mão assim que há nota */}
-        <View
-          style={[
-            styles.rodape,
-            { paddingBottom: Math.max(insets.bottom, 14) },
-          ]}
-        >
-          {nota === 1 && bloqueado && (
-            <View style={styles.bloqueado}>
-              <Ionicons name="ban" size={16} color="#B3261E" />
-              <Text style={styles.bloqueadoTexto}>
-                Passageiro bloqueado: você não receberá mais chamadas dele
-              </Text>
-            </View>
-          )}
-
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={[styles.botao, nota === 0 && styles.botaoDesativado]}
-            disabled={nota === 0 || enviando}
-            onPress={() => onAvaliar(nota, selosLiberados ? escolhidos : [])}
+    <Modal
+      visible
+      transparent={false}
+      statusBarTranslucent
+      animationType="slide"
+      onRequestClose={onDispensar}
+    >
+      <View style={styles.fundo} onTouchStart={reiniciarInatividade}>
+        <View style={styles.painel}>
+          {/* cabeçalho fixo: transparente no topo, branco conforme o conteúdo sobe */}
+          <View
+            style={[styles.cabecalho, { paddingTop: topoDoCabecalho }]}
+            pointerEvents="box-none"
           >
-            <Text
-              style={[
-                styles.textoBotao,
-                nota === 0 && styles.textoBotaoDesativado,
-              ]}
-            >
-              {enviando ? "Enviando..." : "Enviar e continuar"}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.acoes}>
-            {nota === 1 && !bloqueado && (
-              <TouchableOpacity
-                style={styles.acao}
-                disabled={enviando || bloqueando}
-                onPress={confirmarBloqueio}
-              >
-                <Ionicons name="ban-outline" size={18} color="#B3261E" />
-                <Text style={styles.textoBloquear}>Bloquear usuário</Text>
-              </TouchableOpacity>
-            )}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.cabecalhoFundo, { opacity: fundoDoCabecalho }]}
+            />
             <TouchableOpacity
-              style={styles.acao}
+              accessibilityRole="button"
+              accessibilityLabel="Fechar avaliação"
+              style={styles.botaoVoltar}
               disabled={enviando}
               onPress={onDispensar}
             >
-              <Text style={styles.textoPular}>Lembrar depois</Text>
+              <Ionicons name="chevron-back" size={28} color={cores.icone} />
             </TouchableOpacity>
+            <Text style={styles.tituloDoCabecalho}>Como foi a viagem?</Text>
+            <View style={styles.botaoVoltar} />
+          </View>
+
+          <Animated.ScrollView
+            style={styles.corpo}
+            contentContainerStyle={[
+              styles.corpoConteudo,
+              {
+                paddingTop: topoDoCabecalho + ALTURA_DA_LINHA_DO_CABECALHO + 8,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={16}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: rolagem } } }],
+              { useNativeDriver: true },
+            )}
+          >
+            <Text style={styles.nomePassageiro} numberOfLines={1}>
+              {passageiro ?? "Passageiro"}
+            </Text>
+
+            <View style={styles.estrelas}>
+              {ESTRELAS.map((valorEstrela) => (
+                <TouchableOpacity
+                  key={valorEstrela}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${valorEstrela} ${valorEstrela === 1 ? "estrela" : "estrelas"}`}
+                  onPress={() => setNota(valorEstrela)}
+                  disabled={enviando}
+                  hitSlop={6}
+                  style={styles.estrela}
+                >
+                  <Ionicons
+                    name={valorEstrela <= nota ? "star" : "star-outline"}
+                    size={52}
+                    color={valorEstrela <= nota ? "#fbc02d" : "#C9CDD2"}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* selos: liberados com 4 ou 5 estrelas; o motorista não dá
+                gorjeta nem escreve comentário */}
+            {selos.length > 0 && (
+              <View style={styles.selos}>
+                <Text style={styles.selosTitulo}>Deixe um selo</Text>
+                <Text style={styles.selosApoio}>
+                  {selosLiberados
+                    ? "Opcional: toque nos selos que combinam com o passageiro"
+                    : "Disponível com 4 ou 5 estrelas"}
+                </Text>
+                <View style={!selosLiberados && styles.selosBloqueados}>
+                  <SelosEmGrade
+                    selos={selos}
+                    escolhidos={selosLiberados ? escolhidos : []}
+                    onAlternar={(chave) =>
+                      setEscolhidos((atuais) => alternarSelo(atuais, chave))
+                    }
+                    desabilitado={enviando || !selosLiberados}
+                  />
+                </View>
+              </View>
+            )}
+          </Animated.ScrollView>
+
+          {/* rodapé fixo: enviar fica à mão assim que há nota */}
+          <View
+            style={[
+              styles.rodape,
+              { paddingBottom: Math.max(insets.bottom, 14) },
+            ]}
+          >
+            {nota === 1 && bloqueado && (
+              <View style={styles.bloqueado}>
+                <Ionicons name="ban" size={16} color="#B3261E" />
+                <Text style={styles.bloqueadoTexto}>
+                  Passageiro bloqueado: você não receberá mais chamadas dele
+                </Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={[styles.botao, nota === 0 && styles.botaoDesativado]}
+              disabled={nota === 0 || enviando}
+              onPress={() => onAvaliar(nota, selosLiberados ? escolhidos : [])}
+            >
+              <Text
+                style={[
+                  styles.textoBotao,
+                  nota === 0 && styles.textoBotaoDesativado,
+                ]}
+              >
+                {enviando ? "Enviando..." : "Enviar avaliação"}
+              </Text>
+            </TouchableOpacity>
+
+            <View style={styles.acoes}>
+              {nota === 1 && !bloqueado && (
+                <TouchableOpacity
+                  style={styles.acao}
+                  disabled={enviando || bloqueando}
+                  onPress={confirmarBloqueio}
+                >
+                  <Ionicons name="ban-outline" size={18} color="#B3261E" />
+                  <Text style={styles.textoBloquear}>Bloquear usuário</Text>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={styles.acao}
+                disabled={enviando}
+                onPress={onDispensar}
+              >
+                <Text style={styles.textoPular}>Agora não</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
-    </View>
+    </Modal>
   );
 }
 
-// aviso de bloqueio: fundo e texto avermelhados em tons escuros
-const extrasAvaliar = (_cores: CoresDoTema) => ({
-  "backgroundColor:#fdecea": "#3A1D1B",
-  "color:#b3261e": "#F28B82",
-});
+const extrasDaTela = (cores: CoresDoTema) => extrasDaCorrida(cores);
 
 const estilosBase = StyleSheet.create({
-  sobreposicao: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 50,
-  },
-  painel: {
+  fundo: { flex: 1, backgroundColor: "#FFF" },
+  painel: { flex: 1, backgroundColor: "#FFF" },
+  cabecalho: {
     position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingBottom: 8,
+    paddingHorizontal: 16,
+  },
+  cabecalhoFundo: {
+    position: "absolute",
+    top: 0,
     left: 0,
     right: 0,
     bottom: 0,
     backgroundColor: "#FFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#EEE",
   },
+  botaoVoltar: { width: 36, height: 36, justifyContent: "center" },
+  tituloDoCabecalho: { fontSize: 18.9, fontWeight: "800", color: "#111" },
   corpo: { flex: 1 },
-  corpoConteudo: { paddingHorizontal: 24, paddingTop: 26, paddingBottom: 16 },
-  pergunta: {
-    fontSize: 21,
-    fontWeight: "800",
-    color: "#111",
-    marginTop: 10,
-    textAlign: "center",
-  },
+  corpoConteudo: { paddingHorizontal: 24, paddingBottom: 24 },
   nomePassageiro: {
     fontSize: 27,
     fontWeight: "800",
     color: "#111",
     textAlign: "center",
-    marginTop: 18,
+    marginTop: 10,
   },
   estrelas: {
     flexDirection: "row",
@@ -266,7 +322,7 @@ const estilosBase = StyleSheet.create({
     marginTop: 14,
   },
   estrela: { paddingHorizontal: 4 },
-  selos: { marginTop: 26 },
+  selos: { marginTop: 28 },
   selosTitulo: {
     fontSize: 22,
     fontWeight: "800",
@@ -274,7 +330,7 @@ const estilosBase = StyleSheet.create({
     textAlign: "center",
   },
   selosApoio: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#666",
     textAlign: "center",
     marginTop: 4,
@@ -284,7 +340,7 @@ const estilosBase = StyleSheet.create({
   rodape: {
     paddingHorizontal: 24,
     paddingTop: 12,
-    borderTopWidth: 1,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "#EEE",
     backgroundColor: "#FFF",
   },
@@ -299,16 +355,16 @@ const estilosBase = StyleSheet.create({
   textoBotaoDesativado: { color: "#9AA0A6" },
   acoes: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
-    gap: 24,
+    justifyContent: "center",
+    gap: 28,
     marginTop: 6,
   },
   acao: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   textoBloquear: { fontSize: 16, color: "#B3261E", fontWeight: "600" },
   textoPular: { fontSize: 16, color: "#888" },
