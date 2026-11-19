@@ -41,6 +41,8 @@ export interface PassageiroDaCorrida {
   solicitante?: string | null;
   foto?: string | null;
   foto_oculta?: boolean;
+  // a imagem é o avatar que o passageiro escolheu (não a foto dele)
+  foto_e_avatar?: boolean;
   telefone?: string | null;
   nota?: number | null;
   corridas?: number;
@@ -63,6 +65,8 @@ interface props {
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // toque na foto ou avatar do passageiro: abre o perfil público dele
+  onAbrirPerfilPassageiro?: () => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
   // as frases da etapa "no embarque", das preferências do motorista
@@ -116,6 +120,7 @@ export default function CorridaEmAndamento({
   onAlternarRecusarNovas,
   chatNaoLidas = 0,
   onAbrirChat,
+  onAbrirPerfilPassageiro,
   mensagensEnviadas = [],
   mensagensRapidas = [],
   onEnviarMensagem,
@@ -284,6 +289,8 @@ export default function CorridaEmAndamento({
             enviadas={mensagensEnviadas}
             mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
+            // a cor do botão "Iniciar corrida"
+            corDaBarra="#4A7DF7"
           />
         ) : null}
         {faixa && (
@@ -342,16 +349,24 @@ export default function CorridaEmAndamento({
             )}
 
             <View style={styles.linhaPassageiro}>
-              {passageiro?.foto && !passageiro.foto_oculta ? (
-                <Image
-                  source={{ uri: passageiro.foto }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarVazio]}>
-                  <Feather name="user" size={22} color="#8B94A1" />
-                </View>
-              )}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={!onAbrirPerfilPassageiro}
+                accessibilityRole="button"
+                accessibilityLabel="Ver o perfil do passageiro"
+                onPress={onAbrirPerfilPassageiro}
+              >
+                {passageiro?.foto && !passageiro.foto_oculta ? (
+                  <Image
+                    source={{ uri: passageiro.foto }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarVazio]}>
+                    <Feather name="user" size={24} color="#8B94A1" />
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.passageiroBloco}
@@ -581,7 +596,7 @@ const estilosBase = StyleSheet.create({
   },
 
   linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatar: { width: 47, height: 47, borderRadius: 23.5 },
   avatarVazio: {
     backgroundColor: "#E6EDF5",
     alignItems: "center",
@@ -596,11 +611,11 @@ const estilosBase = StyleSheet.create({
   nomeLinha: { flexDirection: "row", alignItems: "center", gap: 2 },
   passageiroNome: {
     flexShrink: 1,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     color: "#111",
   },
-  passageiroApoio: { fontSize: 14, color: "#777", marginTop: 2 },
+  passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
     width: 48,
     height: 48,

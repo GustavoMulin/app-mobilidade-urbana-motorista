@@ -12,6 +12,8 @@ import GanhoDiario from "@/components/GanhoDiario";
 import Map, { ABERTURA_DO_MAPA } from "@/components/Map";
 import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
+import PerfilPassageiroPublico from "@/components/PerfilPassageiroPublico";
+import { usePerfilDoPassageiro } from "@/hooks/usePerfilDoPassageiro";
 import {
   AguardandoPagamentoNegocia,
   PropostaEnviadaAviso,
@@ -363,6 +365,12 @@ export default function Home() {
 
   // ✨ NOVO: Estado do modal de ganhos foi elevado para cá
   const [ganhoModalVisivel, setGanhoModalVisivel] = useState(false);
+  // perfil público do passageiro (toque na foto ou avatar dele, depois do embarque)
+  const [perfilPassageiroAberto, setPerfilPassageiroAberto] = useState(false);
+  const perfilDoPassageiro = usePerfilDoPassageiro(
+    corridaExibida?.id ?? null,
+    perfilPassageiroAberto && !simuladorCorrida.ativa,
+  );
 
   const drawerWidth = Math.round(Dimensions.get("window").width * 0.78);
   const [translateX] = useState(() => new Animated.Value(-drawerWidth));
@@ -569,6 +577,7 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          onAbrirPerfilPassageiro={() => setPerfilPassageiroAberto(true)}
           paradasDoGrupo={simuladorCorrida.ativa ? null : grupo?.paradas}
           mensagensEnviadas={mensagensEnviadas}
           mensagensRapidas={mensagensRapidas.daEtapa("aceita")}
@@ -610,6 +619,7 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          onAbrirPerfilPassageiro={() => setPerfilPassageiroAberto(true)}
           mensagensEnviadas={mensagensEnviadas}
           mensagensRapidas={mensagensRapidas.daEtapa("motorista_chegou")}
           onEnviarMensagem={
@@ -674,6 +684,15 @@ export default function Home() {
           onDispensar={simuladorCorrida.encerrarAvaliacao}
         />
       )}
+
+      {/* perfil público do passageiro: a corrida em andamento, fora do embarque */}
+      <PerfilPassageiroPublico
+        visible={perfilPassageiroAberto && corridaExibida !== null}
+        onClose={() => setPerfilPassageiroAberto(false)}
+        perfil={perfilDoPassageiro.perfil}
+        carregando={perfilDoPassageiro.carregando}
+        erro={perfilDoPassageiro.erro || simuladorCorrida.ativa}
+      />
 
       {/* a animação do dinheiro só aparece depois da avaliação */}
       {ganhoRecebido !== null && !aguardandoAvaliacao && (

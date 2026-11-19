@@ -82,10 +82,15 @@ interface Props {
   onEnviar: (texto: string) => Promise<boolean>;
   // quanto o painel (ou a pílula) ocupa acima da folha, 0 quando não aparece
   onAlturaChange?: (altura: number) => void;
+  // cor da barra de tempo e do botão de enviar: a do botão de deslizar da etapa
+  corDaBarra?: string;
+  // true enquanto as mensagens ainda vão aparecer ou estão na tela; false quando
+  // acabaram (enviou, passou o tempo ou não há mensagens)
+  onPendenteChange?: (pendente: boolean) => void;
 }
 
 // monta a cada abertura do painel, sempre cheia
-function BarraDoTempo() {
+function BarraDoTempo({ cor }: { cor?: string }) {
   const styles = useEstilos(estilosBase, extrasDaCorrida);
   const restante = useSharedValue(1);
 
@@ -101,7 +106,9 @@ function BarraDoTempo() {
 
   return (
     <View style={styles.trilho}>
-      <Animated.View style={[styles.barra, estilo]} />
+      <Animated.View
+        style={[styles.barra, cor ? { backgroundColor: cor } : null, estilo]}
+      />
     </View>
   );
 }
@@ -111,6 +118,8 @@ export default function BaloesDaChegada({
   mensagens,
   onEnviar,
   onAlturaChange,
+  corDaBarra,
+  onPendenteChange,
 }: Props) {
   const { cores } = useTema();
   const tema = useEstilos(estilosBase, extrasDaCorrida);
@@ -151,6 +160,12 @@ export default function BaloesDaChegada({
   useEffect(() => {
     if (!visivel) onAlturaChange?.(0);
   }, [visivel, onAlturaChange]);
+
+  const pendente = !jaEnviou && pendentes.length > 0 && fase !== "expirado";
+
+  useEffect(() => {
+    onPendenteChange?.(pendente);
+  }, [pendente, onPendenteChange]);
 
   if (!visivel) return null;
 
@@ -234,7 +249,7 @@ export default function BaloesDaChegada({
         </TouchableOpacity>
       </View>
 
-      <BarraDoTempo />
+      <BarraDoTempo cor={corDaBarra} />
 
       <View style={styles.lista}>
         {pendentes.map((mensagem) => {
@@ -272,8 +287,22 @@ export default function BaloesDaChegada({
                 {ocupado ? (
                   <ActivityIndicator size="small" color="#111" />
                 ) : (
-                  <View style={styles.enviar}>
-                    <Ionicons name="send" size={15} color="#111" />
+                  <View
+                    style={[
+                      styles.enviar,
+                      corDaBarra ? { backgroundColor: corDaBarra } : null,
+                    ]}
+                  >
+                    <Ionicons
+                      name="send"
+                      size={15}
+                      // texto escuro sobre o amarelo, claro sobre as outras cores
+                      color={
+                        !corDaBarra || corDaBarra.toUpperCase() === "#FFD600"
+                          ? "#111"
+                          : "#FFF"
+                      }
+                    />
                   </View>
                 )}
               </TouchableOpacity>

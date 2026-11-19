@@ -98,6 +98,8 @@ interface Props {
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // toque na foto ou avatar do passageiro: abre o perfil público dele
+  onAbrirPerfilPassageiro?: () => void;
   // quanto o cartão do topo ocupa abaixo da área segura (os avisos do chat
   // aparecem logo embaixo dele, sem cobrir a manobra)
   onAlturaDoTopo?: (altura: number) => void;
@@ -107,6 +109,9 @@ interface Props {
   mensagensRapidas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
 }
+
+// desfoque da foto do passageiro enquanto o motorista ainda vai ao embarque
+const BLUR_DA_FOTO = 40;
 
 interface Passo {
   acao: AcaoCorrida;
@@ -232,6 +237,7 @@ export default function NavegacaoAtiva({
   onCancelar,
   chatNaoLidas = 0,
   onAbrirChat,
+  onAbrirPerfilPassageiro,
   onAlturaDoTopo,
   paradasDoGrupo = null,
   mensagensEnviadas = [],
@@ -337,6 +343,9 @@ export default function NavegacaoAtiva({
     [alturaMensagens],
   );
   const comMensagemACaminho = status === "aceita" && !!onEnviarMensagem;
+  // velocímetro e "compartilhe" só aparecem depois das mensagens rápidas
+  const [mensagemPendente, setMensagemPendente] = useState(true);
+  const esperandoMensagem = comMensagemACaminho && mensagemPendente;
   useEffect(() => {
     if (!comMensagemACaminho) alturaMensagens.set(0);
   }, [comMensagemACaminho, alturaMensagens]);
@@ -802,34 +811,38 @@ export default function NavegacaoAtiva({
       </View>
 
       {/* velocímetro */}
-      <Animated.View style={[styles.velocidade, estiloVelocidade]}>
-        <Text style={styles.velocidadeValor}>
-          {velocidadeKmh !== null ? Math.round(velocidadeKmh) : "--"}
-        </Text>
-        <Text style={styles.velocidadeUnidade}>km/h</Text>
-      </Animated.View>
+      {!esperandoMensagem && (
+        <Animated.View style={[styles.velocidade, estiloVelocidade]}>
+          <Text style={styles.velocidadeValor}>
+            {velocidadeKmh !== null ? Math.round(velocidadeKmh) : "--"}
+          </Text>
+          <Text style={styles.velocidadeUnidade}>km/h</Text>
+        </Animated.View>
+      )}
 
       {/* segurança + compartilhar, na pílula do 99 */}
-      <Animated.View style={[styles.pilulaCompartilhar, estiloPilula]}>
-        <TouchableOpacity
-          style={styles.pilulaSeguranca}
-          accessibilityRole="button"
-          accessibilityLabel="Segurança"
-          onPress={() => setSegurancaVisivel(true)}
-        >
-          <Ionicons name="shield-checkmark" size={24} color="#2F6BFF" />
-          <Text style={styles.pilulaCompartilharTexto}>
-            Compartilhe com{"\n"}amigos e família
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.botaoCompartilhar}
-          accessibilityRole="button"
-          onPress={compartilhar}
-        >
-          <Text style={styles.botaoCompartilharTexto}>Compartilhar</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {!esperandoMensagem && (
+        <Animated.View style={[styles.pilulaCompartilhar, estiloPilula]}>
+          <TouchableOpacity
+            style={styles.pilulaSeguranca}
+            accessibilityRole="button"
+            accessibilityLabel="Segurança"
+            onPress={() => setSegurancaVisivel(true)}
+          >
+            <Ionicons name="shield-checkmark" size={24} color="#2F6BFF" />
+            <Text style={styles.pilulaCompartilharTexto}>
+              Compartilhe com{"\n"}amigos e família
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.botaoCompartilhar}
+            accessibilityRole="button"
+            onPress={compartilhar}
+          >
+            <Text style={styles.botaoCompartilharTexto}>Compartilhar</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {comMensagemACaminho ? (
         <Animated.View
@@ -841,6 +854,8 @@ export default function NavegacaoAtiva({
             mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
             onAlturaChange={aoMudarAlturaMensagens}
+            corDaBarra={passo.cor}
+            onPendenteChange={setMensagemPendente}
           />
         </Animated.View>
       ) : null}
@@ -899,22 +914,37 @@ export default function NavegacaoAtiva({
             <View style={styles.separador} />
 
             <View style={styles.linhaPassageiro}>
-              {passageiro?.foto && !passageiro.foto_oculta ? (
-                <Image
-                  source={{ uri: passageiro.foto }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatar,
-                    styles.avatarVazio,
-                    passageiro?.foto_oculta && styles.avatarProtegido,
-                  ]}
-                >
-                  <Feather name="user" size={20} color="#888" />
-                </View>
-              )}
+              {/* o perfil do passageiro só abre depois do embarque */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={!onAbrirPerfilPassageiro || status === "aceita"}
+                accessibilityRole="button"
+                accessibilityLabel="Ver o perfil do passageiro"
+                onPress={onAbrirPerfilPassageiro}
+              >
+                {passageiro?.foto && !passageiro.foto_oculta ? (
+                  <Image
+                    source={{ uri: passageiro.foto }}
+                    style={styles.avatar}
+                    // a foto fica censurada até o motorista chegar ao embarque; o avatar não
+                    blurRadius={
+                      status === "aceita" && !passageiro.foto_e_avatar
+                        ? BLUR_DA_FOTO
+                        : 0
+                    }
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.avatar,
+                      styles.avatarVazio,
+                      passageiro?.foto_oculta && styles.avatarProtegido,
+                    ]}
+                  >
+                    <Feather name="user" size={24} color="#888" />
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <View style={styles.passageiroBloco}>
                 <Text style={styles.passageiroNome}>
@@ -1291,7 +1321,7 @@ const estilosBase = StyleSheet.create({
   },
   separador: { height: 1, backgroundColor: "#EEE" },
   linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 42, height: 42, borderRadius: 21 },
+  avatar: { width: 47, height: 47, borderRadius: 23.5 },
   avatarVazio: {
     backgroundColor: "#F0F0F0",
     alignItems: "center",
@@ -1299,8 +1329,8 @@ const estilosBase = StyleSheet.create({
   },
   avatarProtegido: { opacity: 0.55, backgroundColor: "#D8D8D8" },
   passageiroBloco: { flex: 1, minWidth: 0 },
-  passageiroNome: { fontSize: 16, fontWeight: "600", color: "#000" },
-  passageiroApoio: { fontSize: 13, color: "#777", marginTop: 2 },
+  passageiroNome: { fontSize: 22, fontWeight: "600", color: "#000" },
+  passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
     width: 44,
     height: 44,
