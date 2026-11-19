@@ -804,6 +804,8 @@ export default function Home() {
             setVisible={setGanhoModalVisivel}
             corridaAtivaId={corridaExibida?.id ?? null}
             ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
+            segurarValor={ganhoRecebido !== null}
+            ganhoDaCorrida={ganhoRecebido?.valor ?? null}
           />
           {/* com a chamada na tela o topo fica livre, como no 99 */}
           {!statusComNavegacao &&
