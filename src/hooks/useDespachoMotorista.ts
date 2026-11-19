@@ -788,6 +788,9 @@ export function useDespachoMotorista(pausado = false) {
           titulo: "Corrida aceita",
           mensagem: "Siga a rota até o ponto de embarque do passageiro.",
           chave: `corrida:${data.id}:aceita`,
+          // menor e com o fundo translúcido, para deixar o mapa aparecer
+          compacto: true,
+          translucido: true,
         });
 
         if (posicao === null) {

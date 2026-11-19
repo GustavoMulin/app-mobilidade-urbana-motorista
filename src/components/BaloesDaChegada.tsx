@@ -180,6 +180,8 @@ export default function BaloesDaChegada({
         mostrarToast({
           tipo: "success",
           titulo: "Mensagem enviada",
+          // o ícone do chat, no lugar do check
+          icone: "chatbubble",
           chave: "mensagem-rapida:enviada",
           duracaoMs: 1500,
         });
