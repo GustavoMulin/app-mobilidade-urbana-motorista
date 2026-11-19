@@ -1,42 +1,54 @@
-import { useEffect, useState } from "react";
-import { Image, StyleSheet } from "react-native";
+import { MaterialIcons } from "@expo/vector-icons";
+import { StyleSheet, View } from "react-native";
 import { type LatLng, Marker } from "react-native-maps";
+import { useTema } from "@/theme/tema";
 
-// ponto azul com aro branco e halo. É imagem (não View) e o mapa só congela o
-// desenho depois que ela carrega: com View, o Android às vezes fotografava o
-// marcador pela metade e sobrava só o halo azul transparente
+const AZUL = "#2F7BE8";
+// no mapa escuro o azul normal some: um azul mais vivo e claro destaca do fundo
+const AZUL_NO_ESCURO = "#2E9BFF";
+
+// ícone "navigation" do Material dentro de um círculo transparente com aro azul. O
+// marcador acompanha as mudanças sempre: o ícone vem de uma fonte que carrega
+// depois do primeiro desenho, e congelar cedo deixava o círculo vazio (é o
+// mesmo cuidado dos outros marcadores do mapa)
 export default function MarcadorMinhaLocalizacao({
   coordenada,
+  rumo,
 }: {
   coordenada: LatLng;
+  // graus a partir do norte: na navegação o marcador gira com o carro
+  rumo?: number;
 }) {
-  const [carregada, setCarregada] = useState(false);
-  const [congelado, setCongelado] = useState(false);
-
-  useEffect(() => {
-    if (!carregada) return;
-    const espera = setTimeout(() => setCongelado(true), 300);
-    return () => clearTimeout(espera);
-  }, [carregada]);
+  const { escuro } = useTema();
+  const cor = escuro ? AZUL_NO_ESCURO : AZUL;
 
   return (
     <Marker
       coordinate={coordenada}
       anchor={{ x: 0.5, y: 0.5 }}
-      tracksViewChanges={!congelado}
+      flat={rumo !== undefined}
+      rotation={rumo ?? 0}
+      tracksViewChanges
       zIndex={20}
       accessibilityLabel="Sua localização"
     >
-      <Image
-        source={require("../../assets/images/minha-localizacao.png")}
-        style={styles.imagem}
-        fadeDuration={0}
-        onLoad={() => setCarregada(true)}
-      />
+      <View style={[styles.circulo, { borderColor: cor }]}>
+        <MaterialIcons name="navigation" size={24} color={cor} />
+      </View>
     </Marker>
   );
 }
 
 const styles = StyleSheet.create({
-  imagem: { width: 44, height: 44 },
+  circulo: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    // fundo transparente: sombra de fundo aparece como mancha, então sai junto
+    backgroundColor: "transparent",
+    borderWidth: 2,
+    borderColor: AZUL,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

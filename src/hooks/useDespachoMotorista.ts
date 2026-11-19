@@ -10,7 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppState } from "react-native";
 
 const INTERVALO_BUSCA_SEM_SOCKET_MS = 5000;
-const INTERVALO_BUSCA_COM_SOCKET_MS = 30000;
+// a vez de cada motorista na fila do servidor dura só ~20 s: com 30 s entre
+// consultas, a maioria das chamadas vencia antes de o app buscar (o aviso do
+// socket só chega se o servidor transmitir de verdade)
+const INTERVALO_BUSCA_COM_SOCKET_MS = 5000;
 const INTERVALO_POSICAO_MS = 8000;
 
 const esperandoPassageiro = (item: OfertaCorrida) =>
@@ -32,8 +35,8 @@ const chamadaDaVez = (
   ) ?? null;
 
 // recusada ou ignorada não some para sempre: se o passageiro continua
-// esperando, a chamada volta a tocar para o mesmo motorista depois de 1 min
-const VOLTA_A_TOCAR_MS = 60_000;
+// esperando, a chamada volta a tocar para o mesmo motorista depois de 7 s
+const VOLTA_A_TOCAR_MS = 7_000;
 
 const aindaFora = (fora: Map<number, number>, corridaId: number) => {
   const desde = fora.get(corridaId);
@@ -49,6 +52,8 @@ export interface OfertaCorrida {
   distancia_ate_origem_km: number;
   distancia_corrida_km: number;
   valor_motorista: number;
+  // chamada de região com preço dinâmico: o multiplicador (1,5x) e quanto ele soma em R$
+  dinamico?: { multiplicador: number | null; valor: number } | null;
   origem: string;
   destino: string | null;
   paradas: number;
@@ -69,6 +74,9 @@ export interface OfertaCorrida {
   passageiro_corridas: number;
   passageiro_novo?: boolean;
   recusada_localmente?: boolean;
+  // fila de prioridade: quanto tempo a chamada ainda toca para este motorista
+  chamada_expira_em?: string;
+  chamada_segundos?: number;
   // viagem compartilhada: uma chamada para o grupo inteiro
   compartilhada?: {
     passageiros: number;
@@ -166,6 +174,8 @@ export interface PassageiroDaCorrida {
   solicitante?: string | null;
   foto: string | null;
   foto_oculta?: boolean;
+  // a imagem é o avatar que o passageiro escolheu (não a foto dele)
+  foto_e_avatar?: boolean;
   telefone: string | null;
   nota: number | null;
   corridas: number;
@@ -542,11 +552,16 @@ export function useDespachoMotorista(pausado = false) {
           recusada_localmente: aindaFora(recusadas.current, item.corrida_id),
         }));
         // proposta que venceu ou foi recusada conta como chamada ignorada: se o
-        // passageiro continua esperando, volta a tocar depois de 1 min
+        // passageiro continua esperando, volta a tocar depois de 7 s
         esperandoAntes.current.forEach((_, corridaId) => {
           const item = atuais.find((atual) => atual.corrida_id === corridaId);
-          if (item && !esperandoPassageiro(item))
+          if (item && !esperandoPassageiro(item)) {
             dispensadas.current.set(corridaId, Date.now());
+            setTimeout(
+              () => setGatilho((atual) => atual + 1),
+              VOLTA_A_TOCAR_MS + 200,
+            );
+          }
         });
         setOfertas(atuais);
         setOferta(chamadaDaVez(atuais, dispensadas.current));
@@ -773,6 +788,9 @@ export function useDespachoMotorista(pausado = false) {
           titulo: "Corrida aceita",
           mensagem: "Siga a rota até o ponto de embarque do passageiro.",
           chave: `corrida:${data.id}:aceita`,
+          // menor e com o fundo translúcido, para deixar o mapa aparecer
+          compacto: true,
+          translucido: true,
         });
 
         if (posicao === null) {
@@ -830,11 +848,18 @@ export function useDespachoMotorista(pausado = false) {
       .catch(() => toquesAvisados.current.delete(corridaDaChamada));
   }, [corridaDaChamada, pausado]);
 
+  // a consulta de ofertas só roda a cada 30 s com o socket ligado: ao fim da
+  // espera, força uma consulta para a chamada voltar a tocar na hora
+  const agendarVolta = useCallback(() => {
+    setTimeout(() => setGatilho((atual) => atual + 1), VOLTA_A_TOCAR_MS + 200);
+  }, []);
+
   const recusar = useCallback(
     (corridaId?: number) => {
       const id = corridaId ?? oferta?.corrida_id;
       if (id !== undefined) {
         recusadas.current.set(id, Date.now());
+        agendarVolta();
         void api
           .post(`/motorista/corridas/${id}/recusar`)
           .catch(() => undefined);
@@ -849,19 +874,20 @@ export function useDespachoMotorista(pausado = false) {
         tipo: "info",
         titulo: "Solicitação recusada",
         mensagem:
-          "Se o passageiro continuar esperando, ela volta a tocar em 1 minuto.",
+          "Se o passageiro continuar esperando, ela volta a tocar em 7 segundos.",
       });
     },
-    [oferta, ofertas, mostrarToast],
+    [oferta, ofertas, mostrarToast, agendarVolta],
   );
 
   // Negocia: a chamada some sem recusar; a corrida continua na lista
   const dispensarChamada = useCallback(
     (corridaId: number) => {
       dispensadas.current.set(corridaId, Date.now());
+      agendarVolta();
       setOferta(chamadaDaVez(ofertas, dispensadas.current));
     },
-    [ofertas],
+    [ofertas, agendarVolta],
   );
 
   const propor = useCallback(

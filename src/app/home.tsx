@@ -12,6 +12,8 @@ import GanhoDiario from "@/components/GanhoDiario";
 import Map, { ABERTURA_DO_MAPA } from "@/components/Map";
 import MenuInferiorMotorista from "@/components/MenuInferiorMotorista";
 import NavegacaoAtiva from "@/components/NavegacaoAtiva";
+import PerfilPassageiroPublico from "@/components/PerfilPassageiroPublico";
+import { usePerfilDoPassageiro } from "@/hooks/usePerfilDoPassageiro";
 import {
   AguardandoPagamentoNegocia,
   PropostaEnviadaAviso,
@@ -235,9 +237,12 @@ export default function Home() {
   );
   const disponivelExibido = simuladorCorrida.ativa ? false : disponivel;
 
-  // preço dinâmico: o mapa quente do servidor (só com o motorista online) ou a
-  // demonstração do simulador, centrada onde o mapa estava ao ligar
-  const mapaDinamico = useMapaDinamico(disponivelExibido);
+  // preço dinâmico: o mapa quente do servidor (também com o motorista
+  // desconectado, para ele ver onde vale a pena ligar) ou a demonstração do
+  // simulador, centrada onde o mapa estava ao ligar
+  const mapaDinamico = useMapaDinamico(
+    Boolean(user) && !simuladorCorrida.ativa,
+  );
   const [centroDaDemonstracao, setCentroDaDemonstracao] = useState<Ponto>({
     latitude: -8.7023595,
     longitude: -63.8765456,
@@ -269,6 +274,9 @@ export default function Home() {
   // menu e do atalho de ganhos
   const esperandoNoEmbarque =
     corridaExibida?.status_corrida === "motorista_chegou";
+  // no embarque, os botões do mapa só aparecem depois das mensagens rápidas
+  const [esperandoMensagemNoEmbarque, setEsperandoMensagemNoEmbarque] =
+    useState(false);
   // esperando o pagamento do Negocia a tela tem o mesmo formato
   const telaDeEspera =
     esperandoNoEmbarque ||
@@ -285,10 +293,21 @@ export default function Home() {
   const {
     corrida: corridaParaAvaliar,
     enviando: enviandoAvaliacao,
+    verificando: verificandoAvaliacao,
     avaliar,
     bloquear: bloquearPassageiro,
     dispensar: dispensarAvaliacao,
   } = useAvaliacaoPendente(corrida?.id ?? null);
+  // a avaliação vem antes: a tela inicial (menu, folha, topo) e a animação do
+  // dinheiro só voltam depois que ela é fechada. Com uma chamada tocando, a
+  // tela inicial precisa aparecer para a chamada.
+  const aguardandoAvaliacao =
+    (corridaParaAvaliar !== null ||
+      verificandoAvaliacao ||
+      simuladorCorrida.avaliando) &&
+    corridaExibida === null &&
+    ofertaExibida === null &&
+    !simuladorCorrida.finalizada;
   const encerrarSimulacao = simuladorCorrida.encerrar;
 
   useEffect(() => {
@@ -349,6 +368,12 @@ export default function Home() {
 
   // ✨ NOVO: Estado do modal de ganhos foi elevado para cá
   const [ganhoModalVisivel, setGanhoModalVisivel] = useState(false);
+  // perfil público do passageiro (toque na foto ou avatar dele, depois do embarque)
+  const [perfilPassageiroAberto, setPerfilPassageiroAberto] = useState(false);
+  const perfilDoPassageiro = usePerfilDoPassageiro(
+    corridaExibida?.id ?? null,
+    perfilPassageiroAberto && !simuladorCorrida.ativa,
+  );
 
   const drawerWidth = Math.round(Dimensions.get("window").width * 0.78);
   const [translateX] = useState(() => new Animated.Value(-drawerWidth));
@@ -472,6 +497,7 @@ export default function Home() {
           alvo={chamadaNoMapa ? null : alvoDaCorrida}
           alvoEhDestino={false}
           marcadores={chamadaNoMapa ? pontosDaOferta : []}
+          ocultarBotoes={esperandoNoEmbarque && esperandoMensagemNoEmbarque}
           alturaFolha={
             telaDeEspera
               ? alturaDaEspera
@@ -483,7 +509,10 @@ export default function Home() {
           }
           botaoAcima={
             // os atalhos de cima só aparecem com o motorista conectado
-            corridaExibida === null && !chamadaNoMapa && disponivelExibido ? (
+            corridaExibida === null &&
+            !chamadaNoMapa &&
+            !aguardandoAvaliacao &&
+            disponivelExibido ? (
               <>
                 {gestosDisponiveis ? (
                   <Suspense fallback={null}>
@@ -552,6 +581,7 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          onAbrirPerfilPassageiro={() => setPerfilPassageiroAberto(true)}
           paradasDoGrupo={simuladorCorrida.ativa ? null : grupo?.paradas}
           mensagensEnviadas={mensagensEnviadas}
           mensagensRapidas={mensagensRapidas.daEtapa("aceita")}
@@ -593,6 +623,7 @@ export default function Home() {
           }
           chatNaoLidas={chat.naoLidas}
           onAbrirChat={simuladorCorrida.ativa ? undefined : abrirChat}
+          onAbrirPerfilPassageiro={() => setPerfilPassageiroAberto(true)}
           mensagensEnviadas={mensagensEnviadas}
           mensagensRapidas={mensagensRapidas.daEtapa("motorista_chegou")}
           onEnviarMensagem={
@@ -600,6 +631,7 @@ export default function Home() {
           }
           onAlturaDoTopo={setAlturaDoTopo}
           onAlturaChange={setAlturaDaEspera}
+          onEsperandoMensagemChange={setEsperandoMensagemNoEmbarque}
           esperaMinimaAusenciaS={
             grupo && !simuladorCorrida.ativa
               ? grupo.espera_embarque_segundos
@@ -658,7 +690,17 @@ export default function Home() {
         />
       )}
 
-      {ganhoRecebido !== null && (
+      {/* perfil público do passageiro: a corrida em andamento, fora do embarque */}
+      <PerfilPassageiroPublico
+        visible={perfilPassageiroAberto && corridaExibida !== null}
+        onClose={() => setPerfilPassageiroAberto(false)}
+        perfil={perfilDoPassageiro.perfil}
+        carregando={perfilDoPassageiro.carregando}
+        erro={perfilDoPassageiro.erro || simuladorCorrida.ativa}
+      />
+
+      {/* a animação do dinheiro só aparece depois da avaliação */}
+      {ganhoRecebido !== null && !aguardandoAvaliacao && (
         <DinheiroRecebido
           key={ganhoRecebido.corridaId}
           valor={ganhoRecebido.valor}
@@ -678,7 +720,7 @@ export default function Home() {
           />
         )}
 
-      {avisoNoRodape && (
+      {avisoNoRodape && !aguardandoAvaliacao && (
         <PropostaEnviadaAviso
           valorMotorista={
             propostasPendentes[0].minha_proposta?.valor_motorista ?? null
@@ -693,7 +735,13 @@ export default function Home() {
       {ofertaExibida !== null && corridaExibida === null && (
         <RecebendoChamada
           key={ofertaExibida.corrida_id}
+          duracaoMs={
+            ofertaExibida.chamada_segundos
+              ? ofertaExibida.chamada_segundos * 1000
+              : undefined
+          }
           valor={ofertaExibida.valor_motorista}
+          dinamico={ofertaExibida.dinamico}
           distanciaAteOrigem={ofertaExibida.distancia_ate_origem_km}
           distanciaDaCorrida={ofertaExibida.distancia_corrida_km}
           origem={ofertaExibida.origem}
@@ -770,22 +818,26 @@ export default function Home() {
         }}
       />
 
-      <Reanimated.View
-        pointerEvents="box-none"
-        style={[styles.topoDoMapa, topoDoMapa]}
-      >
-        <GanhoDiario
-          visible={ganhoModalVisivel}
-          setVisible={setGanhoModalVisivel}
-          corridaAtivaId={corridaExibida?.id ?? null}
-          ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
-        />
-        {/* com a chamada na tela o topo fica livre, como no 99 */}
-        {!statusComNavegacao &&
-          !telaDeEspera &&
-          !chamadaNoMapa &&
-          !folhaAberta && <TopMenu onMenuPress={handleMenuOpen} />}
-      </Reanimated.View>
+      {!aguardandoAvaliacao && (
+        <Reanimated.View
+          pointerEvents="box-none"
+          style={[styles.topoDoMapa, topoDoMapa]}
+        >
+          <GanhoDiario
+            visible={ganhoModalVisivel}
+            setVisible={setGanhoModalVisivel}
+            corridaAtivaId={corridaExibida?.id ?? null}
+            ocultarAtalho={telaDeEspera || chamadaNoMapa || folhaAberta}
+            segurarValor={ganhoRecebido !== null}
+            ganhoDaCorrida={ganhoRecebido?.valor ?? null}
+          />
+          {/* com a chamada na tela o topo fica livre, como no 99 */}
+          {!statusComNavegacao &&
+            !telaDeEspera &&
+            !chamadaNoMapa &&
+            !folhaAberta && <TopMenu onMenuPress={handleMenuOpen} />}
+        </Reanimated.View>
+      )}
 
       {/* Backdrop para SideMenu */}
       {menuVisible && <Pressable style={styles.backdrop} onPress={closeMenu} />}
@@ -835,56 +887,60 @@ export default function Home() {
       )}
 
       {/* FolhaInferior */}
-      {ofertaExibida === null && corridaExibida === null && (
-        <>
-          {menuVisible && (
-            <Pressable style={styles.backdrop} onPress={closeMenu} />
-          )}
+      {ofertaExibida === null &&
+        corridaExibida === null &&
+        !aguardandoAvaliacao && (
+          <>
+            {menuVisible && (
+              <Pressable style={styles.backdrop} onPress={closeMenu} />
+            )}
 
-          <FolhaInferiorMotorista
-            onSheetChange={onChangeBottomSheetMotorista}
-            indiceAnimado={bottomSheetAnimatedIndex}
-            alturaMenuInferior={alturaMenuInferior}
-            aviso={avisoBloqueio}
-            acoes={acoesNecessarias}
-            onAlturaAcoes={setAlturaAcoes}
-          />
+            <FolhaInferiorMotorista
+              onSheetChange={onChangeBottomSheetMotorista}
+              indiceAnimado={bottomSheetAnimatedIndex}
+              alturaMenuInferior={alturaMenuInferior}
+              aviso={avisoBloqueio}
+              acoes={acoesNecessarias}
+              onAlturaAcoes={setAlturaAcoes}
+            />
 
-          <SolicitarCorrida
-            visible={destinationModalVisible}
-            onClose={() => setDestinationModalVisible(false)}
-          />
+            <SolicitarCorrida
+              visible={destinationModalVisible}
+              onClose={() => setDestinationModalVisible(false)}
+            />
 
-          <SolicitacoesCorrida
-            visible={solicitacoesCorrida}
-            onClose={() => setSolicitacoesCorrida(false)}
-            disponivel={disponivelExibido}
-            carregando={carregandoOfertas}
-            ofertas={ofertas}
-            ocupado={ocupadoExibido}
-            onAtualizar={recarregarOfertas}
-            onAceitar={(corridaId) => {
-              setSolicitacoesCorrida(false);
-              void aceitar(corridaId);
-            }}
-            onPropor={(corridaId, valorMotorista) =>
-              propor(corridaId, valorMotorista)
-            }
-            onRecusar={(corridaId) => recusar(corridaId)}
-          />
+            <SolicitacoesCorrida
+              visible={solicitacoesCorrida}
+              onClose={() => setSolicitacoesCorrida(false)}
+              disponivel={disponivelExibido}
+              carregando={carregandoOfertas}
+              ofertas={ofertas}
+              ocupado={ocupadoExibido}
+              onAtualizar={recarregarOfertas}
+              onAceitar={(corridaId) => {
+                setSolicitacoesCorrida(false);
+                void aceitar(corridaId);
+              }}
+              onPropor={(corridaId, valorMotorista) =>
+                propor(corridaId, valorMotorista)
+              }
+              onRecusar={(corridaId) => recusar(corridaId)}
+            />
 
-          <MenuInferiorMotorista
-            setSolicitacoesCorrida={() => setSolicitacoesCorrida(true)}
-            disponivel={disponivelExibido}
-            emCorrida={corridaExibida !== null}
-            ocupado={ocupadoExibido}
-            comPendencias={naoPodeFicarOnline}
-            onConectarBloqueado={() => setAvisoBloqueio((toques) => toques + 1)}
-            onAlternarDisponibilidade={alternarDisponibilidade}
-            onAlturaChange={setAlturaMenuInferior}
-          />
-        </>
-      )}
+            <MenuInferiorMotorista
+              setSolicitacoesCorrida={() => setSolicitacoesCorrida(true)}
+              disponivel={disponivelExibido}
+              emCorrida={corridaExibida !== null}
+              ocupado={ocupadoExibido}
+              comPendencias={naoPodeFicarOnline}
+              onConectarBloqueado={() =>
+                setAvisoBloqueio((toques) => toques + 1)
+              }
+              onAlternarDisponibilidade={alternarDisponibilidade}
+              onAlturaChange={setAlturaMenuInferior}
+            />
+          </>
+        )}
 
       {corridaExibida?.status_corrida === "aguardando_pagamento" && (
         <AguardandoPagamentoNegocia

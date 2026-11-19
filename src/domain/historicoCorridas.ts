@@ -34,6 +34,13 @@ export interface CorridaHistoricoApi {
     valor_liquido_motorista?: string | number | null;
     metodo_pagamento?: string | null;
   } | null;
+  // só vem para o motorista: o ganho aberto como na tela de detalhes da 99
+  detalhamento_motorista?: {
+    valor_corrida: { valor: number };
+    preco_dinamico: { valor: number };
+    tarifa_base: { valor: number };
+    taxas_extras: { total: number };
+  } | null;
   corrida_destinos?:
     | {
         tipo: string;
@@ -60,6 +67,13 @@ export interface ItemHistorico {
   passengerPaid: string;
   driverEarned: string;
   baseFare: string;
+  // detalhamento do ganho do motorista; null quando o servidor não manda
+  breakdown: {
+    rideValue: string;
+    dynamicValue: string | null;
+    baseFare: string;
+    extraFees: string | null;
+  } | null;
   platformFee: string;
   platformPercentage: string;
   status: string;
@@ -207,6 +221,29 @@ export function paraItemHistorico(
     passengerPaid: formatarValorHistorico(valorPassageiro),
     driverEarned: formatarValorHistorico(valorMotorista),
     baseFare: formatarValorHistorico(financeiro?.tarifa_base),
+    breakdown: corrida.detalhamento_motorista
+      ? {
+          rideValue: formatarValorHistorico(
+            corrida.detalhamento_motorista.valor_corrida.valor,
+          ),
+          // sem dinâmica nem taxa extra a linha some, como na 99
+          dynamicValue:
+            corrida.detalhamento_motorista.preco_dinamico.valor > 0
+              ? formatarValorHistorico(
+                  corrida.detalhamento_motorista.preco_dinamico.valor,
+                )
+              : null,
+          baseFare: formatarValorHistorico(
+            corrida.detalhamento_motorista.tarifa_base.valor,
+          ),
+          extraFees:
+            corrida.detalhamento_motorista.taxas_extras.total > 0
+              ? formatarValorHistorico(
+                  corrida.detalhamento_motorista.taxas_extras.total,
+                )
+              : null,
+        }
+      : null,
     platformFee: formatarValorHistorico(financeiro?.taxa_plataforma_valor),
     platformPercentage:
       numero(financeiro?.taxa_plataforma_percentual) === null

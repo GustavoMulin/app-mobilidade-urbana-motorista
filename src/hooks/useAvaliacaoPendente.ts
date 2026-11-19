@@ -1,7 +1,7 @@
 import { api } from "@/Services/api";
 import { useToast } from "@/context/ToastContext";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const TEMPO_LEMBRETE_MS = 12 * 60 * 60 * 1000;
 const chaveLembrete = (corridaId: number) =>
@@ -31,6 +31,17 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
   const { mostrarToast } = useToast();
   const [corrida, setCorrida] = useState<CorridaParaAvaliar | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // a corrida acabou de terminar e ainda não sabemos se há avaliação: a tela
+  // inicial espera essa resposta em vez de aparecer e ser coberta em seguida
+  const [verificando, setVerificando] = useState(false);
+  const [anterior, setAnterior] = useState<unknown>(recarregarQuando);
+
+  // marcado já na renderização em que a corrida some, para não haver um
+  // quadro com a tela inicial antes da checagem começar
+  if (anterior !== recarregarQuando) {
+    setAnterior(recarregarQuando);
+    if (anterior !== null && recarregarQuando === null) setVerificando(true);
+  }
 
   const buscar = useCallback(async () => {
     try {
@@ -54,10 +65,23 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
       setCorrida(adiadaAte > Date.now() ? null : pendente);
     } catch {
       // sem avaliação pendente é o caso normal
+    } finally {
+      setVerificando(false);
     }
   }, []);
 
+  // a avaliação só aparece ao fim de uma corrida desta sessão: abrir o app não
+  // busca nada (uma corrida antiga sem nota não pode saltar na primeira tela)
+  const corridaAnterior = useRef<unknown>(recarregarQuando);
+
   useEffect(() => {
+    const terminou =
+      corridaAnterior.current !== null && recarregarQuando === null;
+
+    corridaAnterior.current = recarregarQuando;
+
+    if (!terminou) return;
+
     const timer = setTimeout(() => void buscar(), 0);
 
     return () => clearTimeout(timer);
@@ -141,5 +165,5 @@ export function useAvaliacaoPendente(recarregarQuando: unknown) {
     setCorrida(null);
   }, [corrida]);
 
-  return { corrida, enviando, avaliar, bloquear, dispensar };
+  return { corrida, enviando, verificando, avaliar, bloquear, dispensar };
 }
