@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTema } from "@/theme/tema";
 
 // fim de corrida: o cartão desce do topo da tela com o valor da corrida (os
 // números rolam como caça-níquel) e, do outro lado, notas caindo numa carteira.
@@ -28,7 +29,15 @@ const ATRASO_ENTRE_ROLOS_MS = 110;
 const EXIBIR_MS = 3000;
 const CICLO_NOTAS_MS = 1800;
 
-function Rolo({ digito, ordem }: { digito: number; ordem: number }) {
+function Rolo({
+  digito,
+  ordem,
+  cor,
+}: {
+  digito: number;
+  ordem: number;
+  cor: string;
+}) {
   const [deslocamento] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -51,7 +60,7 @@ function Rolo({ digito, ordem }: { digito: number; ordem: number }) {
           <TextoFixo
             key={indice}
             allowFontScaling={false}
-            style={styles.digito}
+            style={[styles.digito, { color: cor }]}
           >
             {numero}
           </TextoFixo>
@@ -181,6 +190,10 @@ function CarteiraRecebendo() {
 
 export default function DinheiroRecebido({ valor, onFim }: Props) {
   const insets = useSafeAreaInsets();
+  // no modo escuro o cartão acompanha o painel e o texto fica claro
+  const { escuro, cores } = useTema();
+  const corDoTexto = escuro ? "#FFFFFF" : "#111111";
+  const corDaLegenda = escuro ? cores.textoApoio : "#222222";
   const [entrada] = useState(() => new Animated.Value(0));
   const [alturaDoCartao, setAlturaDoCartao] = useState(220);
   const onFimRef = useRef(onFim);
@@ -250,6 +263,7 @@ export default function DinheiroRecebido({ valor, onFim }: Props) {
         style={[
           styles.cartao,
           {
+            backgroundColor: escuro ? cores.painel : "#FFFFFF",
             paddingTop: insets.top + 18,
             transform: [
               {
@@ -264,21 +278,24 @@ export default function DinheiroRecebido({ valor, onFim }: Props) {
       >
         <View style={styles.linha}>
           <View style={styles.lado}>
-            <Text style={styles.legenda}>Valor da corrida</Text>
+            <Text style={[styles.legenda, { color: corDaLegenda }]}>
+              Valor da corrida
+            </Text>
             <View style={styles.placar}>
-              <Text style={styles.mais}>+R$</Text>
+              <Text style={[styles.mais, { color: corDoTexto }]}>+R$</Text>
               {texto.split("").map((caractere, indice) =>
                 /\d/.test(caractere) ? (
                   <Rolo
                     key={indice}
                     digito={Number(caractere)}
                     ordem={ordem++}
+                    cor={corDoTexto}
                   />
                 ) : (
                   <TextoFixo
                     key={indice}
                     allowFontScaling={false}
-                    style={styles.separador}
+                    style={[styles.separador, { color: corDoTexto }]}
                   >
                     {caractere}
                   </TextoFixo>

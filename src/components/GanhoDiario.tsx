@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  PanResponder,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -139,6 +140,44 @@ export default function GanhoDiario({
   useEffect(() => {
     if (!visible) closeAnimation(() => {});
   }, [visible, closeAnimation]);
+
+  // puxar a alça para cima fecha o painel: ele acompanha o dedo e, soltando
+  // depois de uma boa puxada (ou com um arremesso), sobe e fecha; senão volta
+  const setVisibleRef = useRef(setVisible);
+  useEffect(() => {
+    setVisibleRef.current = setVisible;
+  }, [setVisible]);
+  // O responder só lê a ref quando o gesto termina, nunca durante a renderização.
+  // eslint-disable-next-line react-hooks/refs
+  const [puxarAlca] = useState(() =>
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesto) =>
+        gesto.dy < -4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
+      onPanResponderMove: (_, gesto) => {
+        slideAnim.setValue(Math.min(gesto.dy, 0));
+      },
+      onPanResponderRelease: (_, gesto) => {
+        if (gesto.dy < -60 || gesto.vy < -0.6) {
+          setVisibleRef.current(false);
+          return;
+        }
+
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+    }),
+  );
 
   // chamada na tela ou folha aberta escondem o atalho: o painel fecha junto
   useEffect(() => {
@@ -559,7 +598,10 @@ export default function GanhoDiario({
           </View>
 
           {/* faixa branca no fim da folha, com a alça, como a da folha de baixo */}
-          <View style={[styles.rodape, { backgroundColor: cores.cartao }]}>
+          <View
+            style={[styles.rodape, { backgroundColor: cores.cartao }]}
+            {...puxarAlca.panHandlers}
+          >
             <View
               style={[
                 styles.alca,
