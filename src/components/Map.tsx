@@ -37,10 +37,11 @@ import {
 } from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
-  FadeIn,
   interpolate,
   type SharedValue,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -167,6 +168,15 @@ export default function Map({
   } = useCarregamentoMapa();
   const [dimensoesMapa, setDimensoesMapa] = useState({ width: 0, height: 0 });
   const [tentativaLocalizacao, setTentativaLocalizacao] = useState(0);
+
+  // os botões do canto entram com fade quando deixam de ficar escondidos
+  const opacidadeBotoes = useSharedValue(1);
+  useEffect(() => {
+    opacidadeBotoes.set(ocultarBotoes ? 0 : withTiming(1, { duration: 450 }));
+  }, [ocultarBotoes, opacidadeBotoes]);
+  const estiloOpacidadeBotoes = useAnimatedStyle(() => ({
+    opacity: opacidadeBotoes.value,
+  }));
 
   const estiloPosicaoCentralizar = useAnimatedStyle(() => {
     const indice = indiceFolhaAnimado?.value ?? bottomSheetIndex ?? 0;
@@ -694,8 +704,11 @@ export default function Map({
         !ocultarBotoes &&
         (alturaFolha > 0 || bottomSheetIndex !== 2) && (
           <Animated.View
-            entering={FadeIn.duration(450)}
-            style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
+            style={[
+              styles.centerButtonContainer,
+              estiloPosicaoCentralizar,
+              estiloOpacidadeBotoes,
+            ]}
           >
             {botaoAcima}
             {mapaMovido && !travado && (

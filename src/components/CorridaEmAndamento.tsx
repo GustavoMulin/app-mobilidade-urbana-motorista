@@ -3,8 +3,9 @@ import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // numa pílula escura no topo, faixa laranja da taxa de espera, relógio em
 // anel, passageiro e "Iniciar corrida". O ≡ abre a tela Mais (cancelar com
 // motivo, ausência do passageiro, recusar novas corridas).
+import AbrindoParaBaixo from "@/components/AbrindoParaBaixo";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
-import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
+import BotaoContatoPassageiro from "@/components/BotaoContatoPassageiro";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import AnelProgresso from "@/components/AnelProgresso";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
@@ -31,7 +32,6 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type AcaoCorrida =
@@ -276,25 +276,20 @@ export default function CorridaEmAndamento({
             </View>
           </View>
         ) : null}
-        {origem && enderecoAberto && !esperandoMensagem ? (
-          <Animated.View
-            entering={FadeIn.duration(450)}
-            style={styles.cartaoDivisor}
-          />
-        ) : null}
-        {!origem || (enderecoAberto && !esperandoMensagem) ? (
-          <Animated.View
-            entering={FadeIn.duration(450)}
-            style={styles.alvoLinha}
-          >
+        {/* a parte de baixo abre depois das mensagens rápidas */}
+        <AbrindoParaBaixo
+          aberto={!origem || (enderecoAberto && !esperandoMensagem)}
+        >
+          {origem ? <View style={styles.cartaoDivisor} /> : null}
+          <View style={styles.alvoLinha}>
             <View style={styles.pontoEmbarque} />
             <Text numberOfLines={1} style={styles.pilulaTexto}>
               {origem
                 ? enderecoSemCidade(origem)
                 : "Local de embarque não informado"}
             </Text>
-          </Animated.View>
-        ) : null}
+          </View>
+        </AbrindoParaBaixo>
       </TouchableOpacity>
 
       <View
@@ -412,23 +407,12 @@ export default function CorridaEmAndamento({
                 ) : null}
               </TouchableOpacity>
 
-              {onAbrirChat ? (
-                <BotaoChatPassageiro
-                  naoLidas={chatNaoLidas}
-                  onPress={onAbrirChat}
-                  estilo={styles.botaoLigar}
-                />
-              ) : null}
-              {passageiro?.telefone ? (
-                <TouchableOpacity
-                  style={styles.botaoLigar}
-                  onPress={ligar}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ligar para o passageiro"
-                >
-                  <Ionicons name="call" size={20} color={cores.icone} />
-                </TouchableOpacity>
-              ) : null}
+              <BotaoContatoPassageiro
+                naoLidas={chatNaoLidas}
+                onChat={onAbrirChat}
+                onLigar={passageiro?.telefone ? ligar : undefined}
+                estilo={styles.botaoLigar}
+              />
             </View>
 
             <BotaoDeslizar
@@ -637,9 +621,9 @@ const estilosBase = StyleSheet.create({
   },
   passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 47,
+    height: 47,
+    borderRadius: 23.5,
     backgroundColor: "#F0F0F0",
     alignItems: "center",
     justifyContent: "center",

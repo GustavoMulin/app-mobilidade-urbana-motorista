@@ -9,13 +9,14 @@ import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // - Voz guiando as manobras (precisa de TTS + lógica de quando anunciar).
 // Paradas: em viagem o alvo é a próxima parada pendente e o botão vira
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
-import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
+import BotaoContatoPassageiro from "@/components/BotaoContatoPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import MarcadorMinhaLocalizacao from "@/components/MarcadorMinhaLocalizacao";
 import { enderecoSemCidade } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
+import AbrindoParaBaixo from "@/components/AbrindoParaBaixo";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 // CODEX: 391 linhas adicionadas e 157 removidas no diff atual; aceita posição e rota fixas do simulador. Remover após validação/commit.
@@ -64,7 +65,6 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import Animated, {
   Easing,
-  FadeIn,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -762,17 +762,13 @@ export default function NavegacaoAtiva({
                   </Text>
                 </View>
               </TouchableOpacity>
-              {!escondeParteDeBaixo && (
-                <Animated.View
-                  entering={FadeIn.duration(450)}
-                  style={styles.cartaoDivisor}
-                />
-              )}
             </>
           )}
 
-          {!escondeParteDeBaixo && (
-            <Animated.View entering={FadeIn.duration(450)}>
+          {/* a parte de baixo abre depois das mensagens rápidas */}
+          <AbrindoParaBaixo aberto={!escondeParteDeBaixo}>
+            {navegando && passoAtual && <View style={styles.cartaoDivisor} />}
+            <View>
               <TouchableOpacity
                 style={styles.alvoLinha}
                 activeOpacity={0.85}
@@ -794,8 +790,8 @@ export default function NavegacaoAtiva({
                     : "Carregando endereço..."}
                 </Text>
               </TouchableOpacity>
-            </Animated.View>
-          )}
+            </View>
+          </AbrindoParaBaixo>
         </View>
         {demorando && (
           <View style={styles.avisoMapa} accessibilityRole="alert">
@@ -977,23 +973,12 @@ export default function NavegacaoAtiva({
                 </Text>
               </View>
 
-              {onAbrirChat ? (
-                <BotaoChatPassageiro
-                  naoLidas={chatNaoLidas}
-                  onPress={onAbrirChat}
-                  estilo={styles.botaoLigar}
-                />
-              ) : null}
-              {passageiro?.telefone ? (
-                <TouchableOpacity
-                  style={styles.botaoLigar}
-                  onPress={ligar}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ligar para o passageiro"
-                >
-                  <Feather name="phone" size={20} color={tema.cores.icone} />
-                </TouchableOpacity>
-              ) : null}
+              <BotaoContatoPassageiro
+                naoLidas={chatNaoLidas}
+                onChat={onAbrirChat}
+                onLigar={passageiro?.telefone ? ligar : undefined}
+                estilo={styles.botaoLigar}
+              />
             </View>
 
             <BotaoDeslizar
@@ -1347,9 +1332,9 @@ const estilosBase = StyleSheet.create({
   passageiroNome: { fontSize: 22, fontWeight: "600", color: "#000" },
   passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 47,
+    height: 47,
+    borderRadius: 23.5,
     backgroundColor: "#F3F3F3",
     alignItems: "center",
     justifyContent: "center",
