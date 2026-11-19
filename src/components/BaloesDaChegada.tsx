@@ -231,8 +231,22 @@ export default function BaloesDaChegada({
       }
     >
       <View style={styles.cabecalho}>
-        <View style={styles.iconeCabecalho}>
-          <Ionicons name="chatbubbles" size={18} color={cores.icone} />
+        <View
+          style={[
+            styles.iconeCabecalho,
+            corDaBarra ? { backgroundColor: corDaBarra } : null,
+          ]}
+        >
+          <Ionicons
+            name="chatbubbles"
+            size={18}
+            // escuro sobre o amarelo, claro sobre as outras cores
+            color={
+              corDaBarra && corDaBarra.toUpperCase() !== "#FFD600"
+                ? "#FFF"
+                : "#111"
+            }
+          />
         </View>
         <View style={styles.cabecalhoTextos}>
           <Text style={styles.titulo}>Avise o passageiro</Text>
