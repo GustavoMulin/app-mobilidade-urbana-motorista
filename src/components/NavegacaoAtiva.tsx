@@ -14,7 +14,7 @@ import BotaoDeslizar from "@/components/BotaoDeslizar";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import MarcadorMinhaLocalizacao from "@/components/MarcadorMinhaLocalizacao";
-import { enderecoCurto } from "@/domain/endereco";
+import { enderecoSemCidade } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
@@ -132,7 +132,7 @@ function passoDaNavegacao(
         totalParadas > 1
           ? `Confirmar parada ${atual} de ${totalParadas}`
           : "Confirmar parada",
-      cor: "#FFCB2F",
+      cor: "#FFD600",
       corTexto: "#111111",
     };
   }
@@ -140,7 +140,7 @@ function passoDaNavegacao(
   return {
     acao: "finalizar",
     rotulo: "Finalizar corrida",
-    cor: "#FFCB2F",
+    cor: "#FFD600",
     corTexto: "#111111",
   };
 }
@@ -358,7 +358,7 @@ export default function NavegacaoAtiva({
   const estiloConteudo = useAnimatedStyle(() => ({
     opacity: interpolate(indiceAnimado.value, [0, 1], [0, 1], "clamp"),
   }));
-  const [navegando, setNavegando] = useState(false);
+  const [navegando, setNavegando] = useState(true);
   const [maisVisivel, setMaisVisivel] = useState(false);
   const [segurancaVisivel, setSegurancaVisivel] = useState(false);
 
@@ -762,21 +762,15 @@ export default function NavegacaoAtiva({
             }
             onPress={() => setNavegando((atual) => !atual)}
           >
-            <View style={[styles.pontoCor, { backgroundColor: corDoAlvo }]} />
+            <View style={[styles.pontoCor, { backgroundColor: passo.cor }]} />
             <Text numberOfLines={1} style={styles.alvoTexto}>
               {tipoAlvo === "parada" && (
                 <Text style={styles.alvoRotulo}>Parada · </Text>
               )}
               {enderecoAlvo
-                ? enderecoCurto(enderecoAlvo)
+                ? enderecoSemCidade(enderecoAlvo)
                 : "Carregando endereço..."}
             </Text>
-            {!navegando && (
-              <View style={styles.irBotao}>
-                <Ionicons name="navigate" size={14} color="#111" />
-                <Text style={styles.irTexto}>Ir</Text>
-              </View>
-            )}
           </TouchableOpacity>
         </View>
         {demorando && (
@@ -1101,8 +1095,8 @@ const estilosBase = StyleSheet.create({
     paddingVertical: 14,
   },
   bannerTextos: { flex: 1 },
-  bannerDistancia: { color: "#FFF", fontSize: 32, fontWeight: "800" },
-  bannerRua: { color: "#FFF", fontSize: 18, fontWeight: "500", marginTop: 2 },
+  bannerDistancia: { color: "#FFF", fontSize: 36, fontWeight: "800" },
+  bannerRua: { color: "#FFF", fontSize: 21, fontWeight: "500", marginTop: 2 },
   cartaoDivisor: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: "rgba(255,255,255,0.25)",
@@ -1111,20 +1105,10 @@ const estilosBase = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    minHeight: 50,
+    minHeight: 56,
   },
-  alvoTexto: { flex: 1, color: "#FFF", fontSize: 15, fontWeight: "500" },
+  alvoTexto: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "500" },
   alvoRotulo: { color: "#FFB27A", fontWeight: "700" },
-  irBotao: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 14,
-    backgroundColor: "#FFD600",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  irTexto: { color: "#111", fontSize: 14, fontWeight: "700" },
   pontoCor: { width: 9, height: 9, borderRadius: 5 },
   // mesmos ícones da tela Mais: embarque ↑ verde-água, parada/destino ↓ laranja
   marcadorAlvo: {

@@ -10,6 +10,7 @@ import AnelProgresso from "@/components/AnelProgresso";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { Text } from "@/components/common/Texto";
+import { enderecoSemCidade, ruaENumero } from "@/domain/endereco";
 import { ResumoEspera, calcularContadorEspera } from "@/domain/contadorEspera";
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import type {
@@ -132,6 +133,8 @@ export default function CorridaEmAndamento({
   const { height: alturaTela } = useWindowDimensions();
   const [maisVisivel, setMaisVisivel] = useState(false);
   const [taxaVisivel, setTaxaVisivel] = useState(false);
+  // tocar no cartão do embarque recolhe a linha do endereço
+  const [enderecoAberto, setEnderecoAberto] = useState(true);
 
   const [relogio, setRelogio] = useState({
     calculadoEm: espera?.calculado_em,
@@ -227,17 +230,48 @@ export default function CorridaEmAndamento({
   return (
     <>
       <StatusBar style="dark" />
-      <View
+      <TouchableOpacity
+        activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={
+          enderecoAberto
+            ? "Ocultar endereço completo"
+            : "Mostrar endereço completo"
+        }
+        disabled={!origem}
+        onPress={() => setEnderecoAberto((atual) => !atual)}
         style={[styles.pilulaEmbarque, { top: insets.top + 10 }]}
         onLayout={({ nativeEvent }) =>
           onAlturaDoTopo?.(10 + nativeEvent.layout.height)
         }
       >
-        <View style={styles.pontoEmbarque} />
-        <Text numberOfLines={1} style={styles.pilulaTexto}>
-          {origem ?? "Local de embarque não informado"}
-        </Text>
-      </View>
+        {origem ? (
+          <View style={styles.manobra}>
+            <Ionicons name="location" size={44} color="#FFF" />
+            <View style={styles.bannerTextos}>
+              <Text style={styles.bannerNumero}>
+                {ruaENumero(origem).numero}
+              </Text>
+              <Text numberOfLines={1} style={styles.bannerRua}>
+                {ruaENumero(origem).rua}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {origem && enderecoAberto ? (
+          <View style={styles.cartaoDivisor} />
+        ) : null}
+        {!origem || enderecoAberto ? (
+          <View style={styles.alvoLinha}>
+            <View style={styles.pontoEmbarque} />
+            <Text numberOfLines={1} style={styles.pilulaTexto}>
+              {origem
+                ? enderecoSemCidade(origem)
+                : "Local de embarque não informado"}
+            </Text>
+          </View>
+        ) : null}
+      </TouchableOpacity>
 
       <View
         style={[styles.base, { maxHeight: alturaTela - insets.top - 80 }]}
@@ -447,12 +481,8 @@ const estilosBase = StyleSheet.create({
     left: 12,
     right: 12,
     zIndex: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minHeight: 50,
     paddingHorizontal: 18,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: "#1C1C1E",
     elevation: 6,
     shadowColor: "#000",
@@ -464,9 +494,29 @@ const estilosBase = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: "#18C9A0",
+    // a cor do botão "Iniciar corrida"
+    backgroundColor: "#4A7DF7",
   },
-  pilulaTexto: { flex: 1, color: "#FFF", fontSize: 16, fontWeight: "500" },
+  manobra: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 14,
+  },
+  bannerTextos: { flex: 1 },
+  bannerNumero: { color: "#FFF", fontSize: 36, fontWeight: "800" },
+  bannerRua: { color: "#FFF", fontSize: 21, fontWeight: "500", marginTop: 2 },
+  cartaoDivisor: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  alvoLinha: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 56,
+  },
+  pilulaTexto: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "500" },
 
   base: {
     position: "absolute",
