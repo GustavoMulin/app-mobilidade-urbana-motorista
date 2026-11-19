@@ -64,6 +64,7 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from "react-native-maps";
 import Animated, {
   Easing,
+  FadeIn,
   interpolate,
   useAnimatedStyle,
   useSharedValue,
@@ -381,6 +382,9 @@ export default function NavegacaoAtiva({
     posicao,
     rotaSimulada,
   );
+  // o endereço do cartão de trajeto só abre depois das mensagens rápidas (se há
+  // a manobra em cima; sem ela o cartão ficaria vazio)
+  const escondeParteDeBaixo = esperandoMensagem && navegando && !!passoAtual;
 
   const centralizarNavegacao = useCallback(
     (centro: Coordenada, direcao: number, duracao: number) => {
@@ -758,29 +762,40 @@ export default function NavegacaoAtiva({
                   </Text>
                 </View>
               </TouchableOpacity>
-              <View style={styles.cartaoDivisor} />
+              {!escondeParteDeBaixo && (
+                <Animated.View
+                  entering={FadeIn.duration(450)}
+                  style={styles.cartaoDivisor}
+                />
+              )}
             </>
           )}
 
-          <TouchableOpacity
-            style={styles.alvoLinha}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={
-              navegando ? "Ocultar navegação" : "Iniciar navegação"
-            }
-            onPress={() => setNavegando((atual) => !atual)}
-          >
-            <View style={[styles.pontoCor, { backgroundColor: passo.cor }]} />
-            <Text numberOfLines={1} style={styles.alvoTexto}>
-              {tipoAlvo === "parada" && (
-                <Text style={styles.alvoRotulo}>Parada · </Text>
-              )}
-              {enderecoAlvo
-                ? enderecoSemCidade(enderecoAlvo)
-                : "Carregando endereço..."}
-            </Text>
-          </TouchableOpacity>
+          {!escondeParteDeBaixo && (
+            <Animated.View entering={FadeIn.duration(450)}>
+              <TouchableOpacity
+                style={styles.alvoLinha}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  navegando ? "Ocultar navegação" : "Iniciar navegação"
+                }
+                onPress={() => setNavegando((atual) => !atual)}
+              >
+                <View
+                  style={[styles.pontoCor, { backgroundColor: passo.cor }]}
+                />
+                <Text numberOfLines={1} style={styles.alvoTexto}>
+                  {tipoAlvo === "parada" && (
+                    <Text style={styles.alvoRotulo}>Parada · </Text>
+                  )}
+                  {enderecoAlvo
+                    ? enderecoSemCidade(enderecoAlvo)
+                    : "Carregando endereço..."}
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </View>
         {demorando && (
           <View style={styles.avisoMapa} accessibilityRole="alert">

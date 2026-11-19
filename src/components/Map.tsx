@@ -37,6 +37,7 @@ import {
 } from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
+  FadeIn,
   interpolate,
   type SharedValue,
   useAnimatedStyle,
@@ -67,6 +68,9 @@ interface MapProps {
   botaoAcima?: React.ReactNode;
   // mapa travado (sem arrastar, zoom nem girar), como enquanto a chamada toca
   travado?: boolean;
+  // esconde os botões do canto (centralizar, camadas): na espera no embarque eles
+  // só aparecem depois das mensagens rápidas
+  ocultarBotoes?: boolean;
   // preço dinâmico: hexágonos de alta demanda pintados do amarelo ao vermelho
   dinamica?: MapaDinamico | null;
   // embarque, paradas e destino da chamada que está tocando
@@ -130,6 +134,7 @@ export default function Map({
   marcadores = [],
   dinamica = null,
   travado = false,
+  ocultarBotoes = false,
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -685,42 +690,45 @@ export default function Map({
       </View>
 
       {/* Botão para centralizar no usuário */}
-      {!isGanhoModalVisible && (alturaFolha > 0 || bottomSheetIndex !== 2) && (
-        <Animated.View
-          style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
-        >
-          {botaoAcima}
-          {mapaMovido && !travado && (
-            <TouchableOpacity
-              accessibilityLabel="Centralizar na minha localização"
-              accessibilityRole="button"
-              style={[styles.centerButton, botaoEscuro]}
-              onPress={centerOnUser}
-              disabled={buscandoPosicao}
-            >
-              <MaterialIcons
-                name={userLocation ? "my-location" : "location-searching"}
-                size={24}
-                color={buscandoPosicao ? "#ccc" : "#007AFF"}
-              />
-            </TouchableOpacity>
-          )}
-          {!travado && (
-            <TouchableOpacity
-              accessibilityLabel="Camadas do mapa"
-              accessibilityRole="button"
-              style={[styles.centerButton, botaoEscuro]}
-              onPress={() => setCamadasAbertas(true)}
-            >
-              <MaterialIcons
-                name="layers"
-                size={24}
-                color={tema.escuro ? "#F3F4F6" : "#111111"}
-              />
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      )}
+      {!isGanhoModalVisible &&
+        !ocultarBotoes &&
+        (alturaFolha > 0 || bottomSheetIndex !== 2) && (
+          <Animated.View
+            entering={FadeIn.duration(450)}
+            style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
+          >
+            {botaoAcima}
+            {mapaMovido && !travado && (
+              <TouchableOpacity
+                accessibilityLabel="Centralizar na minha localização"
+                accessibilityRole="button"
+                style={[styles.centerButton, botaoEscuro]}
+                onPress={centerOnUser}
+                disabled={buscandoPosicao}
+              >
+                <MaterialIcons
+                  name={userLocation ? "my-location" : "location-searching"}
+                  size={24}
+                  color={buscandoPosicao ? "#ccc" : "#007AFF"}
+                />
+              </TouchableOpacity>
+            )}
+            {!travado && (
+              <TouchableOpacity
+                accessibilityLabel="Camadas do mapa"
+                accessibilityRole="button"
+                style={[styles.centerButton, botaoEscuro]}
+                onPress={() => setCamadasAbertas(true)}
+              >
+                <MaterialIcons
+                  name="layers"
+                  size={24}
+                  color={tema.escuro ? "#F3F4F6" : "#111111"}
+                />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        )}
 
       <CamadasDoMapa
         visivel={camadasAbertas}

@@ -274,6 +274,9 @@ export default function Home() {
   // menu e do atalho de ganhos
   const esperandoNoEmbarque =
     corridaExibida?.status_corrida === "motorista_chegou";
+  // no embarque, os botões do mapa só aparecem depois das mensagens rápidas
+  const [esperandoMensagemNoEmbarque, setEsperandoMensagemNoEmbarque] =
+    useState(false);
   // esperando o pagamento do Negocia a tela tem o mesmo formato
   const telaDeEspera =
     esperandoNoEmbarque ||
@@ -494,6 +497,7 @@ export default function Home() {
           alvo={chamadaNoMapa ? null : alvoDaCorrida}
           alvoEhDestino={false}
           marcadores={chamadaNoMapa ? pontosDaOferta : []}
+          ocultarBotoes={esperandoNoEmbarque && esperandoMensagemNoEmbarque}
           alturaFolha={
             telaDeEspera
               ? alturaDaEspera
@@ -627,6 +631,7 @@ export default function Home() {
           }
           onAlturaDoTopo={setAlturaDoTopo}
           onAlturaChange={setAlturaDaEspera}
+          onEsperandoMensagemChange={setEsperandoMensagemNoEmbarque}
           esperaMinimaAusenciaS={
             grupo && !simuladorCorrida.ativa
               ? grupo.espera_embarque_segundos

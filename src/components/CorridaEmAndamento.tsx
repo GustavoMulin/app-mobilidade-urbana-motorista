@@ -31,6 +31,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export type AcaoCorrida =
@@ -67,6 +68,8 @@ interface props {
   onAbrirChat?: () => void;
   // toque na foto ou avatar do passageiro: abre o perfil público dele
   onAbrirPerfilPassageiro?: () => void;
+  // avisa a tela quando as mensagens rápidas ainda vão aparecer ou estão na tela
+  onEsperandoMensagemChange?: (esperando: boolean) => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
   // as frases da etapa "no embarque", das preferências do motorista
@@ -121,6 +124,7 @@ export default function CorridaEmAndamento({
   chatNaoLidas = 0,
   onAbrirChat,
   onAbrirPerfilPassageiro,
+  onEsperandoMensagemChange,
   mensagensEnviadas = [],
   mensagensRapidas = [],
   onEnviarMensagem,
@@ -140,6 +144,15 @@ export default function CorridaEmAndamento({
   const [taxaVisivel, setTaxaVisivel] = useState(false);
   // tocar no cartão do embarque recolhe a linha do endereço
   const [enderecoAberto, setEnderecoAberto] = useState(true);
+  // o endereço só abre depois das mensagens rápidas
+  const [mensagemPendente, setMensagemPendente] = useState(true);
+  const esperandoMensagem = !!onEnviarMensagem && mensagemPendente;
+
+  useEffect(() => {
+    onEsperandoMensagemChange?.(esperandoMensagem);
+
+    return () => onEsperandoMensagemChange?.(false);
+  }, [esperandoMensagem, onEsperandoMensagemChange]);
 
   const [relogio, setRelogio] = useState({
     calculadoEm: espera?.calculado_em,
@@ -263,18 +276,24 @@ export default function CorridaEmAndamento({
             </View>
           </View>
         ) : null}
-        {origem && enderecoAberto ? (
-          <View style={styles.cartaoDivisor} />
+        {origem && enderecoAberto && !esperandoMensagem ? (
+          <Animated.View
+            entering={FadeIn.duration(450)}
+            style={styles.cartaoDivisor}
+          />
         ) : null}
-        {!origem || enderecoAberto ? (
-          <View style={styles.alvoLinha}>
+        {!origem || (enderecoAberto && !esperandoMensagem) ? (
+          <Animated.View
+            entering={FadeIn.duration(450)}
+            style={styles.alvoLinha}
+          >
             <View style={styles.pontoEmbarque} />
             <Text numberOfLines={1} style={styles.pilulaTexto}>
               {origem
                 ? enderecoSemCidade(origem)
                 : "Local de embarque não informado"}
             </Text>
-          </View>
+          </Animated.View>
         ) : null}
       </TouchableOpacity>
 
@@ -291,6 +310,7 @@ export default function CorridaEmAndamento({
             onEnviar={onEnviarMensagem}
             // a cor do botão "Iniciar corrida"
             corDaBarra="#4A7DF7"
+            onPendenteChange={setMensagemPendente}
           />
         ) : null}
         {faixa && (
