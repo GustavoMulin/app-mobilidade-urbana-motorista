@@ -169,6 +169,18 @@ const ESTILO_MAPA_CLARO: EstiloDoMapa = [
     elementType: "geometry.stroke",
     stylers: [{ color: "#ECEEF5" }],
   },
+  // afastando o zoom, as áreas construídas e o relevo apareciam num cinza mais
+  // escuro que o chão. Pintar não resolveu: escondidas, sobra o chão lilás.
+  {
+    featureType: "landscape.man_made",
+    elementType: "geometry",
+    stylers: [{ visibility: "off" }],
+  },
+  {
+    featureType: "landscape.natural.terrain",
+    elementType: "geometry",
+    stylers: [{ visibility: "off" }],
+  },
   { elementType: "labels.text.fill", stylers: [{ color: "#5F6677" }] },
   { elementType: "labels.text.stroke", stylers: [{ color: "#F6F7FB" }] },
   {

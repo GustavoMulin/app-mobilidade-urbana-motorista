@@ -29,12 +29,19 @@ import MapView, {
 } from "react-native-maps";
 import RotaAnimada from "@/components/RotaAnimada";
 import RegioesDinamicas from "@/components/RegioesDinamicas";
-import type { MapaDinamico } from "@/domain/dinamica";
+import CamadasDoMapa from "@/components/CamadasDoMapa";
+import {
+  CAMADAS_PADRAO,
+  type CamadasDoMapa as Camadas,
+  type MapaDinamico,
+} from "@/domain/dinamica";
 import Animated, {
   Extrapolation,
   interpolate,
   type SharedValue,
   useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -62,6 +69,9 @@ interface MapProps {
   botaoAcima?: React.ReactNode;
   // mapa travado (sem arrastar, zoom nem girar), como enquanto a chamada toca
   travado?: boolean;
+  // esconde os botões do canto (centralizar, camadas): na espera no embarque eles
+  // só aparecem depois das mensagens rápidas
+  ocultarBotoes?: boolean;
   // preço dinâmico: hexágonos de alta demanda pintados do amarelo ao vermelho
   dinamica?: MapaDinamico | null;
   // embarque, paradas e destino da chamada que está tocando
@@ -87,6 +97,11 @@ const LIMITE_POSICAO_MS = 15_000;
 // Abertura do mapa: ~3 km de ponta a ponta, o suficiente para ler os nomes dos
 // bairros (com 0,01 só se via o quarteirão em volta).
 export const ABERTURA_DO_MAPA = 0.03;
+
+// Acima disso (~55 km de ponta a ponta, a cidade inteira e arredores) o mapa de calor some: os hexágonos de
+// centenas de metros viram pontinhos e os marcadores se amontoam. Volta ao
+// aproximar.
+const ZOOM_MAXIMO_DO_MAPA_DE_CALOR = 0.5;
 
 const regiaoDaPosicao = (coords: {
   latitude: number;
@@ -120,10 +135,15 @@ export default function Map({
   marcadores = [],
   dinamica = null,
   travado = false,
+  ocultarBotoes = false,
 }: MapProps) {
   const { height: alturaTela } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const tema = useTema();
+  // os botões brancos do mapa ficam escuros no tema escuro
+  const botaoEscuro = tema.escuro
+    ? { backgroundColor: tema.cores.superficie }
+    : null;
   const mapRef = useRef<MapView>(null);
   const [userLocation, setUserLocation] = useState<Region | null>(null);
   const [permissao, setPermissao] = useState<Permissao>("verificando");
@@ -131,6 +151,10 @@ export default function Map({
   const [localizacaoIndisponivel, setLocalizacaoIndisponivel] = useState(false);
   // o botão de centralizar só aparece depois que o motorista arrasta o mapa
   const [mapaMovido, setMapaMovido] = useState(false);
+  // camadas do mapa de calor (demanda e tarifas) e a janela que as liga
+  const [camadas, setCamadas] = useState<Camadas>(CAMADAS_PADRAO);
+  const [camadasAbertas, setCamadasAbertas] = useState(false);
+  const [afastadoDemais, setAfastadoDemais] = useState(false);
   const [regiaoReserva, setRegiaoReserva] = useState<Region>(REGIAO_BRASIL);
   const temPosicaoReal = useRef(false);
   const {
@@ -144,6 +168,15 @@ export default function Map({
   } = useCarregamentoMapa();
   const [dimensoesMapa, setDimensoesMapa] = useState({ width: 0, height: 0 });
   const [tentativaLocalizacao, setTentativaLocalizacao] = useState(0);
+
+  // os botões do canto entram com fade quando deixam de ficar escondidos
+  const opacidadeBotoes = useSharedValue(1);
+  useEffect(() => {
+    opacidadeBotoes.set(ocultarBotoes ? 0 : withTiming(1, { duration: 450 }));
+  }, [ocultarBotoes, opacidadeBotoes]);
+  const estiloOpacidadeBotoes = useAnimatedStyle(() => ({
+    opacity: opacidadeBotoes.value,
+  }));
 
   const estiloPosicaoCentralizar = useAnimatedStyle(() => {
     const indice = indiceFolhaAnimado?.value ?? bottomSheetIndex ?? 0;
@@ -187,6 +220,9 @@ export default function Map({
 
   // 🔹 guarda a região original do usuário para aplicar offsets conforme o BottomSheet
   const userInitialRegion = useRef<Region | null>(null);
+
+  // corrida com paradas: o trajeto é comprido, o enquadramento fica mais justo
+  const comParadas = marcadores.some((ponto) => ponto.tipo === "parada");
 
   // com rota na tela, o mapa deixa de seguir a região manual e passa a
   // mostrar o trajeto inteiro
@@ -247,14 +283,16 @@ export default function Map({
       edgePadding: paddingMapa(
         dimensoesMapa.width,
         dimensoesMapa.height,
-        insets.top + 100,
-        Math.max(alturaFolha, 120) + 16,
+        insets.top + (comParadas ? 110 : 200),
+        Math.max(alturaFolha, 120) + (comParadas ? 40 : 150),
+        !comParadas,
       ),
       animated: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     chaveRota,
+    comParadas,
     alturaFolha,
     mapReady,
     dimensoesMapa.width,
@@ -279,14 +317,16 @@ export default function Map({
       edgePadding: paddingMapa(
         dimensoesMapa.width,
         dimensoesMapa.height,
-        insets.top + 100,
-        Math.max(alturaFolha, 120) + 16,
+        insets.top + (comParadas ? 110 : 200),
+        Math.max(alturaFolha, 120) + (comParadas ? 40 : 150),
+        !comParadas,
       ),
       animated: true,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     chaveMarcadores,
+    comParadas,
     temTracado,
     alturaFolha,
     mapReady,
@@ -486,6 +526,9 @@ export default function Map({
         onPanDrag={() => setMapaMovido(true)}
         onRegionChangeComplete={(regiao) => {
           regiaoDoMapa.current = regiao;
+          setAfastadoDemais(
+            regiao.latitudeDelta > ZOOM_MAXIMO_DO_MAPA_DE_CALOR,
+          );
           onRegionChange(regiao);
         }}
         // sem rota (esperando no embarque), o centro do mapa fica na parte que
@@ -510,51 +553,75 @@ export default function Map({
         onMapReady={mapaPronto}
         onMapLoaded={mapaCarregado}
       >
-        {dinamica && <RegioesDinamicas mapa={dinamica} />}
+        {dinamica && !afastadoDemais && (
+          <RegioesDinamicas mapa={dinamica} camadas={camadas} />
+        )}
 
         {userLocation && <MarcadorMinhaLocalizacao coordenada={userLocation} />}
 
         <RotaAnimada
           coordenadas={rota.length > 1 ? rota : SEM_ROTA}
           fase={faseDaRota}
-          cor={alvoEhDestino ? "#2F6BFF" : "#17A673"}
-          largura={5}
+          // o mesmo traçado do itinerário do passageiro
+          cor="#2563EB"
+          largura={4}
           zIndex={10}
         />
 
-        {marcadores.map((ponto, indice) => (
-          <Marker
-            key={`${ponto.tipo}:${indice}:${ponto.latitude},${ponto.longitude}`}
-            coordinate={ponto}
-            anchor={{ x: 0.5, y: 0.5 }}
-            // com false o Android desenhava o círculo antes do ícone carregar
-            tracksViewChanges
-            zIndex={20}
-          >
-            <View
-              style={[
-                styles.marcadorPonto,
-                ponto.tipo === "origem"
-                  ? styles.marcadorEmbarque
-                  : ponto.tipo === "destino"
-                    ? styles.marcadorDestino
-                    : styles.marcadorParada,
-              ]}
+        {/* pontos como no itinerário do passageiro: embarque em círculo,
+            paradas em quadrado numerado e bandeira quadriculada no destino */}
+        {marcadores.map((ponto, indice) => {
+          const ehOrigem = ponto.tipo === "origem";
+          const ehDestino = ponto.tipo === "destino";
+          const numeroDaParada = marcadores
+            .slice(0, indice + 1)
+            .filter((outro) => outro.tipo === "parada").length;
+
+          return (
+            <Marker
+              key={`${ponto.tipo}:${indice}:${ponto.latitude},${ponto.longitude}`}
+              coordinate={ponto}
+              anchor={ehOrigem ? { x: 0.5, y: 0.5 } : { x: 0.5, y: 0.3 }}
+              // com false o Android desenhava o marcador antes do conteúdo carregar
+              tracksViewChanges
+              zIndex={20}
             >
-              <MaterialIcons
-                name={
-                  ponto.tipo === "origem"
-                    ? "arrow-upward"
-                    : ponto.tipo === "destino"
-                      ? "arrow-downward"
-                      : "more-horiz"
-                }
-                size={20}
-                color="#FFF"
-              />
-            </View>
-          </Marker>
-        ))}
+              {ehOrigem ? (
+                <View style={styles.marcadorOrigem}>
+                  <View style={styles.marcadorOrigemCentro} />
+                </View>
+              ) : ehDestino ? (
+                // bandeira só com Views: o react-native-svg não existe no Expo Go
+                <View style={styles.marcadorBandeira}>
+                  <View style={styles.bandeiraHaste} />
+                  <View style={styles.bandeiraPano}>
+                    {[0, 1, 2].map((linha) => (
+                      <View key={linha} style={styles.bandeiraLinha}>
+                        {[0, 1, 2, 3].map((coluna) => (
+                          <View
+                            key={coluna}
+                            style={[
+                              styles.bandeiraQuadrado,
+                              (linha + coluna) % 2 === 0 && {
+                                backgroundColor: "#FFF",
+                              },
+                            ]}
+                          />
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.marcadorParada}>
+                  <Text style={styles.marcadorParadaTexto}>
+                    {numeroDaParada}
+                  </Text>
+                </View>
+              )}
+            </Marker>
+          );
+        })}
 
         {alvo && (
           <Marker
@@ -633,28 +700,58 @@ export default function Map({
       </View>
 
       {/* Botão para centralizar no usuário */}
-      {!isGanhoModalVisible && (alturaFolha > 0 || bottomSheetIndex !== 2) && (
-        <Animated.View
-          style={[styles.centerButtonContainer, estiloPosicaoCentralizar]}
-        >
-          {botaoAcima}
-          {mapaMovido && !travado && (
-            <TouchableOpacity
-              accessibilityLabel="Centralizar na minha localização"
-              accessibilityRole="button"
-              style={styles.centerButton}
-              onPress={centerOnUser}
-              disabled={buscandoPosicao}
-            >
-              <MaterialIcons
-                name={userLocation ? "my-location" : "location-searching"}
-                size={24}
-                color={buscandoPosicao ? "#ccc" : "#007AFF"}
-              />
-            </TouchableOpacity>
-          )}
-        </Animated.View>
-      )}
+      {!isGanhoModalVisible &&
+        !ocultarBotoes &&
+        (alturaFolha > 0 || bottomSheetIndex !== 2) && (
+          <Animated.View
+            style={[
+              styles.centerButtonContainer,
+              estiloPosicaoCentralizar,
+              estiloOpacidadeBotoes,
+            ]}
+          >
+            {botaoAcima}
+            {mapaMovido && !travado && (
+              <TouchableOpacity
+                accessibilityLabel="Centralizar na minha localização"
+                accessibilityRole="button"
+                style={[styles.centerButton, botaoEscuro]}
+                onPress={centerOnUser}
+                disabled={buscandoPosicao}
+              >
+                <MaterialIcons
+                  name={userLocation ? "my-location" : "location-searching"}
+                  size={24}
+                  color={buscandoPosicao ? "#ccc" : "#007AFF"}
+                />
+              </TouchableOpacity>
+            )}
+            {!travado && (
+              <TouchableOpacity
+                accessibilityLabel="Camadas do mapa"
+                accessibilityRole="button"
+                style={[styles.centerButton, botaoEscuro]}
+                onPress={() => setCamadasAbertas(true)}
+              >
+                <MaterialIcons
+                  name="layers"
+                  size={24}
+                  color={tema.escuro ? "#F3F4F6" : "#111111"}
+                />
+              </TouchableOpacity>
+            )}
+          </Animated.View>
+        )}
+
+      <CamadasDoMapa
+        visivel={camadasAbertas}
+        camadas={camadas}
+        onFechar={() => setCamadasAbertas(false)}
+        onConfirmar={(novas) => {
+          setCamadas(novas);
+          setCamadasAbertas(false);
+        }}
+      />
     </View>
   );
 }
@@ -708,18 +805,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   avisoBotaoTexto: { color: "#FFF", fontSize: 14, fontWeight: "600" },
-  marcadorPonto: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
+  marcadorOrigem: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#FFF",
     justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
-    borderColor: "#FFF",
+    borderColor: "#111827",
   },
-  marcadorEmbarque: { backgroundColor: "#17C08A" },
-  marcadorDestino: { backgroundColor: "#F2662F" },
-  marcadorParada: { backgroundColor: "#6B7280" },
+  marcadorOrigemCentro: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#111827",
+  },
+  marcadorBandeira: {
+    width: 32,
+    height: 32,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  bandeiraHaste: {
+    position: "absolute",
+    left: 7,
+    top: 3,
+    width: 3,
+    height: 27,
+    backgroundColor: "#333",
+  },
+  bandeiraPano: {
+    position: "absolute",
+    left: 10,
+    top: 5,
+    width: 20,
+    height: 13,
+  },
+  bandeiraLinha: { flexDirection: "row", flex: 1 },
+  bandeiraQuadrado: { flex: 1, backgroundColor: "#111827" },
+  marcadorParada: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: "#2563EB",
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  marcadorParadaTexto: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
   centerButtonContainer: {
     position: "absolute",
     right: 16,

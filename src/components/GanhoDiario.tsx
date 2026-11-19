@@ -13,6 +13,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  PanResponder,
   Pressable,
   StyleSheet,
   TouchableOpacity,
@@ -27,13 +28,24 @@ import EditarPainelGanhos from "./EditarPainelGanhos";
 import HistoricoCorridas from "./HistoricoCorridas";
 import ObjetivoSemanal from "./ObjetivoSemanal";
 import SeusGanhos, { type PeriodoGanhos } from "./SeusGanhos";
+import ValorRolante from "./ValorRolante";
 
 interface GanhoDiarioProps {
   visible: boolean;
   setVisible: (visible: boolean) => void;
   corridaAtivaId: number | null;
   ocultarAtalho?: boolean;
+  // enquanto o "Ganho da corrida" não terminou, o valor do dia não muda; ao
+  // terminar, os números rolam até o valor novo
+  segurarValor?: boolean;
+  // o valor do "Ganho da corrida": entra na conta assim que ele termina, sem
+  // esperar o histórico chegar do servidor
+  ganhoDaCorrida?: number | null;
 }
+
+// o último valor mostrado sobrevive à tela de avaliação (o painel sai do ar
+// durante ela): é dele que os números partem quando a corrida entra na conta
+let ultimoTotalMostrado: number | null = null;
 
 const valorNumerico = (valor: string) => {
   const normalizado = valor
@@ -96,6 +108,8 @@ export default function GanhoDiario({
   setVisible,
   corridaAtivaId,
   ocultarAtalho = false,
+  segurarValor = false,
+  ganhoDaCorrida = null,
 }: GanhoDiarioProps) {
   const insets = useSafeAreaInsets();
   const { escuro, cores } = useTema();
@@ -114,7 +128,7 @@ export default function GanhoDiario({
   // celular o motorista escolhe de novo. Para seguir a conta, guardar no backend
   const chaveMeta = user ? `@meta_ganhos_semanal:${user.id}` : null;
   const chavePainel = user ? `@painel_ganhos:${user.id}` : null;
-  const { itens, erro, recarregar } = useHistoricoCorridas(true);
+  const { itens, erro, recarregar, carregando } = useHistoricoCorridas(true);
   const corridaAnterior = useRef(corridaAtivaId);
   const hoje = new Date().toLocaleDateString("pt-BR");
   // o painel fica montado fora da tela e desce do topo ao abrir
@@ -126,6 +140,44 @@ export default function GanhoDiario({
   useEffect(() => {
     if (!visible) closeAnimation(() => {});
   }, [visible, closeAnimation]);
+
+  // puxar a alça para cima fecha o painel: ele acompanha o dedo e, soltando
+  // depois de uma boa puxada (ou com um arremesso), sobe e fecha; senão volta
+  const setVisibleRef = useRef(setVisible);
+  useEffect(() => {
+    setVisibleRef.current = setVisible;
+  }, [setVisible]);
+  // O responder só lê a ref quando o gesto termina, nunca durante a renderização.
+  // eslint-disable-next-line react-hooks/refs
+  const [puxarAlca] = useState(() =>
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gesto) =>
+        gesto.dy < -4 && Math.abs(gesto.dy) > Math.abs(gesto.dx),
+      onPanResponderMove: (_, gesto) => {
+        slideAnim.setValue(Math.min(gesto.dy, 0));
+      },
+      onPanResponderRelease: (_, gesto) => {
+        if (gesto.dy < -60 || gesto.vy < -0.6) {
+          setVisibleRef.current(false);
+          return;
+        }
+
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+      onPanResponderTerminate: () => {
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          useNativeDriver: true,
+          bounciness: 0,
+        }).start();
+      },
+    }),
+  );
 
   // chamada na tela ou folha aberta escondem o atalho: o painel fecha junto
   useEffect(() => {
@@ -269,7 +321,74 @@ export default function GanhoDiario({
     };
   }, [hoje, itens]);
 
-  const valor = reais(totalHoje);
+  // o valor que aparece no atalho: só acompanha o total depois do "Ganho da
+  // corrida" e, nesse caso, com os números girando
+  const [totalMostrado, setTotalMostrado] = useState(
+    () => ultimoTotalMostrado ?? totalHoje,
+  );
+  const [giro, setGiro] = useState(0);
+  const segurou = useRef(false);
+
+  const ganhoPendente = useRef(0);
+
+  // uma pausa curta depois que o "Ganho da corrida" sai, antes de os números girarem
+  const [pausando, setPausando] = useState(false);
+  const segura = segurarValor || pausando;
+
+  useEffect(() => {
+    if (segurarValor) {
+      setPausando(true);
+      return;
+    }
+
+    const espera = setTimeout(() => setPausando(false), 600);
+
+    return () => clearTimeout(espera);
+  }, [segurarValor]);
+
+  useEffect(() => {
+    if (segurarValor) segurou.current = true;
+    if (segurarValor && ganhoDaCorrida !== null) {
+      ganhoPendente.current = ganhoDaCorrida;
+    }
+  }, [segurarValor, ganhoDaCorrida]);
+
+  useEffect(() => {
+    if (segura) return;
+
+    // o histórico ainda não trouxe a corrida: soma o ganho na hora, para o giro
+    // começar logo depois do "Ganho da corrida"
+    if (
+      segurou.current &&
+      ganhoPendente.current > 0 &&
+      ultimoTotalMostrado !== null &&
+      !(totalHoje > totalMostrado)
+    ) {
+      const alvo =
+        Math.round((totalMostrado + ganhoPendente.current) * 100) / 100;
+
+      segurou.current = false;
+      ganhoPendente.current = 0;
+      ultimoTotalMostrado = alvo;
+      setGiro((atual) => atual + 1);
+      setTotalMostrado(alvo);
+      return;
+    }
+
+    // espera o histórico chegar: antes disso o total é zero e apagaria o valor
+    if (segura || carregando || (itens.length === 0 && !erro)) return;
+
+    if (totalMostrado !== totalHoje) {
+      if (segurou.current && ultimoTotalMostrado !== null) {
+        setGiro((atual) => atual + 1);
+      }
+      setTotalMostrado(totalHoje);
+    }
+
+    segurou.current = false;
+    ganhoPendente.current = 0;
+    ultimoTotalMostrado = totalHoje;
+  }, [segura, carregando, itens.length, erro, totalHoje, totalMostrado]);
 
   const valores: Record<string, string> = {
     ultima: painel.ultima,
@@ -479,7 +598,10 @@ export default function GanhoDiario({
           </View>
 
           {/* faixa branca no fim da folha, com a alça, como a da folha de baixo */}
-          <View style={[styles.rodape, { backgroundColor: cores.cartao }]}>
+          <View
+            style={[styles.rodape, { backgroundColor: cores.cartao }]}
+            {...puxarAlca.panHandlers}
+          >
             <View
               style={[
                 styles.alca,
@@ -519,9 +641,13 @@ export default function GanhoDiario({
                 visible ? "Fechar painel de ganhos" : "Abrir painel de ganhos"
               }
             >
-              <Text style={styles.valorText}>
-                {mostrarValor ? (erro ? "Indisponível" : valor) : "••••••"}
-              </Text>
+              {mostrarValor && !erro ? (
+                <ValorRolante texto={reais(totalMostrado)} giro={giro} />
+              ) : (
+                <Text style={styles.valorText}>
+                  {mostrarValor ? "Indisponível" : "••••••"}
+                </Text>
+              )}
               <Ionicons
                 name={visible ? "chevron-up" : "chevron-down"}
                 size={20}
@@ -609,7 +735,7 @@ const styles = StyleSheet.create({
   },
   valorText: {
     color: "#FFF",
-    fontSize: 25,
+    fontSize: 19,
     fontWeight: "800",
   },
   camadaPainel: { zIndex: 8 },

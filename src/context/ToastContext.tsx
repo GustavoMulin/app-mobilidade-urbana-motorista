@@ -24,15 +24,18 @@ export interface OpcoesToast {
   icone?: React.ComponentProps<typeof Ionicons>["name"];
   // fundo levemente transparente, deixando o que está atrás aparecer
   translucido?: boolean;
+  // versão menor: ícone, texto e margens reduzidos
+  compacto?: boolean;
 }
 
 interface ToastInterno extends Required<
-  Omit<OpcoesToast, "mensagem" | "icone" | "translucido">
+  Omit<OpcoesToast, "mensagem" | "icone" | "translucido" | "compacto">
 > {
   id: number;
   mensagem?: string;
   icone?: OpcoesToast["icone"];
   translucido?: boolean;
+  compacto?: boolean;
 }
 
 interface ToastContextValue {
@@ -141,18 +144,27 @@ function ToastItem({
       style={[
         styles.toast,
         toast.translucido && styles.toastTranslucido,
+        toast.compacto && styles.toastCompacto,
         { opacity: opacidade, transform: [{ translateY: deslocamento }] },
       ]}
     >
-      <View style={[styles.iconeCirculo, { backgroundColor: aparencia.cor }]}>
+      <View
+        style={[
+          styles.iconeCirculo,
+          toast.compacto && styles.iconeCirculoCompacto,
+          { backgroundColor: aparencia.cor },
+        ]}
+      >
         <Ionicons
           name={toast.icone ?? aparencia.icone}
-          size={23}
+          size={toast.compacto ? 21 : 23}
           color="#FFFFFF"
         />
       </View>
       <View style={styles.conteudo}>
-        <Text style={styles.titulo}>{toast.titulo}</Text>
+        <Text style={[styles.titulo, toast.compacto && styles.tituloCompacto]}>
+          {toast.titulo}
+        </Text>
         {toast.mensagem ? (
           <Text style={styles.mensagem}>{toast.mensagem}</Text>
         ) : null}
@@ -205,6 +217,7 @@ export function ToastProvider({ children }: PropsWithChildren) {
       mensagem: undefined,
       icone: opcoes.icone,
       translucido: opcoes.translucido,
+      compacto: opcoes.compacto,
       tipo,
       duracaoMs: problema
         ? Math.min(6000, Math.max(3500, opcoes.duracaoMs ?? 4500))
@@ -269,7 +282,13 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 12,
   },
-  toastTranslucido: { backgroundColor: "rgba(36, 39, 43, 0.88)" },
+  toastTranslucido: { backgroundColor: "rgba(36, 39, 43, 0.8)" },
+  toastCompacto: {
+    minHeight: 60,
+    borderRadius: 22,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
   iconeCirculo: {
     width: 42,
     height: 42,
@@ -278,9 +297,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginRight: 14,
   },
+  iconeCirculoCompacto: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 12,
+  },
   conteudo: {
     flexShrink: 1,
   },
+  tituloCompacto: { fontSize: 15, lineHeight: 19 },
   titulo: {
     color: "#FFFFFF",
     fontSize: 16,

@@ -3,13 +3,15 @@ import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // numa pílula escura no topo, faixa laranja da taxa de espera, relógio em
 // anel, passageiro e "Iniciar corrida". O ≡ abre a tela Mais (cancelar com
 // motivo, ausência do passageiro, recusar novas corridas).
+import AbrindoParaBaixo from "@/components/AbrindoParaBaixo";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
-import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
+import BotaoContatoPassageiro from "@/components/BotaoContatoPassageiro";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import AnelProgresso from "@/components/AnelProgresso";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
 import { Text } from "@/components/common/Texto";
+import { enderecoSemCidade, ruaENumero } from "@/domain/endereco";
 import { ResumoEspera, calcularContadorEspera } from "@/domain/contadorEspera";
 import { reputacaoPassageiro } from "@/domain/reputacaoPassageiro";
 import type {
@@ -40,6 +42,8 @@ export interface PassageiroDaCorrida {
   solicitante?: string | null;
   foto?: string | null;
   foto_oculta?: boolean;
+  // a imagem é o avatar que o passageiro escolheu (não a foto dele)
+  foto_e_avatar?: boolean;
   telefone?: string | null;
   nota?: number | null;
   corridas?: number;
@@ -62,6 +66,10 @@ interface props {
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // toque na foto ou avatar do passageiro: abre o perfil público dele
+  onAbrirPerfilPassageiro?: () => void;
+  // avisa a tela quando as mensagens rápidas ainda vão aparecer ou estão na tela
+  onEsperandoMensagemChange?: (esperando: boolean) => void;
   // mensagens de um toque ao chegar (o que já foi para a conversa some)
   mensagensEnviadas?: string[];
   // as frases da etapa "no embarque", das preferências do motorista
@@ -115,6 +123,8 @@ export default function CorridaEmAndamento({
   onAlternarRecusarNovas,
   chatNaoLidas = 0,
   onAbrirChat,
+  onAbrirPerfilPassageiro,
+  onEsperandoMensagemChange,
   mensagensEnviadas = [],
   mensagensRapidas = [],
   onEnviarMensagem,
@@ -132,6 +142,17 @@ export default function CorridaEmAndamento({
   const { height: alturaTela } = useWindowDimensions();
   const [maisVisivel, setMaisVisivel] = useState(false);
   const [taxaVisivel, setTaxaVisivel] = useState(false);
+  // tocar no cartão do embarque recolhe a linha do endereço
+  const [enderecoAberto, setEnderecoAberto] = useState(true);
+  // o endereço só abre depois das mensagens rápidas
+  const [mensagemPendente, setMensagemPendente] = useState(true);
+  const esperandoMensagem = !!onEnviarMensagem && mensagemPendente;
+
+  useEffect(() => {
+    onEsperandoMensagemChange?.(esperandoMensagem);
+
+    return () => onEsperandoMensagemChange?.(false);
+  }, [esperandoMensagem, onEsperandoMensagemChange]);
 
   const [relogio, setRelogio] = useState({
     calculadoEm: espera?.calculado_em,
@@ -227,17 +248,49 @@ export default function CorridaEmAndamento({
   return (
     <>
       <StatusBar style="dark" />
-      <View
+      <TouchableOpacity
+        activeOpacity={0.9}
+        accessibilityRole="button"
+        accessibilityLabel={
+          enderecoAberto
+            ? "Ocultar endereço completo"
+            : "Mostrar endereço completo"
+        }
+        disabled={!origem}
+        onPress={() => setEnderecoAberto((atual) => !atual)}
         style={[styles.pilulaEmbarque, { top: insets.top + 10 }]}
         onLayout={({ nativeEvent }) =>
           onAlturaDoTopo?.(10 + nativeEvent.layout.height)
         }
       >
-        <View style={styles.pontoEmbarque} />
-        <Text numberOfLines={1} style={styles.pilulaTexto}>
-          {origem ?? "Local de embarque não informado"}
-        </Text>
-      </View>
+        {origem ? (
+          <View style={styles.manobra}>
+            <Ionicons name="location" size={44} color="#FFF" />
+            <View style={styles.bannerTextos}>
+              <Text style={styles.bannerNumero}>
+                {ruaENumero(origem).numero}
+              </Text>
+              <Text numberOfLines={1} style={styles.bannerRua}>
+                {ruaENumero(origem).rua}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {/* a parte de baixo abre depois das mensagens rápidas */}
+        <AbrindoParaBaixo
+          aberto={!origem || (enderecoAberto && !esperandoMensagem)}
+        >
+          {origem ? <View style={styles.cartaoDivisor} /> : null}
+          <View style={styles.alvoLinha}>
+            <View style={styles.pontoEmbarque} />
+            <Text numberOfLines={1} style={styles.pilulaTexto}>
+              {origem
+                ? enderecoSemCidade(origem)
+                : "Local de embarque não informado"}
+            </Text>
+          </View>
+        </AbrindoParaBaixo>
+      </TouchableOpacity>
 
       <View
         style={[styles.base, { maxHeight: alturaTela - insets.top - 80 }]}
@@ -250,6 +303,9 @@ export default function CorridaEmAndamento({
             enviadas={mensagensEnviadas}
             mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
+            // a cor do botão "Iniciar corrida"
+            corDaBarra="#4A7DF7"
+            onPendenteChange={setMensagemPendente}
           />
         ) : null}
         {faixa && (
@@ -308,16 +364,24 @@ export default function CorridaEmAndamento({
             )}
 
             <View style={styles.linhaPassageiro}>
-              {passageiro?.foto && !passageiro.foto_oculta ? (
-                <Image
-                  source={{ uri: passageiro.foto }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View style={[styles.avatar, styles.avatarVazio]}>
-                  <Feather name="user" size={22} color="#8B94A1" />
-                </View>
-              )}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={!onAbrirPerfilPassageiro}
+                accessibilityRole="button"
+                accessibilityLabel="Ver o perfil do passageiro"
+                onPress={onAbrirPerfilPassageiro}
+              >
+                {passageiro?.foto && !passageiro.foto_oculta ? (
+                  <Image
+                    source={{ uri: passageiro.foto }}
+                    style={styles.avatar}
+                  />
+                ) : (
+                  <View style={[styles.avatar, styles.avatarVazio]}>
+                    <Feather name="user" size={24} color="#8B94A1" />
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.passageiroBloco}
@@ -343,23 +407,12 @@ export default function CorridaEmAndamento({
                 ) : null}
               </TouchableOpacity>
 
-              {onAbrirChat ? (
-                <BotaoChatPassageiro
-                  naoLidas={chatNaoLidas}
-                  onPress={onAbrirChat}
-                  estilo={styles.botaoLigar}
-                />
-              ) : null}
-              {passageiro?.telefone ? (
-                <TouchableOpacity
-                  style={styles.botaoLigar}
-                  onPress={ligar}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ligar para o passageiro"
-                >
-                  <Ionicons name="call" size={20} color={cores.icone} />
-                </TouchableOpacity>
-              ) : null}
+              <BotaoContatoPassageiro
+                naoLidas={chatNaoLidas}
+                onChat={onAbrirChat}
+                onLigar={passageiro?.telefone ? ligar : undefined}
+                estilo={styles.botaoLigar}
+              />
             </View>
 
             <BotaoDeslizar
@@ -447,12 +500,8 @@ const estilosBase = StyleSheet.create({
     left: 12,
     right: 12,
     zIndex: 20,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    minHeight: 50,
     paddingHorizontal: 18,
-    borderRadius: 16,
+    borderRadius: 18,
     backgroundColor: "#1C1C1E",
     elevation: 6,
     shadowColor: "#000",
@@ -464,9 +513,29 @@ const estilosBase = StyleSheet.create({
     width: 9,
     height: 9,
     borderRadius: 5,
-    backgroundColor: "#18C9A0",
+    // a cor do botão "Iniciar corrida"
+    backgroundColor: "#4A7DF7",
   },
-  pilulaTexto: { flex: 1, color: "#FFF", fontSize: 16, fontWeight: "500" },
+  manobra: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    paddingVertical: 14,
+  },
+  bannerTextos: { flex: 1 },
+  bannerNumero: { color: "#FFF", fontSize: 36, fontWeight: "800" },
+  bannerRua: { color: "#FFF", fontSize: 21, fontWeight: "500", marginTop: 2 },
+  cartaoDivisor: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "rgba(255,255,255,0.25)",
+  },
+  alvoLinha: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    minHeight: 56,
+  },
+  pilulaTexto: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "500" },
 
   base: {
     position: "absolute",
@@ -531,7 +600,7 @@ const estilosBase = StyleSheet.create({
   },
 
   linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 48, height: 48, borderRadius: 24 },
+  avatar: { width: 47, height: 47, borderRadius: 23.5 },
   avatarVazio: {
     backgroundColor: "#E6EDF5",
     alignItems: "center",
@@ -546,15 +615,15 @@ const estilosBase = StyleSheet.create({
   nomeLinha: { flexDirection: "row", alignItems: "center", gap: 2 },
   passageiroNome: {
     flexShrink: 1,
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: "600",
     color: "#111",
   },
-  passageiroApoio: { fontSize: 14, color: "#777", marginTop: 2 },
+  passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 47,
+    height: 47,
+    borderRadius: 23.5,
     backgroundColor: "#F0F0F0",
     alignItems: "center",
     justifyContent: "center",

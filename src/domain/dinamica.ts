@@ -18,6 +18,9 @@ export interface RegiaoDinamica {
   // "1,5x" ou "+R$2,25", já no modo da cidade
   rotulo: string;
   manual: boolean;
+  // 0 (pouca) a 1 (muita) procura por corrida na região; sem o dado, vale a
+  // própria intensidade do preço
+  demanda?: number;
 }
 
 export interface MapaDinamico {
@@ -26,6 +29,17 @@ export interface MapaDinamico {
   // raio do hexágono em metros da projeção
   raio_metros: number;
   regioes: RegiaoDinamica[];
+  // procura por corrida, sem depender de ter tarifa; sem isso a camada usa as
+  // próprias regiões com tarifa
+  demandas?: DemandaDaRegiao[];
+}
+
+export interface DemandaDaRegiao {
+  celula: string;
+  latitude: number;
+  longitude: number;
+  // 0 (pouca) a 1 (muita)
+  demanda: number;
 }
 
 export interface Ponto {
@@ -93,6 +107,138 @@ export function corDaIntensidade(intensidade: number): {
   };
 }
 
+export interface CamadasDoMapa {
+  // manchas de demanda, com bonequinhos
+  demanda: boolean;
+  // hexágonos com o valor extra
+  tarifas: boolean;
+}
+
+export const CAMADAS_PADRAO: CamadasDoMapa = { demanda: true, tarifas: true };
+
+/** Demanda da região de 0 a 1. */
+export const demandaDaRegiao = (regiao: RegiaoDinamica): number =>
+  Math.min(Math.max(regiao.demanda ?? regiao.intensidade, 0), 1);
+
+/**
+ * Nível da demanda para o ícone: 1 leve ou moderada (uma pessoa), 2 alta
+ * (duas pessoas) e 3 extrema (grupo).
+ */
+export const nivelDaDemanda = (demanda: number): 1 | 2 | 3 =>
+  demanda >= 0.8 ? 3 : demanda >= 0.55 ? 2 : 1;
+
+export interface IconeDeDemanda {
+  celula: string;
+  latitude: number;
+  longitude: number;
+  nivel: 1 | 2 | 3;
+}
+
+// vizinhos de uma célula na grade axial hexagonal
+const VIZINHOS_AXIAIS: [number, number][] = [
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+  [1, -1],
+  [-1, 1],
+];
+
+// até este tamanho a área ganha um ícone só; acima disso, dois
+const CELULAS_PARA_DOIS_ICONES = 5;
+
+const distancia2 = (
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+) => (a.latitude - b.latitude) ** 2 + (a.longitude - b.longitude) ** 2;
+
+/**
+ * Menos ícones em cenário de muita demanda: células vizinhas do mesmo nível
+ * (leve, alta ou extrema) formam uma área, e a área é representada por um
+ * ícone, ou por dois quando é grande, em vez de um por célula.
+ */
+export function iconesDaDemanda(areas: DemandaDaRegiao[]): IconeDeDemanda[] {
+  const porCelula = new Map(areas.map((area) => [area.celula, area]));
+  const visitadas = new Set<string>();
+  const icones: IconeDeDemanda[] = [];
+
+  for (const inicio of areas) {
+    if (visitadas.has(inicio.celula)) continue;
+
+    const nivel = nivelDaDemanda(inicio.demanda);
+    const grupo: DemandaDaRegiao[] = [];
+    const fila = [inicio];
+    visitadas.add(inicio.celula);
+
+    // área = células vizinhas encadeadas do mesmo nível
+    while (fila.length > 0) {
+      const atual = fila.pop() as DemandaDaRegiao;
+      const [q, r] = atual.celula.split(":").map(Number);
+      grupo.push(atual);
+
+      for (const [dq, dr] of VIZINHOS_AXIAIS) {
+        const chave = `${q + dq}:${r + dr}`;
+        const vizinha = porCelula.get(chave);
+
+        if (
+          vizinha &&
+          !visitadas.has(chave) &&
+          nivelDaDemanda(vizinha.demanda) === nivel
+        ) {
+          visitadas.add(chave);
+          fila.push(vizinha);
+        }
+      }
+    }
+
+    const centro = {
+      latitude: grupo.reduce((soma, g) => soma + g.latitude, 0) / grupo.length,
+      longitude:
+        grupo.reduce((soma, g) => soma + g.longitude, 0) / grupo.length,
+    };
+    const maisPerto = (alvo: typeof centro) =>
+      grupo.reduce((melhor, g) =>
+        distancia2(g, alvo) < distancia2(melhor, alvo) ? g : melhor,
+      );
+
+    let escolhidas: DemandaDaRegiao[];
+
+    if (grupo.length < CELULAS_PARA_DOIS_ICONES) {
+      escolhidas = [maisPerto(centro)];
+    } else {
+      // dois ícones afastados entre si: a ponta mais longe do centro e a ponta
+      // mais longe dela
+      const a = grupo.reduce((melhor, g) =>
+        distancia2(g, centro) > distancia2(melhor, centro) ? g : melhor,
+      );
+      const b = grupo.reduce((melhor, g) =>
+        distancia2(g, a) > distancia2(melhor, a) ? g : melhor,
+      );
+
+      escolhidas = [a, b];
+    }
+
+    for (const g of escolhidas) {
+      icones.push({
+        celula: g.celula,
+        latitude: g.latitude,
+        longitude: g.longitude,
+        nivel,
+      });
+    }
+  }
+
+  return icones;
+}
+
+/** Cor da mancha de demanda, sem borda: do amarelo-claro ao laranja forte. */
+export function corDaDemanda(demanda: number): string {
+  const d = Math.min(Math.max(demanda, 0), 1);
+  const [r, g, b] = [255, entre(214, 120, d), 0];
+
+  return `rgba(${r},${g},${b},${(0.2 + 0.45 * d).toFixed(2)})`;
+}
+
 // ---- demonstração (simulador): a mesma grade, sem o servidor
 
 const arredondar = (q: number, r: number): [number, number] => {
@@ -140,8 +286,9 @@ const formatar = (valor: number, casas: number) =>
   valor.toFixed(casas).replace(".", ",");
 
 /**
- * Mapa quente de mentira em volta de um ponto: o hexágono do centro no teto e
- * os vizinhos esfriando, para ver as cores e os rótulos sem o servidor.
+ * Mapa quente de mentira em volta de um ponto, como nos apps de referência: a
+ * demanda cobre uma área bem maior, com falhas, e só as células mais quentes
+ * têm tarifa (nem todo lugar com procura tem preço dinâmico).
  */
 export function mapaDeDemonstracao(
   centro: Ponto,
@@ -150,36 +297,60 @@ export function mapaDeDemonstracao(
 ): MapaDinamico {
   const [q0, r0] = celulaDe(centro, raioMetros);
   const regioes: RegiaoDinamica[] = [];
+  const demandas: DemandaDaRegiao[] = [];
+  const ALCANCE = 4;
 
-  for (let dq = -2; dq <= 2; dq += 1) {
-    for (let dr = -2; dr <= 2; dr += 1) {
+  // ruído fixo por célula: o desenho não muda a cada vez que o mapa é montado
+  const ruido = (dq: number, dr: number) => {
+    const x = Math.sin(dq * 12.9898 + dr * 78.233) * 43758.5453;
+
+    return x - Math.floor(x);
+  };
+
+  for (let dq = -ALCANCE; dq <= ALCANCE; dq += 1) {
+    for (let dr = -ALCANCE; dr <= ALCANCE; dr += 1) {
       const distancia = Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr));
-      if (distancia > 2) continue;
-      // no anel de fora, pula alguns para a mancha parecer orgânica
-      if (distancia === 2 && (dq * 3 + dr * 5) % 3 === 0) continue;
+      if (distancia > ALCANCE) continue;
 
-      const intensidade = distancia === 0 ? 1 : distancia === 1 ? 0.62 : 0.22;
-      const variacao = ((dq * 7 + dr * 11) % 5) * 0.03;
-      const i = Math.min(Math.max(intensidade - variacao, 0.05), 1);
-      const multiplicador = Math.round((1.1 + i * 1.4) * 10) / 10;
-      const valor = Math.max(Math.round(i * 9 * 4) / 4, 0.5);
+      const ehCentro = distancia === 0;
+      const bruta = 1 - distancia * 0.2 + (ruido(dq, dr) - 0.5) * 0.6;
+      // fraca demais: a célula fica de fora, deixando falhas na mancha
+      if (!ehCentro && bruta < 0.18) continue;
+
+      const demanda = ehCentro
+        ? 1
+        : Math.min(Math.round(bruta * 100) / 100, 0.95);
       const posicao = centroDaCelula(q0 + dq, r0 + dr, raioMetros);
+      const celula = `${q0 + dq}:${r0 + dr}`;
+
+      demandas.push({ celula, ...posicao, demanda });
+
+      // nem toda procura tem tarifa: parte das células com demanda entra, de
+      // qualquer força (a dinâmica começa em 1,1x)
+      if (!ehCentro && (demanda < 0.2 || ruido(dq + 7, dr - 3) < 0.6)) continue;
+
+      // 1,1x na demanda mais fraca até 2,5x no teto
+      const multiplicador =
+        Math.round((1.1 + Math.max(demanda - 0.3, 0) * 2) * 10) / 10;
+      const valor = Math.max(Math.round(demanda * 9 * 4) / 4, 0.5);
 
       regioes.push({
         id: -(regioes.length + 1),
-        celula: `${q0 + dq}:${r0 + dr}`,
+        celula,
         ...posicao,
         multiplicador,
         valor_adicional: valor,
-        intensidade: Math.round(i * 100) / 100,
+        // cor da borda pelo multiplicador: de 1,1x (amarelo) a 2,5x (vermelho)
+        intensidade: Math.round(((multiplicador - 1.1) / 1.4) * 100) / 100,
         rotulo:
           modo === "multiplicador"
             ? `${formatar(multiplicador, 1)}x`
             : `+R$${formatar(valor, 2)}`,
         manual: false,
+        demanda,
       });
     }
   }
 
-  return { ativa: true, modo, raio_metros: raioMetros, regioes };
+  return { ativa: true, modo, raio_metros: raioMetros, regioes, demandas };
 }

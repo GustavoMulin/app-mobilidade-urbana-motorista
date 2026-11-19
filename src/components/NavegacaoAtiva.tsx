@@ -9,12 +9,14 @@ import { extrasDaCorrida, useEstilos, useTema } from "@/theme/tema";
 // - Voz guiando as manobras (precisa de TTS + lógica de quando anunciar).
 // Paradas: em viagem o alvo é a próxima parada pendente e o botão vira
 // "Confirmar parada" (POST confirmar-parada) até sobrar só o destino.
-import BotaoChatPassageiro from "@/components/BotaoChatPassageiro";
+import BotaoContatoPassageiro from "@/components/BotaoContatoPassageiro";
 import BotaoDeslizar from "@/components/BotaoDeslizar";
 import ListaParadasDoGrupo from "@/components/ListaParadasDoGrupo";
 import MaisCorridaAtiva from "@/components/MaisCorridaAtiva";
-import { enderecoCurto } from "@/domain/endereco";
+import MarcadorMinhaLocalizacao from "@/components/MarcadorMinhaLocalizacao";
+import { enderecoSemCidade } from "@/domain/endereco";
 import { Text } from "@/components/common/Texto";
+import AbrindoParaBaixo from "@/components/AbrindoParaBaixo";
 import BaloesDaChegada from "@/components/BaloesDaChegada";
 import BottomSheet, { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 // CODEX: 391 linhas adicionadas e 157 removidas no diff atual; aceita posição e rota fixas do simulador. Remover após validação/commit.
@@ -97,6 +99,8 @@ interface Props {
   // conversa com o passageiro (ChatDaCorrida, aberto pela home)
   chatNaoLidas?: number;
   onAbrirChat?: () => void;
+  // toque na foto ou avatar do passageiro: abre o perfil público dele
+  onAbrirPerfilPassageiro?: () => void;
   // quanto o cartão do topo ocupa abaixo da área segura (os avisos do chat
   // aparecem logo embaixo dele, sem cobrir a manobra)
   onAlturaDoTopo?: (altura: number) => void;
@@ -106,6 +110,9 @@ interface Props {
   mensagensRapidas?: string[];
   onEnviarMensagem?: (texto: string) => Promise<boolean>;
 }
+
+// desfoque da foto do passageiro enquanto o motorista ainda vai ao embarque
+const BLUR_DA_FOTO = 40;
 
 interface Passo {
   acao: AcaoCorrida;
@@ -131,7 +138,7 @@ function passoDaNavegacao(
         totalParadas > 1
           ? `Confirmar parada ${atual} de ${totalParadas}`
           : "Confirmar parada",
-      cor: "#FFCB2F",
+      cor: "#FFD600",
       corTexto: "#111111",
     };
   }
@@ -139,7 +146,7 @@ function passoDaNavegacao(
   return {
     acao: "finalizar",
     rotulo: "Finalizar corrida",
-    cor: "#FFCB2F",
+    cor: "#FFD600",
     corTexto: "#111111",
   };
 }
@@ -231,6 +238,7 @@ export default function NavegacaoAtiva({
   onCancelar,
   chatNaoLidas = 0,
   onAbrirChat,
+  onAbrirPerfilPassageiro,
   onAlturaDoTopo,
   paradasDoGrupo = null,
   mensagensEnviadas = [],
@@ -336,6 +344,9 @@ export default function NavegacaoAtiva({
     [alturaMensagens],
   );
   const comMensagemACaminho = status === "aceita" && !!onEnviarMensagem;
+  // velocímetro e "compartilhe" só aparecem depois das mensagens rápidas
+  const [mensagemPendente, setMensagemPendente] = useState(true);
+  const esperandoMensagem = comMensagemACaminho && mensagemPendente;
   useEffect(() => {
     if (!comMensagemACaminho) alturaMensagens.set(0);
   }, [comMensagemACaminho, alturaMensagens]);
@@ -357,7 +368,7 @@ export default function NavegacaoAtiva({
   const estiloConteudo = useAnimatedStyle(() => ({
     opacity: interpolate(indiceAnimado.value, [0, 1], [0, 1], "clamp"),
   }));
-  const [navegando, setNavegando] = useState(false);
+  const [navegando, setNavegando] = useState(true);
   const [maisVisivel, setMaisVisivel] = useState(false);
   const [segurancaVisivel, setSegurancaVisivel] = useState(false);
 
@@ -371,6 +382,9 @@ export default function NavegacaoAtiva({
     posicao,
     rotaSimulada,
   );
+  // o endereço do cartão de trajeto só abre depois das mensagens rápidas (se há
+  // a manobra em cima; sem ela o cartão ficaria vazio)
+  const escondeParteDeBaixo = esperandoMensagem && navegando && !!passoAtual;
 
   const centralizarNavegacao = useCallback(
     (centro: Coordenada, direcao: number, duracao: number) => {
@@ -701,18 +715,12 @@ export default function NavegacaoAtiva({
             </View>
           </Marker>
         )}
+        {/* o mesmo marcador de localização do mapa da home */}
         {posicao && (
-          <Marker
-            coordinate={posicao}
-            anchor={{ x: 0.5, y: 0.5 }}
-            flat
-            rotation={ultimoHeading.current}
-            tracksViewChanges={false}
-          >
-            <View style={styles.marcadorMotoristaSimulado}>
-              <Ionicons name="navigate" size={17} color="#FFFFFF" />
-            </View>
-          </Marker>
+          <MarcadorMinhaLocalizacao
+            coordenada={posicao}
+            rumo={ultimoHeading.current}
+          />
         )}
       </MapView>
 
@@ -754,35 +762,36 @@ export default function NavegacaoAtiva({
                   </Text>
                 </View>
               </TouchableOpacity>
-              <View style={styles.cartaoDivisor} />
             </>
           )}
 
-          <TouchableOpacity
-            style={styles.alvoLinha}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={
-              navegando ? "Ocultar navegação" : "Iniciar navegação"
-            }
-            onPress={() => setNavegando((atual) => !atual)}
-          >
-            <View style={[styles.pontoCor, { backgroundColor: corDoAlvo }]} />
-            <Text numberOfLines={1} style={styles.alvoTexto}>
-              {tipoAlvo === "parada" && (
-                <Text style={styles.alvoRotulo}>Parada · </Text>
-              )}
-              {enderecoAlvo
-                ? enderecoCurto(enderecoAlvo)
-                : "Carregando endereço..."}
-            </Text>
-            {!navegando && (
-              <View style={styles.irBotao}>
-                <Ionicons name="navigate" size={14} color="#111" />
-                <Text style={styles.irTexto}>Ir</Text>
-              </View>
-            )}
-          </TouchableOpacity>
+          {/* a parte de baixo abre depois das mensagens rápidas */}
+          <AbrindoParaBaixo aberto={!escondeParteDeBaixo}>
+            {navegando && passoAtual && <View style={styles.cartaoDivisor} />}
+            <View>
+              <TouchableOpacity
+                style={styles.alvoLinha}
+                activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  navegando ? "Ocultar navegação" : "Iniciar navegação"
+                }
+                onPress={() => setNavegando((atual) => !atual)}
+              >
+                <View
+                  style={[styles.pontoCor, { backgroundColor: passo.cor }]}
+                />
+                <Text numberOfLines={1} style={styles.alvoTexto}>
+                  {tipoAlvo === "parada" && (
+                    <Text style={styles.alvoRotulo}>Parada · </Text>
+                  )}
+                  {enderecoAlvo
+                    ? enderecoSemCidade(enderecoAlvo)
+                    : "Carregando endereço..."}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </AbrindoParaBaixo>
         </View>
         {demorando && (
           <View style={styles.avisoMapa} accessibilityRole="alert">
@@ -813,34 +822,38 @@ export default function NavegacaoAtiva({
       </View>
 
       {/* velocímetro */}
-      <Animated.View style={[styles.velocidade, estiloVelocidade]}>
-        <Text style={styles.velocidadeValor}>
-          {velocidadeKmh !== null ? Math.round(velocidadeKmh) : "--"}
-        </Text>
-        <Text style={styles.velocidadeUnidade}>km/h</Text>
-      </Animated.View>
+      {!esperandoMensagem && (
+        <Animated.View style={[styles.velocidade, estiloVelocidade]}>
+          <Text style={styles.velocidadeValor}>
+            {velocidadeKmh !== null ? Math.round(velocidadeKmh) : "--"}
+          </Text>
+          <Text style={styles.velocidadeUnidade}>km/h</Text>
+        </Animated.View>
+      )}
 
       {/* segurança + compartilhar, na pílula do 99 */}
-      <Animated.View style={[styles.pilulaCompartilhar, estiloPilula]}>
-        <TouchableOpacity
-          style={styles.pilulaSeguranca}
-          accessibilityRole="button"
-          accessibilityLabel="Segurança"
-          onPress={() => setSegurancaVisivel(true)}
-        >
-          <Ionicons name="shield-checkmark" size={24} color="#2F6BFF" />
-          <Text style={styles.pilulaCompartilharTexto}>
-            Compartilhe com{"\n"}amigos e família
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.botaoCompartilhar}
-          accessibilityRole="button"
-          onPress={compartilhar}
-        >
-          <Text style={styles.botaoCompartilharTexto}>Compartilhar</Text>
-        </TouchableOpacity>
-      </Animated.View>
+      {!esperandoMensagem && (
+        <Animated.View style={[styles.pilulaCompartilhar, estiloPilula]}>
+          <TouchableOpacity
+            style={styles.pilulaSeguranca}
+            accessibilityRole="button"
+            accessibilityLabel="Segurança"
+            onPress={() => setSegurancaVisivel(true)}
+          >
+            <Ionicons name="shield-checkmark" size={24} color="#2F6BFF" />
+            <Text style={styles.pilulaCompartilharTexto}>
+              Compartilhe com{"\n"}amigos e família
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.botaoCompartilhar}
+            accessibilityRole="button"
+            onPress={compartilhar}
+          >
+            <Text style={styles.botaoCompartilharTexto}>Compartilhar</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {comMensagemACaminho ? (
         <Animated.View
@@ -852,6 +865,8 @@ export default function NavegacaoAtiva({
             mensagens={mensagensRapidas}
             onEnviar={onEnviarMensagem}
             onAlturaChange={aoMudarAlturaMensagens}
+            corDaBarra={passo.cor}
+            onPendenteChange={setMensagemPendente}
           />
         </Animated.View>
       ) : null}
@@ -910,22 +925,37 @@ export default function NavegacaoAtiva({
             <View style={styles.separador} />
 
             <View style={styles.linhaPassageiro}>
-              {passageiro?.foto && !passageiro.foto_oculta ? (
-                <Image
-                  source={{ uri: passageiro.foto }}
-                  style={styles.avatar}
-                />
-              ) : (
-                <View
-                  style={[
-                    styles.avatar,
-                    styles.avatarVazio,
-                    passageiro?.foto_oculta && styles.avatarProtegido,
-                  ]}
-                >
-                  <Feather name="user" size={20} color="#888" />
-                </View>
-              )}
+              {/* o perfil do passageiro só abre depois do embarque */}
+              <TouchableOpacity
+                activeOpacity={0.8}
+                disabled={!onAbrirPerfilPassageiro || status === "aceita"}
+                accessibilityRole="button"
+                accessibilityLabel="Ver o perfil do passageiro"
+                onPress={onAbrirPerfilPassageiro}
+              >
+                {passageiro?.foto && !passageiro.foto_oculta ? (
+                  <Image
+                    source={{ uri: passageiro.foto }}
+                    style={styles.avatar}
+                    // a foto fica censurada até o motorista chegar ao embarque; o avatar não
+                    blurRadius={
+                      status === "aceita" && !passageiro.foto_e_avatar
+                        ? BLUR_DA_FOTO
+                        : 0
+                    }
+                  />
+                ) : (
+                  <View
+                    style={[
+                      styles.avatar,
+                      styles.avatarVazio,
+                      passageiro?.foto_oculta && styles.avatarProtegido,
+                    ]}
+                  >
+                    <Feather name="user" size={24} color="#888" />
+                  </View>
+                )}
+              </TouchableOpacity>
 
               <View style={styles.passageiroBloco}>
                 <Text style={styles.passageiroNome}>
@@ -943,23 +973,12 @@ export default function NavegacaoAtiva({
                 </Text>
               </View>
 
-              {onAbrirChat ? (
-                <BotaoChatPassageiro
-                  naoLidas={chatNaoLidas}
-                  onPress={onAbrirChat}
-                  estilo={styles.botaoLigar}
-                />
-              ) : null}
-              {passageiro?.telefone ? (
-                <TouchableOpacity
-                  style={styles.botaoLigar}
-                  onPress={ligar}
-                  accessibilityRole="button"
-                  accessibilityLabel="Ligar para o passageiro"
-                >
-                  <Feather name="phone" size={20} color={tema.cores.icone} />
-                </TouchableOpacity>
-              ) : null}
+              <BotaoContatoPassageiro
+                naoLidas={chatNaoLidas}
+                onChat={onAbrirChat}
+                onLigar={passageiro?.telefone ? ligar : undefined}
+                estilo={styles.botaoLigar}
+              />
             </View>
 
             <BotaoDeslizar
@@ -1106,8 +1125,8 @@ const estilosBase = StyleSheet.create({
     paddingVertical: 14,
   },
   bannerTextos: { flex: 1 },
-  bannerDistancia: { color: "#FFF", fontSize: 32, fontWeight: "800" },
-  bannerRua: { color: "#FFF", fontSize: 18, fontWeight: "500", marginTop: 2 },
+  bannerDistancia: { color: "#FFF", fontSize: 36, fontWeight: "800" },
+  bannerRua: { color: "#FFF", fontSize: 21, fontWeight: "500", marginTop: 2 },
   cartaoDivisor: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: "rgba(255,255,255,0.25)",
@@ -1116,20 +1135,10 @@ const estilosBase = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    minHeight: 50,
+    minHeight: 56,
   },
-  alvoTexto: { flex: 1, color: "#FFF", fontSize: 15, fontWeight: "500" },
+  alvoTexto: { flex: 1, color: "#FFF", fontSize: 18, fontWeight: "500" },
   alvoRotulo: { color: "#FFB27A", fontWeight: "700" },
-  irBotao: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderRadius: 14,
-    backgroundColor: "#FFD600",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  irTexto: { color: "#111", fontSize: 14, fontWeight: "700" },
   pontoCor: { width: 9, height: 9, borderRadius: 5 },
   // mesmos ícones da tela Mais: embarque ↑ verde-água, parada/destino ↓ laranja
   marcadorAlvo: {
@@ -1141,17 +1150,6 @@ const estilosBase = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     elevation: 4,
-  },
-  marcadorMotoristaSimulado: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563EB",
-    elevation: 5,
   },
   avisoLimiteChegada: {
     minHeight: 36,
@@ -1323,7 +1321,7 @@ const estilosBase = StyleSheet.create({
   },
   separador: { height: 1, backgroundColor: "#EEE" },
   linhaPassageiro: { flexDirection: "row", alignItems: "center", gap: 12 },
-  avatar: { width: 42, height: 42, borderRadius: 21 },
+  avatar: { width: 47, height: 47, borderRadius: 23.5 },
   avatarVazio: {
     backgroundColor: "#F0F0F0",
     alignItems: "center",
@@ -1331,12 +1329,12 @@ const estilosBase = StyleSheet.create({
   },
   avatarProtegido: { opacity: 0.55, backgroundColor: "#D8D8D8" },
   passageiroBloco: { flex: 1, minWidth: 0 },
-  passageiroNome: { fontSize: 16, fontWeight: "600", color: "#000" },
-  passageiroApoio: { fontSize: 13, color: "#777", marginTop: 2 },
+  passageiroNome: { fontSize: 22, fontWeight: "600", color: "#000" },
+  passageiroApoio: { fontSize: 16, color: "#777", marginTop: 2 },
   botaoLigar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 47,
+    height: 47,
+    borderRadius: 23.5,
     backgroundColor: "#F3F3F3",
     alignItems: "center",
     justifyContent: "center",

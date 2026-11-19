@@ -24,15 +24,27 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // carregado só quando usado: a câmera nativa não existe no Expo Go
 const DetectorDeGesto = lazy(() => import("./DetectorDeGesto"));
 
+const emReaisCurto = (valor: number) =>
+  `R$${valor.toFixed(2).replace(".", ",")}`;
+
+// "x2,0": quantas vezes o preço dinâmico multiplica a tarifa da região
+const textoDoMultiplicador = (multiplicador: number) =>
+  `x${multiplicador.toFixed(1).replace(".", ",")}`;
+
 interface RecebendoChamadaProps {
   onAceitar: () => void;
   onRecusar: () => void;
   // se o tempo acabar sem resposta; sem isso o fim do tempo conta como recusa
   onExpirar?: () => void;
+  // quanto a chamada ainda toca para este motorista (a fila do servidor define);
+  // sem isso valem os 20 s de sempre
+  duracaoMs?: number;
   // Negocia: aceitar é mandar proposta pela oferta (sem valor) ou por outro valor
   negociavel?: boolean;
   onPropor?: (valorMotorista?: number) => void;
   valor?: number;
+  // preço dinâmico embutido no valor: aparece como chip quando a chamada é dinâmica
+  dinamico?: { multiplicador: number | null; valor: number } | null;
   distanciaAteOrigem?: number;
   distanciaDaCorrida?: number;
   origem?: string;
@@ -95,9 +107,11 @@ export default function RecebendoChamadas({
   onAceitar,
   onRecusar,
   onExpirar,
+  duracaoMs,
   negociavel = false,
   onPropor,
   valor = 8.2,
+  dinamico = null,
   distanciaAteOrigem,
   distanciaDaCorrida,
   origem,
@@ -124,6 +138,11 @@ export default function RecebendoChamadas({
     onExpirarRef.current = onExpirar ?? onRecusar;
   }, [onExpirar, onRecusar]);
   const [progress] = useState(() => new Animated.Value(1));
+  // vale o tempo de quando a chamada apareceu: as consultas seguintes não
+  // reiniciam a barra nem o toque
+  const [duracao] = useState(() =>
+    duracaoMs && duracaoMs > 0 ? duracaoMs : DURACAO_OFERTA_MS,
+  );
   const closedRef = useRef(false); // evita múltiplas chamadas de fechamento
 
   useEffect(() => {
@@ -136,7 +155,7 @@ export default function RecebendoChamadas({
     // anima barra
     const animacao = Animated.timing(progress, {
       toValue: 0,
-      duration: DURACAO_OFERTA_MS,
+      duration: duracao,
       easing: Easing.linear,
       useNativeDriver: false,
     });
@@ -168,7 +187,7 @@ export default function RecebendoChamadas({
       try {
         onExpirarRef.current();
       } catch {}
-    }, DURACAO_OFERTA_MS);
+    }, duracao);
 
     // cleanup do effect
     return () => {
@@ -179,7 +198,7 @@ export default function RecebendoChamadas({
       silenciar(player); // para e descarrega o player
       if (playerRef.current === player) playerRef.current = null;
     };
-  }, [progress]);
+  }, [progress, duracao]);
 
   const pararSom = () => {
     silenciar(playerRef.current);
@@ -296,6 +315,22 @@ export default function RecebendoChamadas({
                   {compartilhada.bonus_percentual > 0
                     ? ` · +${compartilhada.bonus_percentual}% bônus`
                     : ""}
+                </Text>
+              </View>
+            ) : null}
+            {dinamico?.multiplicador ? (
+              <View style={styles.chipDinamico}>
+                <Ionicons name="flash" size={15} color="#FFC400" />
+                <Text style={styles.chipDinamicoTexto}>
+                  {textoDoMultiplicador(dinamico.multiplicador)}
+                </Text>
+              </View>
+            ) : null}
+            {dinamico ? (
+              <View style={styles.chipDinamico}>
+                <Ionicons name="cash" size={15} color="#FFC400" />
+                <Text style={styles.chipDinamicoTexto}>
+                  {`${emReaisCurto(dinamico.valor)} incluídos`}
                 </Text>
               </View>
             ) : null}
@@ -546,6 +581,17 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   chipPagamentoTexto: { color: "#F5C542", fontSize: 14, fontWeight: "600" },
+  chipDinamico: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(255,196,0,0.16)",
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    marginTop: 8,
+  },
+  chipDinamicoTexto: { color: "#FFC400", fontSize: 14, fontWeight: "700" },
   chipsLinha: {
     flexDirection: "row",
     flexWrap: "wrap",
